@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoonMovie.Controls.AmbientBackdrop"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsHitTestVisible="False"
+    IsTabStop="False">
+
+    <Grid x:Name="Root" Background="{StaticResource MoonCanvasBrush}">
+        <!-- Artwork: two layers cross-fade; the incoming one always sits on top. -->
+        <Grid x:Name="ArtLayer">
+            <Image x:Name="LayerA" Opacity="0" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" />
+            <Image x:Name="LayerB" Opacity="0" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" />
+        </Grid>
+
+        <!-- Colour wash taken from the artwork, rising from the bottom-left. -->
+        <Rectangle x:Name="ToneWash" Opacity="0.9">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,1" EndPoint="0.55,0.35">
+                    <GradientStop x:Name="ToneStopStrong" Offset="0" Color="#00000000" />
+                    <GradientStop x:Name="ToneStopClear" Offset="1" Color="#00000000" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- Legibility scrims: copy lives on the left, rows live at the bottom. -->
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Offset="0" Color="#E60C0D10" />
+                    <GradientStop Offset="0.28" Color="#A60C0D10" />
+                    <GradientStop Offset="0.55" Color="#330C0D10" />
+                    <GradientStop Offset="0.8" Color="#000C0D10" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#660C0D10" />
+                    <GradientStop Offset="0.18" Color="#000C0D10" />
+                    <GradientStop Offset="0.5" Color="#000C0D10" />
+                    <GradientStop Offset="0.78" Color="#B30C0D10" />
+                    <GradientStop Offset="1" Color="#FF0C0D10" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+    </Grid>
+</UserControl>

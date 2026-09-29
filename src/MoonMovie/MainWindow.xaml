@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MoonMovie.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="MoonMovie">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt" />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="Root" Background="{StaticResource MoonCanvasBrush}">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="K" Invoked="OnSearchAccelerator" Modifiers="Control" />
+            <KeyboardAccelerator Key="Left" Invoked="OnBackAccelerator" Modifiers="Menu" />
+            <KeyboardAccelerator Key="Escape" Invoked="OnBackAccelerator" />
+        </Grid.KeyboardAccelerators>
+
+        <Frame x:Name="ContentFrame" FontFamily="{StaticResource MoonFontRegular}" Navigated="OnNavigated" />
+
+        <!-- Keeps the title bar legible over bright artwork without a visible bar. -->
+        <Rectangle Height="120" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#B30C0D10" />
+                    <GradientStop Offset="1" Color="#000C0D10" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <Grid x:Name="AppTitleBar" Height="56" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="48" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="RightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="BackButton"
+                Grid.Column="1"
+                Margin="12,0,0,0"
+                AutomationProperties.Name="返回"
+                Click="OnBackClick"
+                Style="{StaticResource MoonTitleBarButtonStyle}"
+                ToolTipService.ToolTip="返回 (Esc)"
+                Visibility="Collapsed">
+                <FontIcon FontSize="14" Glyph="&#xE72B;" />
+            </Button>
+
+            <!-- Wordmark -->
+            <StackPanel
+                Grid.Column="2"
+                Margin="24,0,28,0"
+                VerticalAlignment="Center"
+                IsHitTestVisible="False"
+                Orientation="Horizontal"
+                Spacing="10">
+                <Path
+                    Width="18"
+                    Height="18"
+                    VerticalAlignment="Center"
+                    Data="M 11,1 A 9,9 0 1 0 20,12.2 A 7.2,7.2 0 1 1 11,1 Z"
+                    Fill="{StaticResource MoonTextPrimaryBrush}"
+                    Stretch="Uniform" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    CharacterSpacing="20"
+                    FontFamily="{StaticResource MoonFontBold}"
+                    FontSize="16"
+                    Foreground="{StaticResource MoonTextPrimaryBrush}"
+                    Text="MoonMovie" />
+            </StackPanel>
+
+            <SelectorBar
+                x:Name="Nav"
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                FontFamily="{StaticResource MoonFontRegular}"
+                SelectionChanged="OnNavSelectionChanged">
+                <SelectorBarItem Tag="home" Text="首页" IsSelected="True" />
+                <SelectorBarItem Tag="movie" Text="电影" />
+                <SelectorBarItem Tag="tv" Text="剧集" />
+                <SelectorBarItem Tag="anime" Text="动漫" />
+                <SelectorBarItem Tag="bili" Text="B站" />
+                <SelectorBarItem Tag="library" Text="媒体库" />
+            </SelectorBar>
+
+            <AutoSuggestBox
+                x:Name="SearchBox"
+                Grid.Column="5"
+                Width="300"
+                Margin="0,0,12,0"
+                VerticalAlignment="Center"
+                FontFamily="{StaticResource MoonFontRegular}"
+                PlaceholderText="搜索电影、剧集、人物"
+                QueryIcon="Find" />
+
+            <StackPanel
+                x:Name="Actions"
+                Grid.Column="6"
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="4">
+                <Button
+                    AutomationProperties.Name="观看历史"
+                    Style="{StaticResource MoonTitleBarButtonStyle}"
+                    ToolTipService.ToolTip="观看历史">
+                    <FontIcon FontSize="15" Glyph="&#xE81C;" />
+                </Button>
+                <Button
+                    Width="36"
+                    Height="36"
+                    Padding="0"
+                    AutomationProperties.Name="档案"
+                    Style="{StaticResource MoonTitleBarButtonStyle}"
+                    ToolTipService.ToolTip="档案">
+                    <PersonPicture Width="28" Height="28" Initials="M" />
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

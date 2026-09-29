@@ -1,0 +1,118 @@
+﻿<ResourceDictionary
+    x:Class="MoonMovie.Themes.CardTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:motion="using:MoonMovie.Animations"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
+    xmlns:vm="using:MoonMovie.ViewModels">
+
+    <!-- Row: portrait poster, fixed width. -->
+    <DataTemplate x:Key="PosterCardTemplate" x:DataType="vm:MediaCardViewModel">
+        <Button
+            Width="172"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+            motion:CardMotion.IsEnabled="True">
+            <StackPanel>
+                <Grid Height="258" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="172" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <!-- Row: wide still with the title set into the image. -->
+    <DataTemplate x:Key="LandscapeCardTemplate" x:DataType="vm:MediaCardViewModel">
+        <Button
+            Width="356"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+            motion:CardMotion.IsEnabled="True">
+            <Grid Height="200" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                <Image imaging:ImageEx.DecodeWidth="356" imaging:ImageEx.Url="{x:Bind BackdropUrl}" Stretch="UniformToFill" />
+                <Rectangle>
+                    <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Offset="0.35" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#D9000000" />
+                        </LinearGradientBrush>
+                    </Rectangle.Fill>
+                </Rectangle>
+                <StackPanel Margin="16,0,16,14" VerticalAlignment="Bottom">
+                    <TextBlock
+                        FontFamily="{StaticResource MoonFontBold}"
+                        FontSize="17"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        Text="{x:Bind Title}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock Margin="0,4,0,0" Style="{StaticResource MoonCardMetaStyle}" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind Subtitle}" />
+                </StackPanel>
+                <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+            </Grid>
+        </Button>
+    </DataTemplate>
+
+    <!-- Discover wall: fills the column; the aspect ratio sets the height. -->
+    <DataTemplate x:Key="WallPosterTemplate" x:DataType="vm:MediaCardViewModel">
+        <Button
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+            motion:CardMotion.IsEnabled="True">
+            <StackPanel>
+                <tk:ConstrainedBox AspectRatio="2:3">
+                    <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                        <Image imaging:ImageEx.DecodeWidth="260" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
+                        <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                    </Grid>
+                </tk:ConstrainedBox>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <DataTemplate x:Key="WallLandscapeTemplate" x:DataType="vm:MediaCardViewModel">
+        <Button
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+            motion:CardMotion.IsEnabled="True">
+            <tk:ConstrainedBox AspectRatio="16:10">
+                <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="420" imaging:ImageEx.Url="{x:Bind BackdropUrl}" Stretch="UniformToFill" />
+                    <Rectangle>
+                        <Rectangle.Fill>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Offset="0.4" Color="#00000000" />
+                                <GradientStop Offset="1" Color="#E6000000" />
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                    <StackPanel Margin="18,0,18,18" VerticalAlignment="Bottom">
+                        <TextBlock
+                            FontFamily="{StaticResource MoonFontBold}"
+                            FontSize="18"
+                            Foreground="{StaticResource MoonTextPrimaryBrush}"
+                            MaxLines="2"
+                            Text="{x:Bind Title}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock Margin="0,6,0,0" Style="{StaticResource MoonCardMetaStyle}" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind Subtitle}" />
+                    </StackPanel>
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+            </tk:ConstrainedBox>
+        </Button>
+    </DataTemplate>
+</ResourceDictionary>

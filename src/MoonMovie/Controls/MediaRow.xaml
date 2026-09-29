@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoonMovie.Controls.MediaRow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsTabStop="False">
+
+    <Grid PointerEntered="OnPointerEntered" PointerExited="OnPointerExited">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Margin="{StaticResource MoonGutter}"
+            Style="{StaticResource MoonSectionTitleStyle}"
+            Text="{x:Bind Title, Mode=OneWay}" />
+
+        <!-- Vertical padding inside the scroller leaves room for the hover lift. -->
+        <ScrollViewer
+            x:Name="Scroller"
+            Grid.Row="1"
+            HorizontalScrollBarVisibility="Hidden"
+            HorizontalScrollMode="Enabled"
+            IsVerticalScrollChainingEnabled="True"
+            VerticalScrollBarVisibility="Disabled"
+            VerticalScrollMode="Disabled"
+            ViewChanged="OnViewChanged">
+            <ItemsRepeater
+                x:Name="Repeater"
+                Margin="56,12,56,14"
+                ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+                XYFocusKeyboardNavigation="Enabled">
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="16" />
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </ScrollViewer>
+
+        <Button
+            x:Name="PrevButton"
+            Grid.Row="1"
+            Margin="12,0,0,40"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            AutomationProperties.Name="向左翻页"
+            Click="OnPrev"
+            Opacity="0"
+            Style="{StaticResource MoonRowPagerButtonStyle}"
+            Visibility="Collapsed">
+            <FontIcon FontSize="14" Glyph="&#xE76B;" />
+        </Button>
+        <Button
+            x:Name="NextButton"
+            Grid.Row="1"
+            Margin="0,0,12,40"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            AutomationProperties.Name="向右翻页"
+            Click="OnNext"
+            Opacity="0"
+            Style="{StaticResource MoonRowPagerButtonStyle}"
+            Visibility="Collapsed">
+            <FontIcon FontSize="14" Glyph="&#xE76C;" />
+        </Button>
+    </Grid>
+</UserControl>

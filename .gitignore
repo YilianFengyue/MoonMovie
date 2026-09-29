@@ -1,0 +1,14 @@
+# Build
+bin/
+obj/
+.vs/
+*.user
+AppPackages/
+BundleArtifacts/
+
+# Secrets & local data
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm

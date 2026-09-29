@@ -20,6 +20,7 @@ public sealed class TmdbClient
 {
     private static readonly TimeSpan ListTtl = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan ImagesTtl = TimeSpan.FromDays(7);
+    private static readonly TimeSpan DetailTtl = TimeSpan.FromHours(24);
 
     private readonly HttpClient _http;
     private readonly TmdbOptions _options;
@@ -65,6 +66,38 @@ public sealed class TmdbClient
     public Task<IReadOnlyList<MediaItem>> DiscoverAsync(MediaKind kind, IReadOnlyDictionary<string, string> filters,
         int page = 1, CacheMode mode = CacheMode.Default, CancellationToken ct = default) =>
         ListAsync($"discover/{Segment(kind)}", filters, page, kind, mode, ct);
+
+    /// <summary>Full detail with credits, recommendations and logos in a single request.</summary>
+    public async Task<MediaDetail?> DetailAsync(MediaKind kind, int id, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string>
+        {
+            ["append_to_response"] = kind == MediaKind.Movie
+                ? "credits,recommendations,images"
+                : "aggregate_credits,recommendations,images",
+            ["include_image_language"] = "zh,en,null",
+        };
+
+        var dto = await GetAsync($"{Segment(kind)}/{id}", query, TmdbDetailJsonContext.Default.TmdbDetailsDto,
+            DetailTtl, CacheMode.StaleWhileRevalidate, includeLanguage: true, ct).ConfigureAwait(false);
+        return dto is null ? null : MediaDetail.FromDto(dto, kind);
+    }
+
+    public async Task<IReadOnlyList<EpisodeInfo>> SeasonAsync(int tvId, int season, CancellationToken ct = default)
+    {
+        var dto = await GetAsync($"tv/{tvId}/season/{season}", [], TmdbDetailJsonContext.Default.TmdbSeasonDto,
+            DetailTtl, CacheMode.StaleWhileRevalidate, includeLanguage: true, ct).ConfigureAwait(false);
+
+        return (dto?.Episodes ?? [])
+            .Select(e => new EpisodeInfo(
+                e.EpisodeNumber,
+                string.IsNullOrWhiteSpace(e.Name) ? $"第 {e.EpisodeNumber} 集" : e.Name!.Trim(),
+                string.IsNullOrWhiteSpace(e.Overview) ? null : e.Overview!.Trim(),
+                e.StillPath,
+                e.Runtime,
+                e.AirDate))
+            .ToArray();
+    }
 
     /// <summary>Best transparent title logo (zh, then en), or null.</summary>
     public async Task<string?> LogoPathAsync(MediaKind kind, int id, CancellationToken ct = default)

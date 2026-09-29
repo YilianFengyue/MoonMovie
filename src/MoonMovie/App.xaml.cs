@@ -4,6 +4,8 @@ using Microsoft.UI.Xaml;
 using MoonMovie.Core.Caching;
 using MoonMovie.Core.Configuration;
 using MoonMovie.Core.Home;
+using MoonMovie.Core.Library;
+using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Imaging;
 using MoonMovie.ViewModels;
@@ -62,6 +64,20 @@ public partial class App : Application
         };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("MoonMovie/0.1 (Windows)");
 
+        // Mainland resource sites and their CDNs reject overseas proxy exits, so they are always reached directly,
+        // while TMDB keeps using the system proxy.
+        var direct = new HttpClient(new SocketsHttpHandler
+        {
+            UseProxy = false,
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            MaxConnectionsPerServer = 8,
+            ConnectTimeout = TimeSpan.FromSeconds(5),
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(20),
+        };
+
         var tmdbOptions = TmdbOptions.FromEnv(env);
 
         return new ServiceCollection()
@@ -69,9 +85,12 @@ public partial class App : Application
             .AddSingleton(http)
             .AddSingleton(tmdbOptions)
             .AddSingleton(_ => new TmdbClient(http, tmdbOptions, new JsonDiskCache(AppPaths.ApiCache)))
+            .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
+            .AddSingleton<FavoritesStore>()
             .AddSingleton<HomeFeedService>()
             .AddSingleton(sp => new ImageLoader(http, sp.GetRequiredService<TmdbOptions>().ImageRoots))
             .AddTransient<HomeViewModel>()
+            .AddTransient<DetailViewModel>()
             .BuildServiceProvider();
     }
 }

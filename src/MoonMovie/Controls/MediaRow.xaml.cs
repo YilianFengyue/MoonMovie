@@ -16,7 +16,44 @@ public sealed partial class MediaRow : UserControl
     public static readonly DependencyProperty IsLandscapeProperty = DependencyProperty.Register(
         nameof(IsLandscape), typeof(bool), typeof(MediaRow), new PropertyMetadata(false, OnIsLandscapeChanged));
 
+    public static readonly DependencyProperty ItemTemplateProperty = DependencyProperty.Register(
+        nameof(ItemTemplate), typeof(DataTemplate), typeof(MediaRow), new PropertyMetadata(null, OnItemTemplateChanged));
+
+    public static readonly DependencyProperty HeaderContentProperty = DependencyProperty.Register(
+        nameof(HeaderContent), typeof(object), typeof(MediaRow), new PropertyMetadata(null));
+
+    public static readonly DependencyProperty SpacingProperty = DependencyProperty.Register(
+        nameof(Spacing), typeof(double), typeof(MediaRow), new PropertyMetadata(16d));
+
     private bool _pointerInside;
+
+    /// <summary>Overrides the poster/landscape card template chosen by <see cref="IsLandscape"/>.</summary>
+    public DataTemplate? ItemTemplate
+    {
+        get => (DataTemplate?)GetValue(ItemTemplateProperty);
+        set => SetValue(ItemTemplateProperty, value);
+    }
+
+    /// <summary>Extra UI next to the title, e.g. a season picker.</summary>
+    public object? HeaderContent
+    {
+        get => GetValue(HeaderContentProperty);
+        set => SetValue(HeaderContentProperty, value);
+    }
+
+    public double Spacing
+    {
+        get => (double)GetValue(SpacingProperty);
+        set => SetValue(SpacingProperty, value);
+    }
+
+    private static void OnItemTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is DataTemplate template)
+        {
+            ((MediaRow)d).Repeater.ItemTemplate = template;
+        }
+    }
 
     public MediaRow()
     {
@@ -50,6 +87,7 @@ public sealed partial class MediaRow : UserControl
     private static void OnIsLandscapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var row = (MediaRow)d;
+        if (row.ItemTemplate is not null) return;
         var key = (bool)e.NewValue ? "LandscapeCardTemplate" : "PosterCardTemplate";
         row.Repeater.ItemTemplate = (DataTemplate)Application.Current.Resources[key];
     }

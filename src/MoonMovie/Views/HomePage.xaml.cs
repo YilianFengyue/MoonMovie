@@ -30,6 +30,7 @@ public sealed partial class HomePage : Page
     private int _spotlightIndex = -1;
     private int _spotlightVersion;
     private bool _heroHover;
+    private bool _isActive;
 
     public HomePage()
     {
@@ -58,6 +59,7 @@ public sealed partial class HomePage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isActive = true;
         _rotateTimer.Start();
 
         if (_spotlightIndex >= 0)
@@ -82,12 +84,22 @@ public sealed partial class HomePage : Page
             await Task.Delay(1500);
             Scroller.ChangeView(null, debugOffset, null, disableAnimation: true);
         }
+
+        // Visual QA hook: MOONMOVIE_DEBUG_OPEN=movie:157336 | tv:1396 opens that title's detail page.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_OPEN")?.Split(':') is [var kind, var id]
+            && int.TryParse(id, out var tmdbId))
+        {
+            var tmdb = App.Services.GetRequiredService<Core.Tmdb.TmdbClient>();
+            var detail = await tmdb.DetailAsync(kind == "tv" ? Core.Models.MediaKind.Tv : Core.Models.MediaKind.Movie, tmdbId);
+            if (detail is not null) Navigator.OpenMedia(detail.Item);
+        }
 #endif
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        _isActive = false;
         _rotateTimer.Stop();
     }
 
@@ -288,7 +300,7 @@ public sealed partial class HomePage : Page
     private void OnAmbientRequest(AmbientRequest request)
     {
         // Near the top the hero owns the background; below it, whatever the user is looking at does.
-        if (!HeroInView)
+        if (_isActive && !HeroInView)
         {
             Ambient.Show(request.Url);
         }

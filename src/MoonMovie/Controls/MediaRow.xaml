@@ -11,10 +11,13 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock
-            Margin="{StaticResource MoonGutter}"
-            Style="{StaticResource MoonSectionTitleStyle}"
-            Text="{x:Bind Title, Mode=OneWay}" />
+        <StackPanel Margin="{StaticResource MoonGutter}" Orientation="Horizontal" Spacing="24">
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource MoonSectionTitleStyle}"
+                Text="{x:Bind Title, Mode=OneWay}" />
+            <ContentPresenter VerticalAlignment="Center" Content="{x:Bind HeaderContent, Mode=OneWay}" />
+        </StackPanel>
 
         <!-- Vertical padding inside the scroller leaves room for the hover lift. -->
         <ScrollViewer
@@ -32,7 +35,7 @@
                 ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
                 XYFocusKeyboardNavigation="Enabled">
                 <ItemsRepeater.Layout>
-                    <StackLayout Orientation="Horizontal" Spacing="16" />
+                    <StackLayout Orientation="Horizontal" Spacing="{x:Bind Spacing, Mode=OneWay}" />
                 </ItemsRepeater.Layout>
             </ItemsRepeater>
         </ScrollViewer>

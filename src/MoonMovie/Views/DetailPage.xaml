@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.DetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoonMovie.Controls"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    Background="{StaticResource MoonCanvasBrush}"
+    XYFocusKeyboardNavigation="Enabled">
+
+    <Grid>
+        <controls:AmbientBackdrop x:Name="Ambient" />
+
+        <ScrollViewer
+            x:Name="Scroller"
+            HorizontalScrollMode="Disabled"
+            VerticalAnchorRatio="NaN"
+            VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- ===== Hero ===== -->
+                <Grid x:Name="Hero" Height="760">
+                    <StackPanel
+                        x:Name="HeroCopy"
+                        MaxWidth="720"
+                        Margin="56,0,56,64"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom">
+
+                        <Grid MinHeight="64">
+                            <Image
+                                x:Name="HeroLogo"
+                                MaxWidth="480"
+                                MaxHeight="160"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"
+                                imaging:ImageEx.DecodeWidth="480"
+                                Stretch="Uniform"
+                                Visibility="Collapsed" />
+                            <TextBlock x:Name="HeroTitle" VerticalAlignment="Bottom" Style="{StaticResource MoonDisplayStyle}" />
+                        </Grid>
+
+                        <StackPanel Margin="0,20,0,0" Orientation="Horizontal" Spacing="14">
+                            <StackPanel x:Name="RatingPanel" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                <FontIcon VerticalAlignment="Center" FontSize="13" Foreground="#F2C94C" Glyph="&#xE735;" />
+                                <TextBlock
+                                    x:Name="RatingText"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="14"
+                                    Foreground="{StaticResource MoonTextPrimaryBrush}" />
+                            </StackPanel>
+                            <TextBlock x:Name="MetaText" VerticalAlignment="Center" Style="{StaticResource MoonMetaStyle}" />
+                        </StackPanel>
+
+                        <TextBlock
+                            x:Name="TaglineText"
+                            Margin="0,16,0,0"
+                            FontFamily="{StaticResource MoonFontBold}"
+                            FontSize="15"
+                            Foreground="{StaticResource MoonTextPrimaryBrush}"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+
+                        <TextBlock
+                            x:Name="OverviewText"
+                            Margin="0,10,0,0"
+                            MaxLines="4"
+                            Style="{StaticResource MoonBodyStyle}" />
+
+                        <Grid
+                            x:Name="CreditsGrid"
+                            Margin="0,16,0,0"
+                            ColumnSpacing="14"
+                            RowSpacing="6"
+                            Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="DirectorLabel" Style="{StaticResource MoonCardMetaStyle}" FontSize="13" />
+                            <TextBlock x:Name="DirectorText" Grid.Column="1" Style="{StaticResource MoonMetaStyle}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="1" Style="{StaticResource MoonCardMetaStyle}" FontSize="13" Text="主演" />
+                            <TextBlock x:Name="StarringText" Grid.Row="1" Grid.Column="1" Style="{StaticResource MoonMetaStyle}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+
+                        <!-- Actions -->
+                        <StackPanel Margin="0,30,0,0" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="PlayButton" MinWidth="148" Click="OnPlayClick" Style="{StaticResource MoonPrimaryButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Grid Width="16" Height="16">
+                                        <ProgressRing
+                                            x:Name="PlayRing"
+                                            Width="16"
+                                            Height="16"
+                                            MinWidth="16"
+                                            MinHeight="16"
+                                            Foreground="{StaticResource MoonOnPrimaryBrush}"
+                                            IsActive="True" />
+                                        <FontIcon x:Name="PlayIcon" FontSize="16" Glyph="&#xF5B0;" Visibility="Collapsed" />
+                                    </Grid>
+                                    <TextBlock x:Name="PlayLabel" Text="寻找片源" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="SourcesButton" Click="OnSourcesClick" Style="{StaticResource MoonGlassButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon FontSize="16" Glyph="&#xE8FD;" />
+                                    <TextBlock Text="片源" />
+                                    <Border
+                                        x:Name="SourceCountBadge"
+                                        MinWidth="22"
+                                        Padding="6,0,6,1"
+                                        VerticalAlignment="Center"
+                                        Background="#2EFFFFFF"
+                                        CornerRadius="10"
+                                        Visibility="Collapsed">
+                                        <TextBlock
+                                            x:Name="SourceCountText"
+                                            HorizontalAlignment="Center"
+                                            FontSize="12"
+                                            Foreground="{StaticResource MoonTextPrimaryBrush}" />
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button
+                                x:Name="FavoriteButton"
+                                Padding="0"
+                                AutomationProperties.Name="收藏"
+                                Click="OnFavoriteClick"
+                                Style="{StaticResource MoonGlassButtonStyle}">
+                                <FontIcon x:Name="FavoriteIcon" FontSize="16" Glyph="&#xE734;" />
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Where "播放" will play from, in one quiet line. -->
+                        <StackPanel x:Name="StatusLine" Margin="2,16,0,0" Orientation="Horizontal" Spacing="9">
+                            <Ellipse
+                                x:Name="StatusDot"
+                                Width="7"
+                                Height="7"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource TextFillColorTertiaryBrush}" />
+                            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Style="{StaticResource MoonMetaStyle}" FontSize="13" />
+                            <HyperlinkButton
+                                x:Name="StatusLink"
+                                Margin="-4,0,0,0"
+                                Padding="6,2"
+                                VerticalAlignment="Center"
+                                Click="OnStatusLinkClick"
+                                FontSize="13" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ===== Episodes ===== -->
+                <controls:MediaRow
+                    x:Name="EpisodesRow"
+                    Margin="0,8,0,0"
+                    ItemTemplate="{StaticResource EpisodeCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.Episodes}"
+                    Title="剧集"
+                    Visibility="Collapsed">
+                    <controls:MediaRow.HeaderContent>
+                        <SelectorBar x:Name="SeasonBar" SelectionChanged="OnSeasonChanged" />
+                    </controls:MediaRow.HeaderContent>
+                </controls:MediaRow>
+
+                <controls:MediaRow
+                    x:Name="CastRow"
+                    Margin="0,36,0,0"
+                    ItemTemplate="{StaticResource PersonCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.Cast}"
+                    Spacing="8"
+                    Title="演职员"
+                    Visibility="Collapsed" />
+
+                <controls:MediaRow
+                    x:Name="RecommendationsRow"
+                    Margin="0,36,0,80"
+                    ItemsSource="{x:Bind ViewModel.Recommendations}"
+                    Title="相似推荐"
+                    Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== Source panel ===== -->
+        <Grid x:Name="SourceLayer" Visibility="Collapsed">
+            <Grid.KeyboardAccelerators>
+                <KeyboardAccelerator Key="Escape" Invoked="OnSourceEscape" />
+            </Grid.KeyboardAccelerators>
+
+            <Rectangle x:Name="SourceDimmer" Fill="#99000000" Tapped="OnDimmerTapped" />
+
+            <Grid
+                x:Name="SourcePanel"
+                Width="440"
+                Margin="0,64,12,12"
+                HorizontalAlignment="Right"
+                Background="{StaticResource MoonChromeAcrylicBrush}"
+                BorderBrush="{StaticResource MoonHairlineBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Padding="22,20,12,10">
+                    <StackPanel Spacing="4">
+                        <TextBlock Style="{StaticResource MoonSectionTitleStyle}" Text="选择片源" />
+                        <TextBlock x:Name="PanelSubtitle" Style="{StaticResource MoonCardMetaStyle}" FontSize="13" />
+                    </StackPanel>
+                    <Button
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        AutomationProperties.Name="关闭"
+                        Click="OnPanelClose"
+                        Style="{StaticResource MoonTitleBarButtonStyle}">
+                        <FontIcon FontSize="12" Glyph="&#xE711;" />
+                    </Button>
+                </Grid>
+
+                <ProgressBar
+                    x:Name="PanelProgress"
+                    Grid.Row="1"
+                    Margin="22,2,22,10"
+                    Maximum="1" />
+
+                <ScrollViewer Grid.Row="2" Padding="8,0,8,0" HorizontalScrollMode="Disabled">
+                    <Grid>
+                        <ItemsRepeater
+                            x:Name="SourceRepeater"
+                            ElementPrepared="OnSourceElementPrepared"
+                            ItemTemplate="{StaticResource SourceRowTemplate}"
+                            ItemsSource="{x:Bind ViewModel.Sources.Items}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="2" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                        <StackPanel
+                            x:Name="PanelEmpty"
+                            Margin="14,24,14,0"
+                            Spacing="12"
+                            Visibility="Collapsed">
+                            <TextBlock Style="{StaticResource MoonBodyStyle}" Text="没有找到能直接播放的版本。资源站可能尚未收录，或暂时无法访问。" />
+                            <Button HorizontalAlignment="Left" Click="OnRetryClick" Content="重新检索" Style="{StaticResource MoonGlassButtonStyle}" />
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+
+                <TextBlock
+                    Grid.Row="3"
+                    Margin="22,12,22,16"
+                    Style="{StaticResource MoonCardMetaStyle}"
+                    Text="按可用性、匹配度与响应速度排序 · 片源来自第三方资源站"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

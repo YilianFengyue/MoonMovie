@@ -60,6 +60,148 @@
         </Button>
     </DataTemplate>
 
+    <!-- Cast: round portrait, name, role. -->
+    <DataTemplate x:Key="PersonCardTemplate" x:DataType="vm:PersonViewModel">
+        <StackPanel Width="120" Spacing="0">
+            <Grid Width="104" Height="104" HorizontalAlignment="Center" Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="52">
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontFamily="{StaticResource MoonFontBold}"
+                    FontSize="30"
+                    Foreground="{StaticResource MoonTextTertiaryBrush}"
+                    Text="{x:Bind Initial}" />
+                <Image imaging:ImageEx.DecodeWidth="104" imaging:ImageEx.Url="{x:Bind ProfileUrl}" Stretch="UniformToFill" />
+                <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="52" />
+            </Grid>
+            <TextBlock
+                Margin="0,12,0,0"
+                HorizontalAlignment="Center"
+                Style="{StaticResource MoonCardTitleStyle}"
+                Text="{x:Bind Name}"
+                TextAlignment="Center" />
+            <TextBlock
+                Margin="0,3,0,0"
+                HorizontalAlignment="Center"
+                Style="{StaticResource MoonCardMetaStyle}"
+                Text="{x:Bind Role}"
+                TextAlignment="Center" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Episode: still with a large quiet index, title and synopsis. -->
+    <DataTemplate x:Key="EpisodeCardTemplate" x:DataType="vm:EpisodeViewModel">
+        <Button
+            Width="300"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind PlayCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.IsEnabled="True">
+            <StackPanel>
+                <Grid Height="169" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="300" imaging:ImageEx.Url="{x:Bind StillUrl}" Stretch="UniformToFill" />
+                    <Rectangle>
+                        <Rectangle.Fill>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Offset="0.45" Color="#00000000" />
+                                <GradientStop Offset="1" Color="#B3000000" />
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                    <TextBlock
+                        Margin="14,0,0,8"
+                        VerticalAlignment="Bottom"
+                        FontFamily="{StaticResource MoonFontBold}"
+                        FontSize="30"
+                        Foreground="#E6FFFFFF"
+                        Text="{x:Bind NumberText}" />
+                    <Border
+                        Width="40"
+                        Height="40"
+                        Margin="0,0,12,12"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Background="{StaticResource MoonGlassAcrylicBrush}"
+                        CornerRadius="20">
+                        <FontIcon FontSize="14" Foreground="{StaticResource MoonTextPrimaryBrush}" Glyph="&#xF5B0;" />
+                    </Border>
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+                <TextBlock Margin="2,12,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Meta}" />
+                <TextBlock
+                    Height="40"
+                    Margin="2,6,2,0"
+                    FontSize="12"
+                    LineHeight="20"
+                    MaxLines="2"
+                    Style="{StaticResource MoonBodyStyle}"
+                    Text="{x:Bind Overview}" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <!-- Source panel row: selection bar, site, match detail, live latency. -->
+    <DataTemplate x:Key="SourceRowTemplate" x:DataType="vm:SourceItemViewModel">
+        <Button
+            AutomationProperties.Name="{x:Bind SiteName}"
+            Command="{x:Bind ChooseCommand}"
+            Style="{StaticResource MoonListRowButtonStyle}">
+            <Grid Padding="14,12,14,12" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Height="28"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                    CornerRadius="1.5"
+                    Visibility="{x:Bind SelectedVisibility, Mode=OneWay}" />
+
+                <StackPanel Grid.Column="1" Opacity="{x:Bind ContentOpacity, Mode=OneWay}" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            FontFamily="{StaticResource MoonFontBold}"
+                            FontSize="15"
+                            Foreground="{StaticResource MoonTextPrimaryBrush}"
+                            Text="{x:Bind SiteName}" />
+                        <Border
+                            Padding="6,1,6,2"
+                            VerticalAlignment="Center"
+                            Background="#24FFFFFF"
+                            CornerRadius="4"
+                            Visibility="{x:Bind BestVisibility, Mode=OneWay}">
+                            <TextBlock FontSize="11" Foreground="{StaticResource MoonTextPrimaryBrush}" Text="推荐" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Detail}" />
+                </StackPanel>
+
+                <Border
+                    Grid.Column="2"
+                    Padding="10,4,10,5"
+                    VerticalAlignment="Center"
+                    Background="#12FFFFFF"
+                    CornerRadius="12">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Ellipse
+                            Width="7"
+                            Height="7"
+                            VerticalAlignment="Center"
+                            Fill="{x:Bind StateBrush, Mode=OneWay}" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{StaticResource MoonTextSecondaryBrush}"
+                            Text="{x:Bind LatencyText, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Button>
+    </DataTemplate>
+
     <!-- Discover wall: fills the column; the aspect ratio sets the height. -->
     <DataTemplate x:Key="WallPosterTemplate" x:DataType="vm:MediaCardViewModel">
         <Button

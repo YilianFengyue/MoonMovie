@@ -8,4 +8,8 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Sources\sites.json" LogicalName="MoonMovie.Core.Sources.sites.json" />
+  </ItemGroup>
+
 </Project>

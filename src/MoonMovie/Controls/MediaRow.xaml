@@ -33,6 +33,7 @@
                 x:Name="Repeater"
                 Margin="56,12,56,14"
                 ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+                PointerWheelChanged="OnWheel"
                 XYFocusKeyboardNavigation="Enabled">
                 <ItemsRepeater.Layout>
                     <StackLayout Orientation="Horizontal" Spacing="{x:Bind Spacing, Mode=OneWay}" />

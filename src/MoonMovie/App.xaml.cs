@@ -5,9 +5,11 @@ using MoonMovie.Core.Caching;
 using MoonMovie.Core.Configuration;
 using MoonMovie.Core.Home;
 using MoonMovie.Core.Library;
+using MoonMovie.Core.Playback;
 using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Imaging;
+using MoonMovie.Playback;
 using MoonMovie.ViewModels;
 
 namespace MoonMovie;
@@ -87,6 +89,8 @@ public partial class App : Application
             .AddSingleton(_ => new TmdbClient(http, tmdbOptions, new JsonDiskCache(AppPaths.ApiCache)))
             .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
             .AddSingleton<FavoritesStore>()
+            .AddSingleton<WatchProgressStore>()
+            .AddSingleton(_ => new MediaProxy(direct))
             .AddSingleton<HomeFeedService>()
             .AddSingleton(sp => new ImageLoader(http, sp.GetRequiredService<TmdbOptions>().ImageRoots))
             .AddTransient<HomeViewModel>()

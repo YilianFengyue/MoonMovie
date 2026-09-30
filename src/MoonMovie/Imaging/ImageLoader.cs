@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.UI.Xaml.Media.Imaging;
 using MoonMovie.Core.Configuration;
+using Windows.Storage.Streams;
 
 namespace MoonMovie.Imaging;
 
@@ -55,8 +57,13 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
 
         try
         {
-            using var stream = File.OpenRead(file);
-            await bitmap.SetSourceAsync(stream.AsRandomAccessStream());
+            // XAML may decode the source again later (recycling, resize, memory trim), so the stream must stay
+            // alive for the bitmap's lifetime. Disposing it after SetSourceAsync crashes inside Microsoft.UI.Xaml.
+            var bytes = await File.ReadAllBytesAsync(file, ct);
+            var stream = new InMemoryRandomAccessStream();
+            await stream.WriteAsync(bytes.AsBuffer());
+            stream.Seek(0);
+            await bitmap.SetSourceAsync(stream);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {

@@ -19,7 +19,7 @@
         <Frame x:Name="ContentFrame" FontFamily="{StaticResource MoonFontRegular}" Navigated="OnNavigated" />
 
         <!-- Keeps the title bar legible over bright artwork without a visible bar. -->
-        <Rectangle Height="120" VerticalAlignment="Top" IsHitTestVisible="False">
+        <Rectangle x:Name="TitleScrim" Height="120" VerticalAlignment="Top" IsHitTestVisible="False">
             <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                     <GradientStop Offset="0" Color="#B30C0D10" />
@@ -54,6 +54,7 @@
 
             <!-- Wordmark -->
             <StackPanel
+                x:Name="Wordmark"
                 Grid.Column="2"
                 Margin="24,0,28,0"
                 VerticalAlignment="Center"

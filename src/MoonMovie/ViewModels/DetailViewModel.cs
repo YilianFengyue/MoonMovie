@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MoonMovie.Core.Library;
 using MoonMovie.Core.Models;
+using MoonMovie.Core.Playback;
 using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Imaging;
@@ -16,14 +17,17 @@ public sealed partial class DetailViewModel : ObservableObject
     private readonly TmdbClient _tmdb;
     private readonly FavoritesStore _favorites;
     private readonly ImageLoader _images;
+    private readonly WatchProgressStore _progress;
     private MediaItem? _item;
     private int _seasonVersion;
 
-    public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images)
+    public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images,
+        WatchProgressStore progress)
     {
         _tmdb = tmdb;
         _favorites = favorites;
         _images = images;
+        _progress = progress;
         Sources = new SourcePanelViewModel(sources);
     }
 
@@ -155,12 +159,32 @@ public sealed partial class DetailViewModel : ObservableObject
 
     public void ToggleFavorite() => IsFavorite = _favorites.Toggle(Item);
 
+    /// <summary>Unfinished progress that "播放" should pick up, if it belongs to what is on screen.</summary>
+    public WatchProgress? Resume
+    {
+        get
+        {
+            if (_item is null || _progress.Latest(_item.MediaKey) is not { IsFinished: false } latest) return null;
+            return IsSeries && latest.Season != SelectedSeason?.Number ? null : latest;
+        }
+    }
+
+    /// <summary>"继续 第 3 集" / "继续播放 1:02:13", or null when starting fresh.</summary>
+    public string? ResumeLabel => Resume switch
+    {
+        null => null,
+        { } r when IsSeries => $"继续 第 {r.EpisodeIndex + 1} 集",
+        { } r => $"继续播放 {Playback.TimeText.Format(TimeSpan.FromMilliseconds(r.PositionMs))}",
+    };
+
     public void RetrySources() => Sources.Retry(BuildTarget(SelectedSeason));
 
-    /// <summary>Plays the selected source; series start at the first episode of the selected season.</summary>
-    public void Play() => PlayEpisode(Episodes.FirstOrDefault());
+    /// <summary>Resumes where the user left off, otherwise starts at the first episode of the selected season.</summary>
+    public void Play() => PlayIndex(Resume?.EpisodeIndex ?? 0);
 
-    private void PlayEpisode(EpisodeViewModel? episode)
+    private void PlayEpisode(EpisodeViewModel episode) => PlayIndex(episode.Number - 1);
+
+    private void PlayIndex(int index)
     {
         if (Sources.Selected is not { } source)
         {
@@ -168,8 +192,13 @@ public sealed partial class DetailViewModel : ObservableObject
         }
 
         var line = source.Candidate.PrimaryLine;
-        var index = episode is null ? 0 : Math.Clamp(episode.Number - 1, 0, line.Episodes.Count - 1);
-        Navigator.OpenPlayback(Item, source.Candidate, line, index, episode?.Heading);
+        Navigator.OpenPlayback(new PlaybackRequest(
+            Item,
+            Sources,
+            source,
+            Math.Clamp(index, 0, line.Episodes.Count - 1),
+            SelectedSeason?.Number,
+            Episodes.Select(e => e.Episode).ToArray()));
     }
 
     private SourceTarget BuildTarget(SeasonSummary? season)

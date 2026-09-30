@@ -106,6 +106,37 @@ public sealed partial class MediaRow : UserControl
 
     private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdatePagers();
 
+    /// <summary>
+    /// A horizontal ScrollViewer turns a vertical wheel into sideways scrolling, which traps the page while the
+    /// pointer is over a shelf. Plain wheel scrolls the page; Shift+wheel or a tilt wheel scrolls the shelf.
+    /// Precision touchpads bypass this (DirectManipulation) and pan naturally in both directions.
+    /// </summary>
+    private void OnWheel(object sender, PointerRoutedEventArgs e)
+    {
+        var properties = e.GetCurrentPoint(Scroller).Properties;
+        var delta = properties.MouseWheelDelta;
+        var shift = (e.KeyModifiers & Windows.System.VirtualKeyModifiers.Shift) != 0;
+
+        if (properties.IsHorizontalMouseWheel)
+        {
+            SmoothScroll.Horizontal(Scroller, -delta);
+        }
+        else if (shift)
+        {
+            SmoothScroll.Horizontal(Scroller, delta);
+        }
+        else if (SmoothScroll.FindVerticalAncestor(this) is { } page)
+        {
+            SmoothScroll.Vertical(page, delta);
+        }
+        else
+        {
+            return;
+        }
+
+        e.Handled = true;
+    }
+
     private void OnPrev(object sender, RoutedEventArgs e) => Page(-1);
 
     private void OnNext(object sender, RoutedEventArgs e) => Page(1);

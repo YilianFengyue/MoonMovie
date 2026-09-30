@@ -32,6 +32,29 @@ public sealed partial class MainWindow : Window
     public void Navigate(Type page, object? parameter, NavigationTransitionInfo? transition = null) =>
         ContentFrame.Navigate(page, parameter, transition ?? new EntranceNavigationTransitionInfo());
 
+    public bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
+
+    public void SetFullScreen(bool fullScreen)
+    {
+        if (fullScreen == IsFullScreen) return;
+        AppWindow.SetPresenter(fullScreen ? AppWindowPresenterKind.FullScreen : AppWindowPresenterKind.Overlapped);
+    }
+
+    /// <summary>Hides the app chrome (wordmark, navigation, search) so video owns the window; back stays.</summary>
+    public void SetImmersive(bool immersive)
+    {
+        var chrome = immersive ? Visibility.Collapsed : Visibility.Visible;
+        Wordmark.Visibility = chrome;
+        Nav.Visibility = chrome;
+        SearchBox.Visibility = chrome;
+        Actions.Visibility = chrome;
+        TitleScrim.Visibility = chrome;
+        DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
+    }
+
+    /// <summary>Title bar overlay visibility for the player's auto-hiding controls.</summary>
+    public void SetTitleBarVisible(bool visible) => AppTitleBar.Opacity = visible ? 1 : 0;
+
     private void ConfigureWindow()
     {
         ExtendsContentIntoTitleBar = true;
@@ -143,7 +166,7 @@ public sealed partial class MainWindow : Window
     private void OnBackAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) =>
         args.Handled = GoBack();
 
-    private bool GoBack()
+    public bool GoBack()
     {
         if (!ContentFrame.CanGoBack)
         {

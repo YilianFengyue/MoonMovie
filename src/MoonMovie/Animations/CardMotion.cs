@@ -50,6 +50,9 @@ public static class CardMotion
         control.GotFocus += (_, _) => state.SetFocus(true);
         control.LostFocus += (_, _) => state.SetFocus(false);
         control.SizeChanged += (_, args) => state.UpdateCenter(args.NewSize);
+
+        // ItemsRepeater recycles cards; a card recycled mid-hover must not come back lifted.
+        control.DataContextChanged += (_, _) => state.Reset();
     }
 
     private sealed class MotionState(Control control)
@@ -71,6 +74,18 @@ public static class CardMotion
             // Pointer clicks also focus the button; only keyboard/gamepad focus should lift the card.
             _focus = value && control.FocusState is FocusState.Keyboard;
             Update();
+        }
+
+        public void Reset()
+        {
+            _hover = false;
+            _focus = false;
+            _dwell?.Stop();
+            if (!_lifted) return;
+            _lifted = false;
+            Canvas.SetZIndex(control, 0);
+            _visual.StopAnimation("Scale");
+            _visual.Scale = Vector3.One;
         }
 
         public void UpdateCenter(Windows.Foundation.Size size) =>

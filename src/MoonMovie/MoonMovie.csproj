@@ -50,6 +50,11 @@
     <ProjectReference Include="..\MoonMovie.Core\MoonMovie.Core.csproj" />
   </ItemGroup>
 
+  <!-- Kestrel hosts the loopback media proxy (Playback/MediaProxy.cs). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>

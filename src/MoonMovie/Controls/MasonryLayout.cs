@@ -48,11 +48,11 @@ public sealed partial class MasonryLayout : VirtualizingLayout
     protected override void OnItemsChangedCore(VirtualizingLayoutContext context, object source, NotifyCollectionChangedEventArgs args)
     {
         var state = (State)context.LayoutState;
+        // Element operations are only legal during measure; defer the reset until then.
         var appendedAtEnd = args.Action == NotifyCollectionChangedAction.Add && args.NewStartingIndex >= state.Bounds.Count;
         if (!appendedAtEnd)
         {
-            RecycleAll(context, state);
-            state.Reset(state.Columns);
+            state.NeedsReset = true;
         }
 
         InvalidateMeasure();
@@ -66,8 +66,9 @@ public sealed partial class MasonryLayout : VirtualizingLayout
         var columns = Math.Max(1, (int)Math.Floor((width + spacing) / (MinColumnWidth + spacing)));
         var columnWidth = Math.Floor((width - (columns - 1) * spacing) / columns);
 
-        if (columns != state.Columns || Math.Abs(columnWidth - state.ColumnWidth) > 0.5)
+        if (state.NeedsReset || columns != state.Columns || Math.Abs(columnWidth - state.ColumnWidth) > 0.5)
         {
+            state.NeedsReset = false;
             RecycleAll(context, state);
             state.Reset(columns);
             state.ColumnWidth = columnWidth;
@@ -109,7 +110,7 @@ public sealed partial class MasonryLayout : VirtualizingLayout
 
         foreach (var index in state.Realized)
         {
-            if (!keep.Contains(index))
+            if (!keep.Contains(index) && index < count)
             {
                 context.RecycleElement(context.GetOrCreateElementAt(index));
             }
@@ -133,7 +134,10 @@ public sealed partial class MasonryLayout : VirtualizingLayout
         var state = (State)context.LayoutState;
         foreach (var index in state.Realized)
         {
-            context.GetOrCreateElementAt(index).Arrange(state.Bounds[index]);
+            if (index < context.ItemCount && index < state.Bounds.Count)
+            {
+                context.GetOrCreateElementAt(index).Arrange(state.Bounds[index]);
+            }
         }
 
         return finalSize;
@@ -166,6 +170,8 @@ public sealed partial class MasonryLayout : VirtualizingLayout
         public int Columns { get; private set; }
 
         public double ColumnWidth { get; set; }
+
+        public bool NeedsReset { get; set; }
 
         public int ShortestColumn
         {

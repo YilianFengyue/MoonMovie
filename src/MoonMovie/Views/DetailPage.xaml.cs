@@ -64,7 +64,13 @@ public sealed partial class DetailPage : Page
 
 #if DEBUG
         // Visual QA hooks: MOONMOVIE_DEBUG_PANEL=<ms> opens the source panel; MOONMOVIE_DEBUG_SCROLL scrolls.
-        if (int.TryParse(Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PANEL"), out var panelDelay))
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAY") is "1")
+        {
+            for (var i = 0; i < 60 && ViewModel.Sources.Phase != SourcePhase.Ready; i++) await Task.Delay(250);
+            await Task.Delay(1500); // let a few probes finish so the pick is the fastest
+            ViewModel.Play();
+        }
+        else if (int.TryParse(Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PANEL"), out var panelDelay))
         {
             await Task.Delay(panelDelay);
             OpenPanel();
@@ -159,7 +165,8 @@ public sealed partial class DetailPage : Page
             case SourcePhase.Ready when sources.Selected is { } selected:
                 PlayRing.Visibility = Visibility.Collapsed;
                 PlayIcon.Visibility = Visibility.Visible;
-                PlayLabel.Text = ViewModel.IsSeries && ViewModel.Episodes.Count > 0 ? "播放 第 1 集" : "播放";
+                PlayLabel.Text = ViewModel.ResumeLabel
+                                 ?? (ViewModel.IsSeries && ViewModel.Episodes.Count > 0 ? "播放 第 1 集" : "播放");
                 PlayButton.IsEnabled = true;
 
                 StatusDot.Fill = selected.StateBrush;

@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.PlayerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:playback="using:MoonMovie.Playback"
+    Background="Black">
+
+    <Page.Resources>
+        <playback:SecondsToTimeConverter x:Key="SecondsToTime" />
+
+        <DataTemplate x:Key="PlayerEpisodeTemplate" x:DataType="playback:PlayerEpisodeItem">
+            <Button Click="OnEpisodeRowClick" Style="{StaticResource MoonListRowButtonStyle}" Tag="{x:Bind Index}">
+                <Grid Padding="14,11,14,11" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        Height="24"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        CornerRadius="1.5"
+                        Visibility="{x:Bind CurrentVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        Grid.Column="1"
+                        MinWidth="64"
+                        VerticalAlignment="Center"
+                        FontFamily="{StaticResource MoonFontBold}"
+                        FontSize="14"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        Text="{x:Bind Label}" />
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="6">
+                        <TextBlock Style="{StaticResource MoonCardMetaStyle}" FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind Name}" />
+                        <ProgressBar
+                            Maximum="1"
+                            Value="{x:Bind Watched}"
+                            Visibility="{x:Bind WatchedVisibility}" />
+                    </StackPanel>
+                </Grid>
+            </Button>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid x:Name="Root" PointerMoved="OnPointerMoved">
+        <MediaPlayerElement
+            x:Name="Video"
+            AreTransportControlsEnabled="False"
+            IsHitTestVisible="False"
+            Stretch="Uniform" />
+
+        <!-- Clicks on the picture: toggle playback; double-click: full screen. -->
+        <Rectangle
+            x:Name="TapSurface"
+            DoubleTapped="OnSurfaceDoubleTapped"
+            Fill="Transparent"
+            Tapped="OnSurfaceTapped" />
+
+        <ProgressRing
+            x:Name="BufferRing"
+            Width="56"
+            Height="56"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="White"
+            IsActive="True"
+            IsHitTestVisible="False" />
+
+        <Grid
+            x:Name="CenterGlyphHost"
+            Width="92"
+            Height="92"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Background="#73000000"
+            CornerRadius="46"
+            IsHitTestVisible="False">
+            <FontIcon x:Name="CenterGlyph" FontSize="34" Foreground="White" Glyph="&#xF5B0;" />
+        </Grid>
+
+        <!-- ===== Chrome (auto-hides) ===== -->
+        <Grid x:Name="Chrome">
+            <Rectangle Height="190" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Offset="0" Color="#D9000000" />
+                        <GradientStop Offset="1" Color="#00000000" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle Height="280" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Offset="0" Color="#00000000" />
+                        <GradientStop Offset="1" Color="#F2000000" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <StackPanel Margin="64,58,64,0" VerticalAlignment="Top" IsHitTestVisible="False" Spacing="4">
+                <TextBlock
+                    x:Name="TitleText"
+                    FontFamily="{StaticResource MoonFontBold}"
+                    FontSize="22"
+                    Foreground="White"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="SubtitleText" Style="{StaticResource MoonMetaStyle}" FontSize="13" />
+            </StackPanel>
+
+            <Grid
+                x:Name="BottomBar"
+                Margin="40,0,40,24"
+                VerticalAlignment="Bottom"
+                RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        x:Name="PositionText"
+                        MinWidth="56"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="White"
+                        Text="0:00" />
+                    <Slider
+                        x:Name="SeekBar"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        IsTabStop="False"
+                        IsThumbToolTipEnabled="True"
+                        Maximum="1"
+                        StepFrequency="1"
+                        ThumbToolTipValueConverter="{StaticResource SecondsToTime}"
+                        ValueChanged="OnSeekValueChanged" />
+                    <TextBlock
+                        x:Name="DurationText"
+                        Grid.Column="2"
+                        MinWidth="56"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextSecondaryBrush}"
+                        Text="0:00"
+                        TextAlignment="Right" />
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button
+                            x:Name="PlayPauseButton"
+                            Width="52"
+                            Height="52"
+                            AutomationProperties.Name="播放/暂停"
+                            Click="OnPlayPauseClick"
+                            CornerRadius="26"
+                            Style="{StaticResource MoonPlayerIconButtonStyle}"
+                            ToolTipService.ToolTip="播放/暂停 (空格)">
+                            <FontIcon x:Name="PlayPauseGlyph" FontSize="22" Glyph="&#xE769;" />
+                        </Button>
+                        <Button AutomationProperties.Name="后退 10 秒" Click="OnBack10Click" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="后退 10 秒 (←)">
+                            <FontIcon FontSize="18" Glyph="&#xEB9E;" />
+                        </Button>
+                        <Button AutomationProperties.Name="前进 10 秒" Click="OnForward10Click" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="前进 10 秒 (→)">
+                            <FontIcon FontSize="18" Glyph="&#xEB9D;" />
+                        </Button>
+                        <Button x:Name="NextButton" AutomationProperties.Name="下一集" Click="OnNextClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="下一集 (N)">
+                            <FontIcon FontSize="18" Glyph="&#xE893;" />
+                        </Button>
+                        <Button x:Name="MuteButton" Margin="8,0,0,0" AutomationProperties.Name="静音" Click="OnMuteClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="静音 (M)">
+                            <FontIcon x:Name="VolumeGlyph" FontSize="18" Glyph="&#xE767;" />
+                        </Button>
+                        <Slider
+                            x:Name="VolumeBar"
+                            Width="108"
+                            VerticalAlignment="Center"
+                            IsTabStop="False"
+                            Maximum="100"
+                            ValueChanged="OnVolumeChanged"
+                            Value="100" />
+                    </StackPanel>
+
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
+                        <Button
+                            x:Name="SpeedButton"
+                            Width="Auto"
+                            Padding="12,0"
+                            AutomationProperties.Name="播放速度"
+                            Style="{StaticResource MoonPlayerIconButtonStyle}">
+                            <TextBlock x:Name="SpeedText" FontFamily="{StaticResource MoonFontBold}" FontSize="14" Text="1.0x" />
+                            <Button.Flyout>
+                                <MenuFlyout x:Name="SpeedMenu" Placement="Top" />
+                            </Button.Flyout>
+                        </Button>
+                        <Button x:Name="EpisodesButton" AutomationProperties.Name="选集" Click="OnEpisodesClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="选集">
+                            <FontIcon FontSize="18" Glyph="&#xE8FD;" />
+                        </Button>
+                        <Button AutomationProperties.Name="片源" Click="OnSourcesClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="片源">
+                            <FontIcon FontSize="18" Glyph="&#xE968;" />
+                        </Button>
+                        <Button AutomationProperties.Name="全屏" Click="OnFullScreenClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="全屏 (F)">
+                            <FontIcon x:Name="FullScreenGlyph" FontSize="18" Glyph="&#xE740;" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- Transient messages: resume point, ads removed, source switched. -->
+        <Border
+            x:Name="Toast"
+            Margin="0,64,0,0"
+            Padding="18,9,10,9"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Background="{StaticResource MoonGlassAcrylicBrush}"
+            BorderBrush="{StaticResource MoonGlassStrokeBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
+            Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock x:Name="ToastText" VerticalAlignment="Center" FontSize="13" Foreground="White" />
+                <HyperlinkButton
+                    x:Name="ToastAction"
+                    Padding="8,2"
+                    VerticalAlignment="Center"
+                    Click="OnToastActionClick"
+                    FontSize="13"
+                    Visibility="Collapsed" />
+            </StackPanel>
+        </Border>
+
+        <!-- Unrecoverable failure -->
+        <StackPanel
+            x:Name="ErrorPanel"
+            MaxWidth="460"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="14"
+            Visibility="Collapsed">
+            <FontIcon FontSize="36" Foreground="{StaticResource MoonTextSecondaryBrush}" Glyph="&#xE7BA;" />
+            <TextBlock
+                x:Name="ErrorText"
+                HorizontalAlignment="Center"
+                Style="{StaticResource MoonBodyStyle}"
+                TextAlignment="Center" />
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+                <Button Click="OnSourcesClick" Content="选择其他片源" Style="{StaticResource MoonPrimaryButtonStyle}" />
+                <Button Click="OnRetryClick" Content="重试" Style="{StaticResource MoonGlassButtonStyle}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ===== Side panel: episodes & sources ===== -->
+        <Grid x:Name="SideLayer" Visibility="Collapsed">
+            <Rectangle Fill="Transparent" Tapped="OnSideDismissTapped" />
+            <Grid
+                x:Name="SidePanel"
+                Width="400"
+                Margin="0,64,12,96"
+                HorizontalAlignment="Right"
+                Background="{StaticResource MoonChromeAcrylicBrush}"
+                BorderBrush="{StaticResource MoonHairlineBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Padding="14,12,10,6">
+                    <SelectorBar x:Name="PanelTabs" SelectionChanged="OnPanelTabChanged">
+                        <SelectorBarItem x:Name="EpisodesTab" Text="选集" />
+                        <SelectorBarItem x:Name="SourcesTab" Text="片源" />
+                    </SelectorBar>
+                    <Button
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="关闭"
+                        Click="OnSideDismiss"
+                        Style="{StaticResource MoonTitleBarButtonStyle}">
+                        <FontIcon FontSize="12" Glyph="&#xE711;" />
+                    </Button>
+                </Grid>
+                <ScrollViewer x:Name="EpisodesView" Grid.Row="1" Padding="8,4,8,8" HorizontalScrollMode="Disabled">
+                    <ItemsRepeater x:Name="EpisodesRepeater" ItemTemplate="{StaticResource PlayerEpisodeTemplate}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="2" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </ScrollViewer>
+                <ScrollViewer x:Name="SourcesView" Grid.Row="1" Padding="8,4,8,8" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <ItemsRepeater x:Name="SourcesRepeater" ItemTemplate="{StaticResource SourceRowTemplate}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="2" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

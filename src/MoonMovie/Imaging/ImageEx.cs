@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 
 namespace MoonMovie.Imaging;
 
@@ -52,10 +53,11 @@ public static class ImageEx
 
         // Both properties are usually set in the same layout pass; read them once they have settled.
         var width = GetDecodeWidth(image);
+        var visual = ElementCompositionPreview.GetElementVisual(image);
         if (Loader.TryGetDecoded(url, width) is { } hit)
         {
-            image.OpacityTransition = null;
-            image.Opacity = 1;
+            visual.StopAnimation("Opacity");
+            visual.Opacity = 1;
             image.Source = hit;
             return;
         }
@@ -63,8 +65,8 @@ public static class ImageEx
         var cts = new CancellationTokenSource();
         Pending.Add(image, cts);
         image.Source = null;
-        image.OpacityTransition = null;
-        image.Opacity = 0;
+        visual.StopAnimation("Opacity");
+        visual.Opacity = 0;
 
         image.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = LoadAsync(image, cts.Token));
     }
@@ -84,7 +86,13 @@ public static class ImageEx
         }
 
         image.Source = bitmap;
-        image.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(220) };
-        image.Opacity = 1;
+
+        // Composition-driven fade: XAML OpacityTransition on recycled ItemsRepeater children is not safe.
+        var visual = ElementCompositionPreview.GetElementVisual(image);
+        var fade = visual.Compositor.CreateScalarKeyFrameAnimation();
+        fade.InsertKeyFrame(0f, 0f);
+        fade.InsertKeyFrame(1f, 1f);
+        fade.Duration = TimeSpan.FromMilliseconds(220);
+        visual.StartAnimation("Opacity", fade);
     }
 }

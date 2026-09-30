@@ -6,6 +6,7 @@ using MoonMovie.Core.Configuration;
 using MoonMovie.Core.Home;
 using MoonMovie.Core.Library;
 using MoonMovie.Core.Playback;
+using MoonMovie.Core.Search;
 using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Imaging;
@@ -92,9 +93,11 @@ public partial class App : Application
             .AddSingleton<WatchProgressStore>()
             .AddSingleton(_ => new MediaProxy(direct))
             .AddSingleton<HomeFeedService>()
+            .AddSingleton<SearchService>()
             .AddSingleton(sp => new ImageLoader(http, sp.GetRequiredService<TmdbOptions>().ImageRoots))
             .AddTransient<HomeViewModel>()
             .AddTransient<DetailViewModel>()
+            .AddTransient<SearchViewModel>()
             .BuildServiceProvider();
     }
 }

@@ -7,8 +7,8 @@ namespace MoonMovie.Services;
 
 public static class Navigator
 {
-    public static void OpenMedia(MediaItem item) =>
-        App.MainWindow.Navigate(typeof(DetailPage), item, new DrillInNavigationTransitionInfo());
+    public static void OpenMedia(MediaItem item, int? season = null) =>
+        App.MainWindow.Navigate(typeof(DetailPage), new DetailArgs(item, season), new DrillInNavigationTransitionInfo());
 
     public static void OpenPlayback(PlaybackRequest request) =>
         App.MainWindow.Navigate(typeof(PlayerPage), request, new SuppressNavigationTransitionInfo());
@@ -24,3 +24,6 @@ public sealed record PlaybackRequest(
     IReadOnlyList<EpisodeInfo> Episodes);
 
 public sealed record PlaceholderArgs(string Title, string Caption);
+
+/// <param name="Season">Season to open on, e.g. from a search for "庆余年 第二季".</param>
+public sealed record DetailArgs(MediaItem Item, int? Season = null);

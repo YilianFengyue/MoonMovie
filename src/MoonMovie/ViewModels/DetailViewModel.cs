@@ -101,7 +101,7 @@ public sealed partial class DetailViewModel : ObservableObject
     public string? Starring => Detail is { Cast.Count: > 0 } d ? string.Join(" / ", d.Cast.Take(4).Select(p => p.Name)) : null;
 
     /// <summary>Shows the page immediately from the list item, then fills in detail.</summary>
-    public async Task LoadAsync(MediaItem item)
+    public async Task LoadAsync(MediaItem item, int? preferredSeason = null)
     {
         _item = item;
         IsFavorite = _favorites.IsFavorite(item.MediaKey);
@@ -131,7 +131,12 @@ public sealed partial class DetailViewModel : ObservableObject
             foreach (var season in detail.Seasons) Seasons.Add(season);
             if (Seasons.Count > 0)
             {
-                await SelectSeasonAsync(Seasons[0]);
+                // Search hint first, then the season the user was last watching, then season one.
+                var resumeSeason = _progress.Latest(item.MediaKey)?.Season;
+                var start = Seasons.FirstOrDefault(s => s.Number == preferredSeason)
+                            ?? Seasons.FirstOrDefault(s => s.Number == resumeSeason)
+                            ?? Seasons[0];
+                await SelectSeasonAsync(start);
             }
         }
     }

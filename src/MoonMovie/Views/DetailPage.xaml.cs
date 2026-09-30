@@ -51,12 +51,12 @@ public sealed partial class DetailPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is not MediaItem item)
+        if (e.Parameter is not Services.DetailArgs args)
         {
             return;
         }
 
-        var load = ViewModel.LoadAsync(item);
+        var load = ViewModel.LoadAsync(args.Item, args.Season);
         ApplyHeader();
         Ambient.Show(ViewModel.BackdropUrl, ViewModel.PreviewUrl);
         UpdatePlayState();

@@ -21,6 +21,7 @@ public sealed class TmdbClient
     private static readonly TimeSpan ListTtl = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan ImagesTtl = TimeSpan.FromDays(7);
     private static readonly TimeSpan DetailTtl = TimeSpan.FromHours(24);
+    private static readonly TimeSpan SearchTtl = TimeSpan.FromHours(6);
 
     private readonly HttpClient _http;
     private readonly TmdbOptions _options;
@@ -66,6 +67,48 @@ public sealed class TmdbClient
     public Task<IReadOnlyList<MediaItem>> DiscoverAsync(MediaKind kind, IReadOnlyDictionary<string, string> filters,
         int page = 1, CacheMode mode = CacheMode.Default, CancellationToken ct = default) =>
         ListAsync($"discover/{Segment(kind)}", filters, page, kind, mode, ct);
+
+    /// <summary>/search/multi split into titles and people.</summary>
+    public async Task<(IReadOnlyList<MediaItem> Media, IReadOnlyList<Search.PersonResult> People)> SearchMultiAsync(
+        string query, int page, CancellationToken ct = default)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["query"] = query,
+            ["page"] = page.ToString(),
+            ["include_adult"] = "false",
+        };
+
+        var result = await GetAsync("search/multi", parameters, TmdbJsonContext.Default.TmdbPageTmdbMediaDto,
+            SearchTtl, CacheMode.Default, includeLanguage: true, ct).ConfigureAwait(false);
+        if (result is null)
+        {
+            return ([], []);
+        }
+
+        var media = result.Results
+            .Select(dto => MediaItem.FromDto(dto, null))
+            .Where(m => m is not null)
+            .Select(m => m!)
+            .ToArray();
+
+        var people = result.Results
+            .Where(dto => dto.MediaType == "person" && !string.IsNullOrWhiteSpace(dto.Name))
+            .Select(dto => new Search.PersonResult(
+                dto.Id,
+                dto.Name!,
+                dto.ProfilePath,
+                dto.KnownForDepartment,
+                dto.Popularity,
+                (dto.KnownFor ?? [])
+                    .Select(k => MediaItem.FromDto(k, null))
+                    .Where(m => m is not null)
+                    .Select(m => m!)
+                    .ToArray()))
+            .ToArray();
+
+        return (media, people);
+    }
 
     /// <summary>Full detail with credits, recommendations and logos in a single request.</summary>
     public async Task<MediaDetail?> DetailAsync(MediaKind kind, int id, CancellationToken ct = default)

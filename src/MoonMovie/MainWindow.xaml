@@ -3,6 +3,8 @@
     x:Class="MoonMovie.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:vm="using:MoonMovie.ViewModels"
     Title="MoonMovie">
 
     <Window.SystemBackdrop>
@@ -10,6 +12,33 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="Root" Background="{StaticResource MoonCanvasBrush}">
+        <Grid.Resources>
+            <DataTemplate x:Key="SuggestionTemplate" x:DataType="vm:SuggestionItem">
+                <Grid Padding="0,6" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="34" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid
+                        Width="34"
+                        Height="50"
+                        Background="{StaticResource MoonSurfaceRaisedBrush}"
+                        CornerRadius="4"
+                        Visibility="{x:Bind PosterVisibility}">
+                        <Image imaging:ImageEx.DecodeWidth="34" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
+                    </Grid>
+                    <FontIcon
+                        FontSize="14"
+                        Foreground="{StaticResource MoonTextTertiaryBrush}"
+                        Glyph="&#xE81C;"
+                        Visibility="{x:Bind HistoryVisibility}" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock FontSize="14" Foreground="{StaticResource MoonTextPrimaryBrush}" Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Meta}" />
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="K" Invoked="OnSearchAccelerator" Modifiers="Control" />
             <KeyboardAccelerator Key="Left" Invoked="OnBackAccelerator" Modifiers="Menu" />
@@ -98,8 +127,13 @@
                 Margin="0,0,12,0"
                 VerticalAlignment="Center"
                 FontFamily="{StaticResource MoonFontRegular}"
+                GotFocus="OnSearchGotFocus"
+                ItemTemplate="{StaticResource SuggestionTemplate}"
                 PlaceholderText="搜索电影、剧集、人物"
-                QueryIcon="Find" />
+                QueryIcon="Find"
+                QuerySubmitted="OnSearchSubmitted"
+                TextChanged="OnSearchTextChanged"
+                UpdateTextOnSelect="False" />
 
             <StackPanel
                 x:Name="Actions"

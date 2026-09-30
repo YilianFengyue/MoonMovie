@@ -85,6 +85,12 @@ public sealed partial class HomePage : Page
             Scroller.ChangeView(null, debugOffset, null, disableAnimation: true);
         }
 
+        // Visual QA hook: MOONMOVIE_DEBUG_SEARCH=<query> opens the search page.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_SEARCH") is { Length: > 0 } debugQuery)
+        {
+            App.MainWindow.Navigate(typeof(SearchPage), debugQuery);
+        }
+
         // Visual QA hook: MOONMOVIE_DEBUG_OPEN=movie:157336 | tv:1396 opens that title's detail page.
         if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_OPEN")?.Split(':') is [var kind, var id]
             && int.TryParse(id, out var tmdbId))

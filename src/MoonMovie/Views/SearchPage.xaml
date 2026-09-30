@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoonMovie.Controls"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:themes="using:MoonMovie.Themes"
+    Background="{StaticResource MoonCanvasBrush}"
+    XYFocusKeyboardNavigation="Enabled">
+
+    <Page.Resources>
+        <themes:WallTemplateSelector
+            x:Key="WallSelector"
+            Landscape="{StaticResource WallLandscapeTemplate}"
+            Poster="{StaticResource WallPosterTemplate}" />
+    </Page.Resources>
+
+    <Grid>
+        <controls:AmbientBackdrop x:Name="Ambient" Opacity="0.55" />
+
+        <ScrollViewer x:Name="Scroller" HorizontalScrollMode="Disabled" VerticalAnchorRatio="NaN">
+            <StackPanel Padding="0,104,0,72">
+                <!-- Heading -->
+                <StackPanel Margin="{StaticResource MoonGutter}" Spacing="6">
+                    <TextBlock Style="{StaticResource MoonOverlineStyle}" Text="搜索" />
+                    <TextBlock
+                        x:Name="QueryText"
+                        FontSize="40"
+                        LineHeight="48"
+                        Style="{StaticResource MoonDisplayStyle}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <ProgressRing
+                            x:Name="LoadingRing"
+                            Width="14"
+                            Height="14"
+                            MinWidth="14"
+                            MinHeight="14"
+                            IsActive="True" />
+                        <TextBlock x:Name="SummaryText" Style="{StaticResource MoonMetaStyle}" />
+                    </StackPanel>
+                    <SelectorBar x:Name="FilterBar" Margin="-12,12,0,0" SelectionChanged="OnFilterChanged">
+                        <SelectorBarItem IsSelected="True" Tag="All" Text="全部" />
+                        <SelectorBarItem Tag="Movie" Text="电影" />
+                        <SelectorBarItem Tag="Tv" Text="剧集" />
+                    </SelectorBar>
+                </StackPanel>
+
+                <!-- Best match -->
+                <Button
+                    x:Name="BestCard"
+                    Height="300"
+                    MaxWidth="1100"
+                    Margin="56,24,56,0"
+                    HorizontalAlignment="Left"
+                    Click="OnBestClick"
+                    Style="{StaticResource MoonCardButtonStyle}"
+                    Visibility="Collapsed">
+                    <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Image x:Name="BestBackdrop" Grid.ColumnSpan="2" imaging:ImageEx.DecodeWidth="1100" Stretch="UniformToFill" />
+                        <Rectangle Grid.ColumnSpan="2">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Offset="0" Color="#F20C0D10" />
+                                    <GradientStop Offset="0.55" Color="#B30C0D10" />
+                                    <GradientStop Offset="1" Color="#1A0C0D10" />
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Grid Margin="24" CornerRadius="6">
+                            <Image x:Name="BestPoster" imaging:ImageEx.DecodeWidth="152" Stretch="UniformToFill" />
+                            <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="6" />
+                        </Grid>
+                        <StackPanel
+                            Grid.Column="1"
+                            MaxWidth="560"
+                            Margin="8,28,32,28"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Spacing="10">
+                            <TextBlock x:Name="BestOverline" Style="{StaticResource MoonOverlineStyle}" Text="最佳匹配" />
+                            <TextBlock
+                                x:Name="BestTitle"
+                                FontSize="32"
+                                LineHeight="40"
+                                Style="{StaticResource MoonDisplayStyle}" />
+                            <TextBlock x:Name="BestMeta" Style="{StaticResource MoonMetaStyle}" />
+                            <TextBlock x:Name="BestOverview" MaxLines="3" Style="{StaticResource MoonBodyStyle}" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+
+                <controls:MediaRow
+                    x:Name="PeopleRow"
+                    Margin="0,40,0,0"
+                    ItemTemplate="{StaticResource PersonCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.People}"
+                    Spacing="8"
+                    Title="人物"
+                    Visibility="Collapsed" />
+
+                <StackPanel x:Name="MediaSection" Margin="56,40,56,0" Spacing="18">
+                    <TextBlock Style="{StaticResource MoonSectionTitleStyle}" Text="电影与剧集" />
+                    <ItemsRepeater ItemTemplate="{StaticResource WallSelector}" ItemsSource="{x:Bind ViewModel.Media}" XYFocusKeyboardNavigation="Enabled">
+                        <ItemsRepeater.Layout>
+                            <controls:MasonryLayout ColumnSpacing="20" MinColumnWidth="190" RowSpacing="26" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

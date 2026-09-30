@@ -48,6 +48,13 @@ public sealed class TmdbMediaDto
     public double Popularity { get; set; }
 
     public bool Adult { get; set; }
+
+    // Person results of /search/multi.
+    public string? ProfilePath { get; set; }
+
+    public string? KnownForDepartment { get; set; }
+
+    public List<TmdbMediaDto>? KnownFor { get; set; }
 }
 
 public sealed class TmdbImagesDto

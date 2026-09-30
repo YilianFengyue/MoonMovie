@@ -7,7 +7,12 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
+using MoonMovie.Core.Search;
+using MoonMovie.Core.Tmdb;
 using MoonMovie.Services;
+using MoonMovie.ViewModels;
 using MoonMovie.Views;
 using Windows.Graphics;
 using Windows.UI;
@@ -17,6 +22,8 @@ namespace MoonMovie;
 public sealed partial class MainWindow : Window
 {
     private bool _syncingNav;
+    private DispatcherQueueTimer? _suggestTimer;
+    private CancellationTokenSource? _suggestCts;
 
     public MainWindow()
     {
@@ -175,6 +182,87 @@ public sealed partial class MainWindow : Window
 
         ContentFrame.GoBack();
         return true;
+    }
+
+    // ----- Search ---------------------------------------------------------------------------------------
+
+    private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+
+        // Debounce typing; only the latest request may populate the list.
+        _suggestTimer ??= CreateSuggestTimer();
+        _suggestTimer.Stop();
+        _suggestTimer.Start();
+    }
+
+    private DispatcherQueueTimer CreateSuggestTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(220);
+        timer.IsRepeating = false;
+        timer.Tick += async (_, _) => await UpdateSuggestionsAsync();
+        return timer;
+    }
+
+    private async Task UpdateSuggestionsAsync()
+    {
+        _suggestCts?.Cancel();
+        var text = SearchBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            ShowSearchHistory();
+            return;
+        }
+
+        var cts = _suggestCts = new CancellationTokenSource();
+        try
+        {
+            var search = App.Services.GetRequiredService<SearchService>();
+            var tmdb = App.Services.GetRequiredService<TmdbClient>();
+            var items = await search.SuggestAsync(text, cts.Token);
+            if (cts.IsCancellationRequested) return;
+            SearchBox.ItemsSource = items.Select(i => SuggestionItem.ForMedia(i, tmdb)).ToArray();
+            SearchBox.IsSuggestionListOpen = items.Count > 0;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
+        {
+        }
+    }
+
+    private void ShowSearchHistory()
+    {
+        var history = App.Services.GetRequiredService<SearchService>().History;
+        SearchBox.ItemsSource = history.Take(8).Select(SuggestionItem.ForHistory).ToArray();
+        SearchBox.IsSuggestionListOpen = history.Count > 0;
+    }
+
+    private void OnSearchGotFocus(object sender, RoutedEventArgs e)
+    {
+        if (SearchBox.Text.Length == 0) ShowSearchHistory();
+    }
+
+    private void OnSearchSubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        _suggestTimer?.Stop();
+        _suggestCts?.Cancel();
+        var search = App.Services.GetRequiredService<SearchService>();
+
+        if (args.ChosenSuggestion is SuggestionItem { Item: { } item })
+        {
+            search.Remember(item.Title);
+            sender.Text = string.Empty;
+            Services.Navigator.OpenMedia(item, SearchService.Parse(args.QueryText).Season);
+            return;
+        }
+
+        var query = (args.ChosenSuggestion as SuggestionItem)?.Text ?? args.QueryText;
+        if (string.IsNullOrWhiteSpace(query)) return;
+
+        search.Remember(query);
+        sender.Text = query;
+        sender.ItemsSource = null;
+        Navigate(typeof(SearchPage), query.Trim());
     }
 
     private void OnSearchAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

@@ -312,4 +312,10 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- Filter chip: pill-shaped list row; the selected fill lives in the item template. -->
+    <Style x:Key="MoonChipButtonStyle" TargetType="Button" BasedOn="{StaticResource MoonListRowButtonStyle}">
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="FocusVisualMargin" Value="-1" />
+    </Style>
 </ResourceDictionary>

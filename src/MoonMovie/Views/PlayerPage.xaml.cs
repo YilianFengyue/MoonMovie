@@ -458,6 +458,7 @@ public sealed partial class PlayerPage : Page
             Season = _request.Season,
             EpisodeIndex = _episodeIndex,
             EpisodeLabel = item.Kind == MediaKind.Tv ? EpisodeLabel(_episodeIndex) : null,
+            EpisodeCount = Line.Episodes.Count,
             PositionMs = (long)position.TotalMilliseconds,
             DurationMs = (long)_duration.TotalMilliseconds,
             SourceKey = _source.Candidate.Identity,

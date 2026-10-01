@@ -98,6 +98,8 @@ public partial class App : Application
             .AddTransient<HomeViewModel>()
             .AddTransient<DetailViewModel>()
             .AddTransient<SearchViewModel>()
+            .AddTransient<LibraryViewModel>()
+            .AddSingleton<BrowseSections>()
             .BuildServiceProvider();
     }
 }

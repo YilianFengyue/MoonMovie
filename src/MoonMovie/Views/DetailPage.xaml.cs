@@ -27,6 +27,7 @@ public sealed partial class DetailPage : Page
     private bool _panelOpen;
     private bool _syncingSeasons;
     private string? _lastSelectedIdentity;
+    private CancellationTokenSource? _autoPlayCts;
 
     public DetailPage()
     {
@@ -63,6 +64,15 @@ public sealed partial class DetailPage : Page
         UpdatePlayState();
         await load;
 
+        // "继续观看" opens the page and starts playing as soon as a source is ready (only on a fresh visit,
+        // never when coming back from the player).
+        if (args.AutoPlay && e.NavigationMode == NavigationMode.New)
+        {
+            _autoPlayCts = new CancellationTokenSource();
+            await AutoPlayAsync(_autoPlayCts.Token);
+            return;
+        }
+
 #if DEBUG
         // Visual QA hooks: MOONMOVIE_DEBUG_PANEL=<ms> opens the source panel; MOONMOVIE_DEBUG_SCROLL scrolls.
         if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAY") is "1")
@@ -82,6 +92,31 @@ public sealed partial class DetailPage : Page
             Scroller.ChangeView(null, offset, null, disableAnimation: true);
         }
 #endif
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        _autoPlayCts?.Cancel();
+    }
+
+    private async Task AutoPlayAsync(CancellationToken ct)
+    {
+        var sources = ViewModel.Sources;
+        try
+        {
+            for (var i = 0; i < 160 && sources.Phase is not (SourcePhase.Ready or SourcePhase.Empty); i++)
+            {
+                await Task.Delay(250, ct);
+            }
+
+            if (sources.Phase != SourcePhase.Ready) return;
+            await Task.Delay(700, ct); // let the first latency probes land so the pick is a fast one
+            if (!_panelOpen) ViewModel.Play();
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     // ----- Header ------------------------------------------------------------------------------------------

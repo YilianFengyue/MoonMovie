@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MoonMovie.Core.Home;
+using MoonMovie.Core.Playback;
 using MoonMovie.Core.Tmdb;
 
 namespace MoonMovie.ViewModels;
@@ -11,15 +12,18 @@ public sealed partial class HomeViewModel : ObservableObject
 
     private readonly HomeFeedService _feed;
     private readonly TmdbClient _tmdb;
+    private readonly WatchProgressStore _progress;
+    private string _continueSignature = "";
     private readonly HashSet<string> _discoverSeen = [];
     private int _discoverPage;
     private bool _loadingMore;
     private bool _started;
 
-    public HomeViewModel(HomeFeedService feed, TmdbClient tmdb)
+    public HomeViewModel(HomeFeedService feed, TmdbClient tmdb, WatchProgressStore progress)
     {
         _feed = feed;
         _tmdb = tmdb;
+        _progress = progress;
         foreach (var row in feed.Rows)
         {
             Rows.Add(new HomeRowViewModel(row));
@@ -31,6 +35,28 @@ public sealed partial class HomeViewModel : ObservableObject
     public ObservableCollection<HomeRowViewModel> Rows { get; } = [];
 
     public ObservableCollection<MediaCardViewModel> Discover { get; } = [];
+
+    /// <summary>继续观看: half-watched titles and series with a next episode waiting, newest first.</summary>
+    public ObservableCollection<WatchedItemViewModel> Continue { get; } = [];
+
+    /// <summary>Rebuilds 继续观看 from local progress; untouched when nothing changed (no flicker on return).</summary>
+    public void RefreshContinue()
+    {
+        var items = _progress.Recent(60).Where(p => p.IsContinuable).Take(16).ToArray();
+        var signature = string.Join("|", items.Select(p => $"{p.MediaKey}@{p.UpdatedAt.Ticks}"));
+        if (signature == _continueSignature) return;
+
+        _continueSignature = signature;
+        Continue.Clear();
+        foreach (var p in items)
+        {
+            Continue.Add(new WatchedItemViewModel(p, _tmdb, item =>
+            {
+                _progress.Remove(item.Progress.MediaKey);
+                RefreshContinue();
+            }));
+        }
+    }
 
     [ObservableProperty]
     public partial string? ErrorMessage { get; private set; }

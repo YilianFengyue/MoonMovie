@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
+using MoonMovie.Core.Browse;
 using MoonMovie.Core.Search;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Services;
@@ -157,6 +158,11 @@ public sealed partial class MainWindow : Window
             .SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());
     }
 
+    public void NavigateHome()
+    {
+        if (ContentFrame.CurrentSourcePageType != typeof(HomePage)) Navigate(typeof(HomePage), null);
+    }
+
     private void OnNavSelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (_syncingNav || sender.SelectedItem is not { } item)
@@ -164,31 +170,72 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if ((string)item.Tag == "home")
+        // Re-selecting the tab of the page already on screen does nothing.
+        if (NavTag(ContentFrame.CurrentSourcePageType, _currentParameter) == (string)item.Tag)
         {
-            if (ContentFrame.CurrentSourcePageType != typeof(HomePage))
-            {
-                Navigate(typeof(HomePage), null);
-            }
-
             return;
         }
 
-        Navigate(typeof(PlaceholderPage), new PlaceholderArgs(item.Text, "这一页正在路上"));
+        switch ((string)item.Tag)
+        {
+            case "home":
+                Navigate(typeof(HomePage), null);
+                break;
+            case "movie":
+                Navigator.OpenBrowse(BrowseSection.Movie);
+                break;
+            case "tv":
+                Navigator.OpenBrowse(BrowseSection.Tv);
+                break;
+            case "anime":
+                Navigator.OpenBrowse(BrowseSection.Anime);
+                break;
+            case "library":
+                Navigator.OpenLibrary();
+                break;
+            default:
+                Navigate(typeof(PlaceholderPage), new PlaceholderArgs(item.Text, "这一页正在路上"));
+                break;
+        }
     }
+
+    private object? _currentParameter;
+
+    /// <summary>The nav tab a page belongs to; null for pages that sit "inside" a tab (detail, search, player).</summary>
+    private static string? NavTag(Type? page, object? parameter) => page switch
+    {
+        _ when page == typeof(HomePage) => "home",
+        _ when page == typeof(LibraryPage) => "library",
+        _ when page == typeof(BrowsePage) => parameter switch
+        {
+            BrowseSection.Tv => "tv",
+            BrowseSection.Anime => "anime",
+            _ => "movie",
+        },
+        _ when page == typeof(PlaceholderPage) && parameter is PlaceholderArgs { Title: "B站" } => "bili",
+        _ => null,
+    };
 
     private void OnNavigated(object sender, NavigationEventArgs e)
     {
+        _currentParameter = e.Parameter;
         BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
-        if (e.SourcePageType == typeof(HomePage))
+
+        // Keep the highlighted tab in step with back/forward and in-page links. Inner pages (detail, search,
+        // player) clear it, so clicking any tab — including the one they were opened from — navigates.
+        var tag = NavTag(e.SourcePageType, e.Parameter);
+        var navItem = tag is null ? null : Nav.Items.FirstOrDefault(i => (string)i.Tag == tag);
+        if (Nav.SelectedItem != navItem)
         {
             _syncingNav = true;
-            Nav.SelectedItem = Nav.Items[0];
+            Nav.SelectedItem = navItem;
             _syncingNav = false;
         }
 
         DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
     }
+
+    private void OnHistoryClick(object sender, RoutedEventArgs e) => Navigator.OpenLibrary(LibraryTab.History);
 
     private void OnBackClick(object sender, RoutedEventArgs e) => GoBack();
 

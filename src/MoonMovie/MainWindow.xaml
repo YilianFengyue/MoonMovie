@@ -144,6 +144,7 @@
                 Spacing="4">
                 <Button
                     AutomationProperties.Name="观看历史"
+                    Click="OnHistoryClick"
                     Style="{StaticResource MoonTitleBarButtonStyle}"
                     ToolTipService.ToolTip="观看历史">
                     <FontIcon FontSize="15" Glyph="&#xE81C;" />

@@ -257,4 +257,68 @@
             </tk:ConstrainedBox>
         </Button>
     </DataTemplate>
+    <!-- 继续观看: wide still, progress hairline, what plays next. Right-click for details / removal. -->
+    <DataTemplate x:Key="ContinueCardTemplate" x:DataType="vm:WatchedItemViewModel">
+        <Button
+            Width="356"
+            AutomationProperties.Name="{x:Bind AutomationName}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+            motion:CardMotion.IsEnabled="True">
+            <Button.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Command="{x:Bind DetailsCommand}" Text="查看详情">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE946;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Command="{x:Bind RemoveCommand}" Text="删除观看记录">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE74D;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Button.ContextFlyout>
+            <StackPanel>
+                <Grid Height="200" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="356" imaging:ImageEx.Url="{x:Bind BackdropUrl}" Stretch="UniformToFill" />
+                    <Rectangle>
+                        <Rectangle.Fill>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Offset="0.5" Color="#00000000" />
+                                <GradientStop Offset="1" Color="#B3000000" />
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                    <Border
+                        Width="40"
+                        Height="40"
+                        Margin="0,0,14,20"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Background="{StaticResource MoonGlassAcrylicBrush}"
+                        CornerRadius="20">
+                        <FontIcon FontSize="14" Foreground="{StaticResource MoonTextPrimaryBrush}" Glyph="&#xF5B0;" />
+                    </Border>
+                    <Grid
+                        Height="3"
+                        Margin="14,0,14,10"
+                        VerticalAlignment="Bottom"
+                        CornerRadius="1.5"
+                        Visibility="{x:Bind ProgressVisibility}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{x:Bind PlayedLength}" />
+                            <ColumnDefinition Width="{x:Bind RemainingLength}" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="{StaticResource MoonTextPrimaryBrush}" />
+                        <Border Grid.Column="1" Background="#38FFFFFF" />
+                    </Grid>
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind CardMeta}" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
 </ResourceDictionary>

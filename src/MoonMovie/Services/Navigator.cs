@@ -10,6 +10,17 @@ public static class Navigator
     public static void OpenMedia(MediaItem item, int? season = null) =>
         App.MainWindow.Navigate(typeof(DetailPage), new DetailArgs(item, season), new DrillInNavigationTransitionInfo());
 
+    /// <summary>Detail page that starts playing (resuming) as soon as a source is found.</summary>
+    public static void Resume(MediaItem item, int? season) =>
+        App.MainWindow.Navigate(typeof(DetailPage), new DetailArgs(item, season, AutoPlay: true),
+            new DrillInNavigationTransitionInfo());
+
+    public static void OpenBrowse(Core.Browse.BrowseSection section) =>
+        App.MainWindow.Navigate(typeof(BrowsePage), section, new EntranceNavigationTransitionInfo());
+
+    public static void OpenLibrary(LibraryTab tab = LibraryTab.Continue) =>
+        App.MainWindow.Navigate(typeof(LibraryPage), tab, new EntranceNavigationTransitionInfo());
+
     public static void OpenPlayback(PlaybackRequest request) =>
         App.MainWindow.Navigate(typeof(PlayerPage), request, new SuppressNavigationTransitionInfo());
 }
@@ -26,4 +37,12 @@ public sealed record PlaybackRequest(
 public sealed record PlaceholderArgs(string Title, string Caption);
 
 /// <param name="Season">Season to open on, e.g. from a search for "庆余年 第二季".</param>
-public sealed record DetailArgs(MediaItem Item, int? Season = null);
+/// <param name="AutoPlay">Start playback once a source is ready ("继续观看").</param>
+public sealed record DetailArgs(MediaItem Item, int? Season = null, bool AutoPlay = false);
+
+public enum LibraryTab
+{
+    Continue,
+    History,
+    Favorites,
+}

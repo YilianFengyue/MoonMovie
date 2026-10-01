@@ -47,6 +47,7 @@ public sealed partial class HomePage : Page
         SizeChanged += OnSizeChanged;
         Loaded += (_, _) => SetupScrollExpressions();
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        ViewModel.Continue.CollectionChanged += (_, _) => UpdateContinueRow();
 
         WeakReferenceMessenger.Default.Register<HomePage, AmbientRequest>(this, static (page, msg) => page.OnAmbientRequest(msg));
     }
@@ -61,6 +62,7 @@ public sealed partial class HomePage : Page
         base.OnNavigatedTo(e);
         _isActive = true;
         _rotateTimer.Start();
+        RefreshContinue();
 
         if (_spotlightIndex >= 0)
         {
@@ -83,6 +85,17 @@ public sealed partial class HomePage : Page
         {
             await Task.Delay(1500);
             Scroller.ChangeView(null, debugOffset, null, disableAnimation: true);
+        }
+
+        // Visual QA hook: MOONMOVIE_DEBUG_NAV=movie|tv|anime|library|history|favorites opens that page.
+        switch (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_NAV"))
+        {
+            case "movie": Navigator.OpenBrowse(Core.Browse.BrowseSection.Movie); break;
+            case "tv": Navigator.OpenBrowse(Core.Browse.BrowseSection.Tv); break;
+            case "anime": Navigator.OpenBrowse(Core.Browse.BrowseSection.Anime); break;
+            case "library": Navigator.OpenLibrary(); break;
+            case "history": Navigator.OpenLibrary(LibraryTab.History); break;
+            case "favorites": Navigator.OpenLibrary(LibraryTab.Favorites); break;
         }
 
         // Visual QA hook: MOONMOVIE_DEBUG_SEARCH=<query> opens the search page.
@@ -202,6 +215,25 @@ public sealed partial class HomePage : Page
         HeroLogo.Visibility = hasLogo ? Visibility.Visible : Visibility.Collapsed;
         HeroTitle.Visibility = hasLogo ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(HeroPlayButton, $"播放 {spot.Title}");
+        UpdateHeroFavorite();
+    }
+
+    private void UpdateHeroFavorite()
+    {
+        if (_spotlightIndex < 0) return;
+        var on = App.Services.GetRequiredService<Core.Library.FavoritesStore>()
+            .IsFavorite(ViewModel.Spotlight[_spotlightIndex].Item.MediaKey);
+        HeroFavoriteIcon.Glyph = on ? "" : "";
+        var label = on ? "已收藏" : "收藏";
+        AutomationProperties.SetName(HeroFavoriteButton, label);
+        ToolTipService.SetToolTip(HeroFavoriteButton, label);
+    }
+
+    private void OnHeroFavorite(object sender, RoutedEventArgs e)
+    {
+        if (_spotlightIndex < 0) return;
+        App.Services.GetRequiredService<Core.Library.FavoritesStore>().Toggle(ViewModel.Spotlight[_spotlightIndex].Item);
+        UpdateHeroFavorite();
     }
 
     private void BuildPager()
@@ -270,6 +302,22 @@ public sealed partial class HomePage : Page
             Navigator.OpenMedia(ViewModel.Spotlight[_spotlightIndex].Item);
         }
     }
+
+    private void RefreshContinue()
+    {
+        ViewModel.RefreshContinue();
+        UpdateContinueRow();
+    }
+
+    private void UpdateContinueRow()
+    {
+        var has = ViewModel.Continue.Count > 0;
+        ContinueRow.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
+        // The first shelf tucks under the hero; whichever shelf is first takes that overlap.
+        RowsRepeater.Margin = new Thickness(0, has ? 0 : -56, 0, 0);
+    }
+
+    private void OnOpenLibrary(object sender, RoutedEventArgs e) => Navigator.OpenLibrary();
 
     private void OnHeroPointerEntered(object sender, PointerRoutedEventArgs e) => _heroHover = true;
 

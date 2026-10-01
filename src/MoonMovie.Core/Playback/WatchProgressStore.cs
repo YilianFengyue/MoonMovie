@@ -26,6 +26,9 @@ public sealed class WatchProgress
 
     public string? EpisodeLabel { get; set; }
 
+    /// <summary>Episodes in the source line at the time, so "next episode" can be offered without a lookup.</summary>
+    public int? EpisodeCount { get; set; }
+
     public long PositionMs { get; set; }
 
     public long DurationMs { get; set; }
@@ -39,6 +42,17 @@ public sealed class WatchProgress
 
     [JsonIgnore]
     public bool IsFinished => DurationMs > 0 && DurationMs - PositionMs < 90_000;
+
+    /// <summary>A finished episode with another one after it.</summary>
+    [JsonIgnore]
+    public bool HasNextEpisode => Kind == MediaKind.Tv && IsFinished && EpisodeCount is { } n && EpisodeIndex + 1 < n;
+
+    /// <summary>Something the user would want to pick up: half-watched, or the next episode is waiting.</summary>
+    [JsonIgnore]
+    public bool IsContinuable => !IsFinished || HasNextEpisode;
+
+    public MediaItem ToMediaItem() =>
+        new(TmdbId, Kind, Title, null, null, null, 0, 0, PosterPath, BackdropPath, [], null);
 }
 
 /// <summary>Per-episode playback positions plus the "continue watching" list, persisted as JSON.</summary>
@@ -109,6 +123,17 @@ public sealed class WatchProgressStore
                 Entries.Remove(key);
             }
 
+            Flush();
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            Entries.Clear();
             Flush();
         }
 

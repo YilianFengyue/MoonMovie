@@ -92,11 +92,13 @@
                                     </StackPanel>
                                 </Button>
                                 <Button
+                                    x:Name="HeroFavoriteButton"
                                     Padding="0"
-                                    AutomationProperties.Name="加入片单"
+                                    AutomationProperties.Name="收藏"
+                                    Click="OnHeroFavorite"
                                     Style="{StaticResource MoonGlassButtonStyle}"
-                                    ToolTipService.ToolTip="加入片单">
-                                    <FontIcon FontSize="16" Glyph="&#xE710;" />
+                                    ToolTipService.ToolTip="收藏">
+                                    <FontIcon x:Name="HeroFavoriteIcon" FontSize="16" Glyph="&#xE734;" />
                                 </Button>
                             </StackPanel>
                         </StackPanel>
@@ -113,6 +115,23 @@
                 </Grid>
 
                 <!-- ===== Shelves ===== -->
+                <controls:MediaRow
+                    x:Name="ContinueRow"
+                    Margin="0,-56,0,30"
+                    ItemTemplate="{StaticResource ContinueCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.Continue}"
+                    Title="继续观看"
+                    Visibility="Collapsed">
+                    <controls:MediaRow.HeaderContent>
+                        <Button
+                            Click="OnOpenLibrary"
+                            FontSize="13"
+                            Style="{StaticResource MoonLinkButtonStyle}">
+                            <TextBlock Text="全部" />
+                        </Button>
+                    </controls:MediaRow.HeaderContent>
+                </controls:MediaRow>
+
                 <ItemsRepeater x:Name="RowsRepeater" Margin="0,-56,0,0" ItemsSource="{x:Bind ViewModel.Rows}">
                     <ItemsRepeater.Layout>
                         <StackLayout Spacing="30" />

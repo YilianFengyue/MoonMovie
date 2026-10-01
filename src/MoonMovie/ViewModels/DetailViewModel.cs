@@ -164,20 +164,22 @@ public sealed partial class DetailViewModel : ObservableObject
 
     public void ToggleFavorite() => IsFavorite = _favorites.Toggle(Item);
 
-    /// <summary>Unfinished progress that "播放" should pick up, if it belongs to what is on screen.</summary>
+    /// <summary>Progress that "播放" should pick up (half-watched, or a finished episode with a next one), if it
+    /// belongs to what is on screen.</summary>
     public WatchProgress? Resume
     {
         get
         {
-            if (_item is null || _progress.Latest(_item.MediaKey) is not { IsFinished: false } latest) return null;
+            if (_item is null || _progress.Latest(_item.MediaKey) is not { IsContinuable: true } latest) return null;
             return IsSeries && latest.Season != SelectedSeason?.Number ? null : latest;
         }
     }
 
-    /// <summary>"继续 第 3 集" / "继续播放 1:02:13", or null when starting fresh.</summary>
+    /// <summary>"继续 第 3 集" / "下一集 第 4 集" / "继续播放 1:02:13", or null when starting fresh.</summary>
     public string? ResumeLabel => Resume switch
     {
         null => null,
+        { HasNextEpisode: true } r => $"下一集 第 {r.EpisodeIndex + 2} 集",
         { } r when IsSeries => $"继续 第 {r.EpisodeIndex + 1} 集",
         { } r => $"继续播放 {Playback.TimeText.Format(TimeSpan.FromMilliseconds(r.PositionMs))}",
     };
@@ -185,7 +187,12 @@ public sealed partial class DetailViewModel : ObservableObject
     public void RetrySources() => Sources.Retry(BuildTarget(SelectedSeason));
 
     /// <summary>Resumes where the user left off, otherwise starts at the first episode of the selected season.</summary>
-    public void Play() => PlayIndex(Resume?.EpisodeIndex ?? 0);
+    public void Play() => PlayIndex(Resume switch
+    {
+        { HasNextEpisode: true } r => r.EpisodeIndex + 1,
+        { } r => r.EpisodeIndex,
+        null => 0,
+    });
 
     private void PlayEpisode(EpisodeViewModel episode) => PlayIndex(episode.Number - 1);
 

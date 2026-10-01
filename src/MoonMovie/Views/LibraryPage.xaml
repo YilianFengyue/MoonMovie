@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.LibraryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoonMovie.Controls"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:vm="using:MoonMovie.ViewModels"
+    Background="{StaticResource MoonCanvasBrush}"
+    XYFocusKeyboardNavigation="Enabled">
+
+    <Page.Resources>
+        <!-- History row: still with progress, title, episode and state, when; delete sits beside the row. -->
+        <DataTemplate x:Key="HistoryRowTemplate" x:DataType="vm:WatchedItemViewModel">
+            <Grid>
+                <Button
+                    AutomationProperties.Name="{x:Bind AutomationName}"
+                    Command="{x:Bind OpenCommand}"
+                    PointerEntered="OnRowPointerEntered"
+                    Style="{StaticResource MoonListRowButtonStyle}"
+                    Tag="{x:Bind Self}">
+                    <Grid Padding="10" ColumnSpacing="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="176" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Height="99" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="6">
+                            <Image imaging:ImageEx.DecodeWidth="176" imaging:ImageEx.Url="{x:Bind ThumbUrl}" Stretch="UniformToFill" />
+                            <Grid
+                                Height="3"
+                                Margin="8,0,8,7"
+                                VerticalAlignment="Bottom"
+                                CornerRadius="1.5"
+                                Visibility="{x:Bind ProgressVisibility}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{x:Bind PlayedLength}" />
+                                    <ColumnDefinition Width="{x:Bind RemainingLength}" />
+                                </Grid.ColumnDefinitions>
+                                <Border Background="{StaticResource MoonTextPrimaryBrush}" />
+                                <Border Grid.Column="1" Background="#4DFFFFFF" />
+                            </Grid>
+                            <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="6" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                            <TextBlock
+                                FontFamily="{StaticResource MoonFontBold}"
+                                FontSize="17"
+                                Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                Text="{x:Bind Title}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock FontSize="13" Style="{StaticResource MoonMetaStyle}" Text="{x:Bind CardMeta}" />
+                        </StackPanel>
+                        <TextBlock
+                            Grid.Column="2"
+                            Margin="0,0,52,0"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            Style="{StaticResource MoonCardMetaStyle}"
+                            Text="{x:Bind WhenText}" />
+                    </Grid>
+                </Button>
+                <Button
+                    Margin="0,0,10,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="删除这条记录"
+                    Command="{x:Bind RemoveCommand}"
+                    Style="{StaticResource MoonTitleBarButtonStyle}"
+                    ToolTipService.ToolTip="删除这条记录">
+                    <FontIcon FontSize="12" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE711;" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HistoryGroupTemplate" x:DataType="vm:HistoryGroupViewModel">
+            <StackPanel>
+                <TextBlock
+                    Margin="12,0,0,8"
+                    Style="{StaticResource MoonOverlineStyle}"
+                    Text="{x:Bind Header}" />
+                <ItemsRepeater ItemTemplate="{StaticResource HistoryRowTemplate}" ItemsSource="{x:Bind Items}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="2" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid>
+        <controls:AmbientBackdrop x:Name="Ambient" Opacity="0.45" />
+
+        <ScrollViewer x:Name="Scroller" HorizontalScrollMode="Disabled" VerticalAnchorRatio="NaN">
+            <StackPanel Padding="0,104,0,72">
+                <StackPanel Margin="{StaticResource MoonGutter}">
+                    <TextBlock Style="{StaticResource MoonOverlineStyle}" Text="我的" />
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource MoonDisplayStyle}" Text="媒体库" />
+                    <Grid Margin="-12,22,0,0">
+                        <SelectorBar x:Name="Tabs" SelectionChanged="OnTabChanged">
+                            <SelectorBarItem x:Name="ContinueTab" Tag="Continue" Text="继续观看" />
+                            <SelectorBarItem x:Name="HistoryTab" Tag="History" Text="观看历史" />
+                            <SelectorBarItem x:Name="FavoritesTab" Tag="Favorites" Text="收藏" />
+                        </SelectorBar>
+
+                        <!-- Per-tab tools on the right. -->
+                        <Button
+                            x:Name="ClearHistoryButton"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Click="OnClearHistory"
+                            FontSize="13"
+                            Style="{StaticResource MoonLinkButtonStyle}"
+                            Visibility="Collapsed">
+                            <TextBlock x:Name="ClearHistoryText" Text="清空历史" />
+                        </Button>
+                        <SelectorBar
+                            x:Name="FavoriteFilterBar"
+                            HorizontalAlignment="Right"
+                            SelectionChanged="OnFavoriteFilterChanged"
+                            Visibility="Collapsed">
+                            <SelectorBarItem IsSelected="True" Tag="All" Text="全部" />
+                            <SelectorBarItem Tag="Movie" Text="电影" />
+                            <SelectorBarItem Tag="Tv" Text="剧集" />
+                        </SelectorBar>
+                    </Grid>
+                </StackPanel>
+
+                <Grid Margin="0,30,0,0">
+                    <!-- 继续观看 -->
+                    <ItemsRepeater
+                        x:Name="ContinueRepeater"
+                        Margin="56,0,56,0"
+                        ItemTemplate="{StaticResource ContinueCardTemplate}"
+                        ItemsSource="{x:Bind ViewModel.Continue}"
+                        Visibility="Collapsed"
+                        XYFocusKeyboardNavigation="Enabled">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout
+                                ItemsJustification="Start"
+                                MinColumnSpacing="20"
+                                MinItemHeight="258"
+                                MinItemWidth="356"
+                                MinRowSpacing="18" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+
+                    <!-- 观看历史: rows span the page up to a readable width. -->
+                    <Grid x:Name="HistoryHost" Margin="44,0,44,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MaxWidth="1180" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ItemsRepeater
+                            x:Name="HistoryRepeater"
+                            ItemTemplate="{StaticResource HistoryGroupTemplate}"
+                            ItemsSource="{x:Bind ViewModel.History}"
+                            XYFocusKeyboardNavigation="Enabled">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="30" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                    </Grid>
+
+                    <!-- 收藏 -->
+                    <ItemsRepeater
+                        x:Name="FavoritesRepeater"
+                        Margin="56,0,56,0"
+                        ItemTemplate="{StaticResource WallPosterTemplate}"
+                        ItemsSource="{x:Bind ViewModel.Favorites}"
+                        Visibility="Collapsed"
+                        XYFocusKeyboardNavigation="Enabled">
+                        <ItemsRepeater.Layout>
+                            <controls:MasonryLayout ColumnSpacing="20" MinColumnWidth="180" RowSpacing="26" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+
+                    <!-- Empty state for whichever tab is showing. -->
+                    <StackPanel
+                        x:Name="EmptyState"
+                        Margin="56,60,56,0"
+                        HorizontalAlignment="Left"
+                        Spacing="10"
+                        Visibility="Collapsed">
+                        <FontIcon
+                            x:Name="EmptyGlyph"
+                            HorizontalAlignment="Left"
+                            FontSize="34"
+                            Foreground="{StaticResource MoonTextTertiaryBrush}" />
+                        <TextBlock
+                            x:Name="EmptyTitle"
+                            Margin="0,8,0,0"
+                            Style="{StaticResource MoonSectionTitleStyle}" />
+                        <TextBlock x:Name="EmptyCaption" Style="{StaticResource MoonMetaStyle}" />
+                        <Button
+                            Margin="0,14,0,0"
+                            Click="OnBrowseHome"
+                            Style="{StaticResource MoonGlassButtonStyle}">
+                            <TextBlock Text="去首页逛逛" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

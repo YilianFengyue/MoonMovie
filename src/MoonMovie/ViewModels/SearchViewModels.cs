@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using MoonMovie.Core.Models;
 using MoonMovie.Core.Search;
+using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 
 namespace MoonMovie.ViewModels;
@@ -43,6 +44,48 @@ public sealed class SuggestionItem
     public override string ToString() => Text;
 }
 
+/// <summary>A row in the search result list: enough detail to tell same-named titles apart.</summary>
+public sealed class SearchResultViewModel(MediaItem item, TmdbClient tmdb, bool isExact)
+{
+    public MediaItem Item { get; } = item;
+
+    public string Title => Item.Title;
+
+    /// <summary>"The Legend of Hei · 2019"</summary>
+    public string Subtitle
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (Item.OriginalTitle is { Length: > 0 } original) parts.Add(original);
+            if (Item.Year is { } y) parts.Add(y.ToString());
+            return string.Join("  ·  ", parts);
+        }
+    }
+
+    /// <summary>"剧集 · 动画 / 科幻奇幻"</summary>
+    public string Meta
+    {
+        get
+        {
+            var genres = Item.GenreNames.Take(3).ToArray();
+            return genres.Length > 0 ? $"{Item.KindLabel}  ·  {string.Join(" / ", genres)}" : Item.KindLabel;
+        }
+    }
+
+    public string? RatingText => Item.RatingText;
+
+    public Visibility RatingVisibility => RatingText is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public string Overview => Item.Overview ?? "暂无简介";
+
+    public string? PosterUrl => tmdb.ImageUrl(Item.PosterPath, "w185");
+
+    public string? AmbientUrl => tmdb.ImageUrl(Item.BackdropPath, "w1280");
+
+    public Visibility ExactVisibility => isExact ? Visibility.Visible : Visibility.Collapsed;
+}
+
 public enum SearchFilter
 {
     All,
@@ -54,12 +97,9 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
 {
     private SearchResults? _results;
 
-    public ObservableCollection<MediaCardViewModel> Media { get; } = [];
+    public ObservableCollection<SearchResultViewModel> Results { get; } = [];
 
     public ObservableCollection<PersonViewModel> People { get; } = [];
-
-    [ObservableProperty]
-    public partial MediaItem? BestMatch { get; private set; }
 
     [ObservableProperty]
     public partial bool IsLoading { get; private set; }
@@ -69,20 +109,10 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
 
     public SearchFilter Filter { get; private set; }
 
-    public string Query { get; private set; } = "";
-
-    public string? BestBackdropUrl => tmdb.ImageUrl(BestMatch?.BackdropPath, "w1280");
-
-    /// <summary>"最佳匹配", or "克里斯托弗·诺兰 的代表作" for a person search.</summary>
-    public string BestOverline => _results?.Person is { } p ? $"{p.Name} 的代表作" : "最佳匹配";
-
     public int? SeasonHint => _results?.Query.Season;
-
-    public string? BestPreviewUrl => tmdb.ImageUrl(BestMatch?.BackdropPath, "w780");
 
     public async Task RunAsync(string query, CancellationToken ct)
     {
-        Query = query;
         IsLoading = true;
         Summary = "正在搜索…";
         try
@@ -113,36 +143,33 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
     public void ApplyFilter(SearchFilter filter)
     {
         Filter = filter;
-        Media.Clear();
+        Results.Clear();
         if (_results is null)
         {
-            BestMatch = null;
             Summary = "搜索失败，请检查网络";
             return;
         }
 
+        var wanted = SourceMatcher.Normalize(_results.Query.Keyword);
         var items = _results.Media.Where(m => filter switch
         {
             SearchFilter.Movie => m.Kind == MediaKind.Movie,
             SearchFilter.Tv => m.Kind == MediaKind.Tv,
             _ => true,
-        }).ToArray();
+        });
 
-        BestMatch = items.FirstOrDefault(m => m.BackdropPath is not null);
-        foreach (var item in items.Where(i => i != BestMatch && i.PosterPath is not null))
+        foreach (var item in items)
         {
-            Media.Add(new MediaCardViewModel(item, tmdb));
+            var exact = SourceMatcher.Normalize(item.Title) == wanted || SourceMatcher.Normalize(item.OriginalTitle) == wanted;
+            Results.Add(new SearchResultViewModel(item, tmdb, exact));
         }
 
-        var hints = new List<string>(2);
+        var hints = new List<string>(3);
+        if (_results.Person is { } person) hints.Add(person.Name);
         if (_results.Query.Year is { } y) hints.Add($"{y} 年");
         if (_results.Query.Season is { } s) hints.Add($"第 {s} 季");
-        if (_results.Person is { } person) hints.Insert(0, person.Name);
-        Summary = items.Length == 0
+        Summary = Results.Count == 0
             ? "没有找到相关的电影或剧集"
-            : $"{items.Length} 部作品{(People.Count > 0 ? $" · {People.Count} 位人物" : "")}{(hints.Count > 0 ? " · 已识别 " + string.Join("、", hints) : "")}";
-        OnPropertyChanged(nameof(BestOverline));
-        OnPropertyChanged(nameof(BestBackdropUrl));
-        OnPropertyChanged(nameof(BestPreviewUrl));
+            : $"{Results.Count} 部作品{(People.Count > 0 ? $" · {People.Count} 位人物" : "")}{(hints.Count > 0 ? " · 已识别 " + string.Join("、", hints) : "")}";
     }
 }

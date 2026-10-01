@@ -2,9 +2,8 @@ using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
-using MoonMovie.Core.Tmdb;
-using MoonMovie.Imaging;
 using MoonMovie.Services;
 using MoonMovie.ViewModels;
 
@@ -12,7 +11,6 @@ namespace MoonMovie.Views;
 
 public sealed partial class SearchPage : Page
 {
-    private readonly TmdbClient _tmdb = App.Services.GetRequiredService<TmdbClient>();
     private CancellationTokenSource? _cts;
 
     public SearchPage()
@@ -22,6 +20,14 @@ public sealed partial class SearchPage : Page
         ViewModel.PropertyChanged += OnViewModelChanged;
         ViewModel.People.CollectionChanged += (_, _) =>
             PeopleRow.Visibility = ViewModel.People.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ViewModel.Results.CollectionChanged += (_, _) =>
+        {
+            // The first result sets the mood until the user points at another.
+            if (ViewModel.Results.Count == 1 || ViewModel.Results.Count > 0 && Ambient.CurrentUrl is null)
+            {
+                Ambient.Show(ViewModel.Results.FirstOrDefault(r => r.AmbientUrl is not null)?.AmbientUrl);
+            }
+        };
     }
 
     public SearchViewModel ViewModel { get; }
@@ -29,9 +35,9 @@ public sealed partial class SearchPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is not string query || _cts is not null)
+        if (e.Parameter is not string query)
         {
-            return; // navigating back restores the page from the frame without re-running
+            return;
         }
 
         QueryText.Text = $"“{query}”";
@@ -42,7 +48,7 @@ public sealed partial class SearchPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
-        if (e.NavigationMode != NavigationMode.New) _cts?.Cancel();
+        if (e.NavigationMode == NavigationMode.Back) _cts?.Cancel();
     }
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
@@ -55,34 +61,27 @@ public sealed partial class SearchPage : Page
             case nameof(SearchViewModel.Summary):
                 SummaryText.Text = ViewModel.Summary;
                 break;
-            case nameof(SearchViewModel.BestMatch):
-                ApplyBestMatch();
-                break;
         }
     }
 
-    private void ApplyBestMatch()
+    private void OnResultClick(object sender, RoutedEventArgs e)
     {
-        var best = ViewModel.BestMatch;
-        BestCard.Visibility = best is null ? Visibility.Collapsed : Visibility.Visible;
-        MediaSection.Visibility = ViewModel.Media.Count > 0 || best is null ? Visibility.Visible : Visibility.Collapsed;
-        if (best is null)
+        if (sender is FrameworkElement { Tag: SearchResultViewModel result })
         {
-            return;
+            Navigator.OpenMedia(result.Item, ViewModel.SeasonHint);
         }
-
-        BestOverline.Text = ViewModel.BestOverline;
-        BestTitle.Text = best.Title;
-        BestMeta.Text = best.RatingText is { } rating ? $"★ {rating}  ·  {best.MetaLine}" : best.MetaLine;
-        BestOverview.Text = best.Overview ?? string.Empty;
-        ImageEx.SetUrl(BestBackdrop, _tmdb.ImageUrl(best.BackdropPath, "w1280"));
-        ImageEx.SetUrl(BestPoster, _tmdb.ImageUrl(best.PosterPath, "w342"));
-        Ambient.Show(ViewModel.BestBackdropUrl, ViewModel.BestPreviewUrl);
     }
 
-    private void OnBestClick(object sender, RoutedEventArgs e)
+    private void OnResultPointerEntered(object sender, PointerRoutedEventArgs e) => PreviewArtwork(sender);
+
+    private void OnResultFocused(object sender, RoutedEventArgs e) => PreviewArtwork(sender);
+
+    private void PreviewArtwork(object sender)
     {
-        if (ViewModel.BestMatch is { } best) Navigator.OpenMedia(best, ViewModel.SeasonHint);
+        if (sender is FrameworkElement { Tag: SearchResultViewModel { AmbientUrl: { } url } })
+        {
+            Ambient.Show(url);
+        }
     }
 
     private void OnFilterChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)

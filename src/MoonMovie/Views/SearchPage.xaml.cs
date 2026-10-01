@@ -64,14 +64,6 @@ public sealed partial class SearchPage : Page
         }
     }
 
-    private void OnResultClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement { Tag: SearchResultViewModel result })
-        {
-            Navigator.OpenMedia(result.Item, ViewModel.SeasonHint);
-        }
-    }
-
     private void OnResultPointerEntered(object sender, PointerRoutedEventArgs e) => PreviewArtwork(sender);
 
     private void OnResultFocused(object sender, RoutedEventArgs e) => PreviewArtwork(sender);

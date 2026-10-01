@@ -14,11 +14,11 @@
         <DataTemplate x:Key="ResultRowTemplate" x:DataType="vm:SearchResultViewModel">
             <Button
                 AutomationProperties.Name="{x:Bind Title}"
-                Click="OnResultClick"
+                Command="{x:Bind OpenCommand}"
                 GotFocus="OnResultFocused"
                 PointerEntered="OnResultPointerEntered"
                 Style="{StaticResource MoonListRowButtonStyle}"
-                Tag="{Binding}">
+                Tag="{x:Bind Self}">
                 <Grid Padding="12" ColumnSpacing="22">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="96" />

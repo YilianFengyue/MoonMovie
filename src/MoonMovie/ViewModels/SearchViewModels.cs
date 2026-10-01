@@ -45,9 +45,15 @@ public sealed class SuggestionItem
 }
 
 /// <summary>A row in the search result list: enough detail to tell same-named titles apart.</summary>
-public sealed class SearchResultViewModel(MediaItem item, TmdbClient tmdb, bool isExact)
+public sealed partial class SearchResultViewModel(MediaItem item, TmdbClient tmdb, bool isExact, int? seasonHint)
 {
     public MediaItem Item { get; } = item;
+
+    /// <summary>For x:Bind in templates: ItemsRepeater does not set DataContext, so {Binding} sees nothing.</summary>
+    public SearchResultViewModel Self => this;
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void Open() => Services.Navigator.OpenMedia(Item, seasonHint);
 
     public string Title => Item.Title;
 
@@ -161,7 +167,7 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
         foreach (var item in items)
         {
             var exact = SourceMatcher.Normalize(item.Title) == wanted || SourceMatcher.Normalize(item.OriginalTitle) == wanted;
-            Results.Add(new SearchResultViewModel(item, tmdb, exact));
+            Results.Add(new SearchResultViewModel(item, tmdb, exact, _results.Query.Season));
         }
 
         var hints = new List<string>(3);

@@ -226,12 +226,12 @@
             Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock x:Name="ToastText" VerticalAlignment="Center" FontSize="13" Foreground="White" />
-                <HyperlinkButton
+                <Button
                     x:Name="ToastAction"
-                    Padding="8,2"
                     VerticalAlignment="Center"
                     Click="OnToastActionClick"
                     FontSize="13"
+                    Style="{StaticResource MoonLinkButtonStyle}"
                     Visibility="Collapsed" />
             </StackPanel>
         </Border>

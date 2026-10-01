@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using MoonMovie.Animations;
 using MoonMovie.Imaging;
 using MoonMovie.Services;
 using MoonMovie.ViewModels;
@@ -26,7 +27,7 @@ public sealed partial class HomePage : Page
     private readonly DispatcherQueueTimer _rotateTimer;
     private readonly List<Border> _pagerBars = [];
     private ExpressionAnimation? _dimExpression;
-    private ExpressionAnimation? _fadeExpression;
+    private readonly Microsoft.UI.Xaml.Media.TranslateTransform _heroParallax = new();
     private int _spotlightIndex = -1;
     private int _spotlightVersion;
     private bool _heroHover;
@@ -41,8 +42,7 @@ public sealed partial class HomePage : Page
         _rotateTimer.Interval = RotateInterval;
         _rotateTimer.Tick += (_, _) => OnRotateTick();
 
-        ElementCompositionPreview.SetIsTranslationEnabled(HeroCopy, true);
-        ElementCompositionPreview.SetIsTranslationEnabled(HeroParallax, true);
+        HeroParallax.RenderTransform = _heroParallax;
 
         SizeChanged += OnSizeChanged;
         Loaded += (_, _) => SetupScrollExpressions();
@@ -157,10 +157,10 @@ public sealed partial class HomePage : Page
             Ambient.Show(spot.BackdropUrl, spot.PreviewUrl);
         }
 
-        var copy = ElementCompositionPreview.GetElementVisual(HeroCopy);
+        // Storyboards (not composition): the hero copy hosts the action buttons — see Animations/Motion.cs.
         if (animate)
         {
-            await AnimateCopyAsync(copy, toOpacity: 0, fromY: 0, toY: -10, TimeSpan.FromMilliseconds(170), accelerate: true);
+            await Motion.SlideFadeAsync(HeroCopy, 0, 0, 0, -10, null, 0, TimeSpan.FromMilliseconds(170), decelerate: false);
         }
 
         // Wait briefly for the title logo so the title does not flash text and then swap to art.
@@ -172,7 +172,7 @@ public sealed partial class HomePage : Page
         }
 
         ApplySpotlight(spot);
-        _ = AnimateCopyAsync(copy, toOpacity: 1, fromY: 18, toY: 0, TimeSpan.FromMilliseconds(animate ? 520 : 700), accelerate: false);
+        _ = Motion.SlideFadeAsync(HeroCopy, 0, 0, 18, 0, null, 1, TimeSpan.FromMilliseconds(animate ? 520 : 700));
 
         if (!branding.IsCompleted)
         {
@@ -204,32 +204,6 @@ public sealed partial class HomePage : Page
         AutomationProperties.SetName(HeroPlayButton, $"播放 {spot.Title}");
     }
 
-    private static Task AnimateCopyAsync(Visual visual, float toOpacity, float fromY, float toY, TimeSpan duration, bool accelerate)
-    {
-        var compositor = visual.Compositor;
-        var easing = accelerate
-            ? compositor.CreateCubicBezierEasingFunction(new Vector2(0.7f, 0f), new Vector2(1f, 0.5f))
-            : compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f));
-
-        var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
-
-        var opacity = compositor.CreateScalarKeyFrameAnimation();
-        opacity.InsertKeyFrame(1f, toOpacity, easing);
-        opacity.Duration = duration;
-        visual.StartAnimation("Opacity", opacity);
-
-        var translation = compositor.CreateVector3KeyFrameAnimation();
-        translation.InsertKeyFrame(0f, new Vector3(0, fromY, 0));
-        translation.InsertKeyFrame(1f, new Vector3(0, toY, 0), easing);
-        translation.Duration = duration;
-        visual.StartAnimation("Translation", translation);
-
-        batch.End();
-        var tcs = new TaskCompletionSource();
-        batch.Completed += (_, _) => tcs.TrySetResult();
-        return tcs.Task;
-    }
-
     private void BuildPager()
     {
         HeroPager.Children.Clear();
@@ -249,7 +223,7 @@ public sealed partial class HomePage : Page
                 CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Microsoft.UI.Colors.White),
                 Opacity = 0.35,
-                OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(250) },
+
             };
             var button = new Button
             {
@@ -272,7 +246,7 @@ public sealed partial class HomePage : Page
         {
             var bar = _pagerBars[i];
             var target = i == active ? 32 : 8;
-            bar.Opacity = i == active ? 1 : 0.35;
+            Animations.Motion.FadeTo(bar, i == active ? 1 : 0.35, TimeSpan.FromMilliseconds(250));
 
             var animation = new DoubleAnimation
             {
@@ -314,6 +288,11 @@ public sealed partial class HomePage : Page
 
     private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
+        // Hero copy drifts slower than the page and fades out (plain properties: it hosts controls).
+        var offset = Scroller.VerticalOffset;
+        _heroParallax.Y = offset * 0.3;
+        HeroParallax.Opacity = Math.Clamp(1 - offset / (Hero.Height * 0.5), 0, 1);
+
         if (HeroInView && _spotlightIndex >= 0)
         {
             ShowHeroAmbient();
@@ -341,30 +320,16 @@ public sealed partial class HomePage : Page
         _dimExpression.SetReferenceParameter("scroll", scroll);
         _dimExpression.SetScalarParameter("h", height);
         ElementCompositionPreview.GetElementVisual(Ambient.DimTarget).StartAnimation("Opacity", _dimExpression);
-
-        // Hero copy drifts slower than the page and fades out.
-        var parallax = compositor.CreateExpressionAnimation("Vector3(0, -scroll.Translation.Y * 0.3, 0)");
-        parallax.SetReferenceParameter("scroll", scroll);
-        var heroVisual = ElementCompositionPreview.GetElementVisual(HeroParallax);
-        heroVisual.StartAnimation("Translation", parallax);
-
-        _fadeExpression = compositor.CreateExpressionAnimation("Clamp(1 + scroll.Translation.Y / (h * 0.5), 0, 1)");
-        _fadeExpression.SetReferenceParameter("scroll", scroll);
-        _fadeExpression.SetScalarParameter("h", height);
-        heroVisual.StartAnimation("Opacity", _fadeExpression);
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         Hero.Height = Math.Clamp(e.NewSize.Height * 0.86, 560, 1100);
 
-        if (_dimExpression is not null && _fadeExpression is not null)
+        if (_dimExpression is not null)
         {
-            var height = (float)Hero.Height;
-            _dimExpression.SetScalarParameter("h", height);
-            _fadeExpression.SetScalarParameter("h", height);
+            _dimExpression.SetScalarParameter("h", (float)Hero.Height);
             ElementCompositionPreview.GetElementVisual(Ambient.DimTarget).StartAnimation("Opacity", _dimExpression);
-            ElementCompositionPreview.GetElementVisual(HeroParallax).StartAnimation("Opacity", _fadeExpression);
         }
     }
 

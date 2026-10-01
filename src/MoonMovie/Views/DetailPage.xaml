@@ -146,13 +146,13 @@
                                 VerticalAlignment="Center"
                                 Fill="{ThemeResource TextFillColorTertiaryBrush}" />
                             <TextBlock x:Name="StatusText" VerticalAlignment="Center" Style="{StaticResource MoonMetaStyle}" FontSize="13" />
-                            <HyperlinkButton
+                            <Button
                                 x:Name="StatusLink"
                                 Margin="-4,0,0,0"
-                                Padding="6,2"
                                 VerticalAlignment="Center"
                                 Click="OnStatusLinkClick"
-                                FontSize="13" />
+                                FontSize="13"
+                                Style="{StaticResource MoonLinkButtonStyle}" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

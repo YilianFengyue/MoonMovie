@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using MoonMovie.Core.Models;
+using MoonMovie.Animations;
 using MoonMovie.Imaging;
 using MoonMovie.ViewModels;
 
@@ -22,7 +23,7 @@ public sealed partial class DetailPage : Page
 
     private readonly HashSet<string> _revealedSources = [];
     private ExpressionAnimation? _dimExpression;
-    private ExpressionAnimation? _fadeExpression;
+
     private bool _panelOpen;
     private bool _syncingSeasons;
     private string? _lastSelectedIdentity;
@@ -32,7 +33,7 @@ public sealed partial class DetailPage : Page
         ViewModel = App.Services.GetRequiredService<DetailViewModel>();
         InitializeComponent();
 
-        ElementCompositionPreview.SetIsTranslationEnabled(SourcePanel, true);
+        Scroller.ViewChanged += OnScrollViewChanged;
         SizeChanged += OnSizeChanged;
         Loaded += (_, _) => SetupScrollDimming();
 
@@ -292,38 +293,18 @@ public sealed partial class DetailPage : Page
         PlayButton.Focus(FocusState.Programmatic);
     }
 
-    private void AnimatePanel(bool open)
+    // Storyboards only: the panel hosts controls (see Animations/Motion.cs for why composition is avoided here).
+    private async void AnimatePanel(bool open)
     {
-        var panel = ElementCompositionPreview.GetElementVisual(SourcePanel);
-        var dimmer = ElementCompositionPreview.GetElementVisual(SourceDimmer);
-        var compositor = panel.Compositor;
-        var easing = open
-            ? compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f))
-            : compositor.CreateCubicBezierEasingFunction(new Vector2(0.7f, 0f), new Vector2(1f, 0.5f));
         var duration = open ? PanelDuration : TimeSpan.FromMilliseconds(200);
-        var offset = (float)SourcePanel.ActualWidth + 24;
+        var offset = (SourcePanel.ActualWidth > 0 ? SourcePanel.ActualWidth : SourcePanel.Width) + 24;
 
-        var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+        Motion.FadeTo(SourceDimmer, open ? 1 : 0, duration);
+        await Motion.SlideFadeAsync(SourcePanel, open ? offset : 0, open ? 0 : offset, 0, 0, null, 1, duration, decelerate: open);
 
-        var slide = compositor.CreateVector3KeyFrameAnimation();
-        slide.InsertKeyFrame(0f, new Vector3(open ? offset : 0, 0, 0));
-        slide.InsertKeyFrame(1f, new Vector3(open ? 0 : offset, 0, 0), easing);
-        slide.Duration = duration;
-        panel.StartAnimation("Translation", slide);
-
-        var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(0f, open ? 0f : 1f);
-        fade.InsertKeyFrame(1f, open ? 1f : 0f, easing);
-        fade.Duration = duration;
-        dimmer.StartAnimation("Opacity", fade);
-
-        batch.End();
-        if (!open)
+        if (!open && !_panelOpen)
         {
-            batch.Completed += (_, _) =>
-            {
-                if (!_panelOpen) SourceLayer.Visibility = Visibility.Collapsed;
-            };
+            SourceLayer.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -349,22 +330,7 @@ public sealed partial class DetailPage : Page
             return;
         }
 
-        ElementCompositionPreview.SetIsTranslationEnabled(args.Element, true);
-        var visual = ElementCompositionPreview.GetElementVisual(args.Element);
-        var compositor = visual.Compositor;
-        var easing = compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f));
-
-        var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(0f, 0f);
-        fade.InsertKeyFrame(1f, 1f, easing);
-        fade.Duration = TimeSpan.FromMilliseconds(360);
-        visual.StartAnimation("Opacity", fade);
-
-        var slide = compositor.CreateVector3KeyFrameAnimation();
-        slide.InsertKeyFrame(0f, new Vector3(0, 10, 0));
-        slide.InsertKeyFrame(1f, Vector3.Zero, easing);
-        slide.Duration = TimeSpan.FromMilliseconds(360);
-        visual.StartAnimation("Translation", slide);
+        _ = Motion.SlideFadeAsync(args.Element, 0, 0, 10, 0, 0, 1, TimeSpan.FromMilliseconds(360));
     }
 
     // ----- Seasons ----------------------------------------------------------------------------------------
@@ -413,23 +379,19 @@ public sealed partial class DetailPage : Page
         _dimExpression.SetReferenceParameter("scroll", scroll);
         _dimExpression.SetScalarParameter("h", (float)Math.Max(Hero.ActualHeight, Hero.Height));
         ElementCompositionPreview.GetElementVisual(Ambient.DimTarget).StartAnimation("Opacity", _dimExpression);
-
-        // The copy fades before it can slide under the title bar.
-        _fadeExpression = scroll.Compositor.CreateExpressionAnimation("Clamp(1 + scroll.Translation.Y / (h * 0.55), 0, 1)");
-        _fadeExpression.SetReferenceParameter("scroll", scroll);
-        _fadeExpression.SetScalarParameter("h", (float)Math.Max(Hero.ActualHeight, Hero.Height));
-        ElementCompositionPreview.GetElementVisual(HeroCopy).StartAnimation("Opacity", _fadeExpression);
     }
+
+    /// <summary>The copy fades before it can slide under the title bar (plain property: it hosts the buttons).</summary>
+    private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) =>
+        HeroCopy.Opacity = Math.Clamp(1 - Scroller.VerticalOffset / (Hero.Height * 0.55), 0, 1);
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         Hero.Height = Math.Clamp(e.NewSize.Height * 0.84, 560, 1040);
-        if (_dimExpression is not null && _fadeExpression is not null)
+        if (_dimExpression is not null)
         {
             _dimExpression.SetScalarParameter("h", (float)Hero.Height);
-            _fadeExpression.SetScalarParameter("h", (float)Hero.Height);
             ElementCompositionPreview.GetElementVisual(Ambient.DimTarget).StartAnimation("Opacity", _dimExpression);
-            ElementCompositionPreview.GetElementVisual(HeroCopy).StartAnimation("Opacity", _fadeExpression);
         }
     }
 

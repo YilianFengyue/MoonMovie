@@ -58,10 +58,6 @@ public sealed partial class MediaRow : UserControl
     public MediaRow()
     {
         InitializeComponent();
-        foreach (var button in new[] { PrevButton, NextButton })
-        {
-            button.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(160) };
-        }
 
         Repeater.ItemTemplate = (DataTemplate)Application.Current.Resources["PosterCardTemplate"];
     }
@@ -161,7 +157,7 @@ public sealed partial class MediaRow : UserControl
             button.Visibility = Visibility.Visible;
         }
 
-        button.Opacity = show ? 1 : 0;
+        Animations.Motion.FadeTo(button, show ? 1 : 0, TimeSpan.FromMilliseconds(160));
         button.IsHitTestVisible = show;
     }
 }

@@ -12,6 +12,7 @@ using MoonMovie.Core.Models;
 using MoonMovie.Core.Playback;
 using MoonMovie.Core.Sources;
 using MoonMovie.Playback;
+using MoonMovie.Animations;
 using MoonMovie.Services;
 using MoonMovie.ViewModels;
 using Windows.Media.Core;
@@ -651,13 +652,11 @@ public sealed partial class PlayerPage : Page
         App.MainWindow.SetTitleBarVisible(false);
     }
 
+    // Storyboard, not a composition animation: the chrome hosts interactive controls, and composition-owned
+    // ancestors of controls with implicit transitions crash Microsoft.UI.Xaml on pointer input.
     private void AnimateChrome(float to)
     {
-        var visual = ElementCompositionPreview.GetElementVisual(Chrome);
-        var fade = visual.Compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(1f, to);
-        fade.Duration = TimeSpan.FromMilliseconds(to > 0 ? 160 : 420);
-        visual.StartAnimation("Opacity", fade);
+        Motion.FadeTo(Chrome, to, TimeSpan.FromMilliseconds(to > 0 ? 160 : 420));
         Chrome.IsHitTestVisible = to > 0;
     }
 

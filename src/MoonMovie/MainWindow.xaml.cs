@@ -59,8 +59,30 @@ public sealed partial class MainWindow : Window
         DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
     }
 
-    /// <summary>Title bar overlay visibility for the player's auto-hiding controls.</summary>
-    public void SetTitleBarVisible(bool visible) => AppTitleBar.Opacity = visible ? 1 : 0;
+    /// <summary>Title bar overlay visibility for the player's auto-hiding controls (caption buttons included).</summary>
+    public void SetTitleBarVisible(bool visible)
+    {
+        AppTitleBar.Opacity = visible ? 1 : 0;
+        var bar = AppWindow.TitleBar;
+        bar.ButtonForegroundColor = visible ? Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF) : Colors.Transparent;
+        bar.ButtonInactiveForegroundColor = visible ? Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF) : Colors.Transparent;
+        bar.ButtonHoverBackgroundColor = visible ? Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF) : Colors.Transparent;
+        bar.ButtonHoverForegroundColor = visible ? Colors.White : Colors.Transparent;
+    }
+
+    public bool IsCompactOverlay => AppWindow.Presenter.Kind == AppWindowPresenterKind.CompactOverlay;
+
+    /// <summary>Picture-in-picture: a small always-on-top window.</summary>
+    public void SetCompactOverlay(bool compact)
+    {
+        if (compact == IsCompactOverlay) return;
+        AppWindow.SetPresenter(compact ? AppWindowPresenterKind.CompactOverlay : AppWindowPresenterKind.Overlapped);
+        if (compact)
+        {
+            var scale = Content?.XamlRoot?.RasterizationScale ?? 1.0;
+            AppWindow.Resize(new SizeInt32((int)(480 * scale), (int)(270 * scale)));
+        }
+    }
 
     private void ConfigureWindow()
     {

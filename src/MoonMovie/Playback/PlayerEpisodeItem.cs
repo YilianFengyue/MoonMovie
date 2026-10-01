@@ -4,9 +4,14 @@ using Microsoft.UI.Xaml;
 namespace MoonMovie.Playback;
 
 /// <summary>A row in the player's episode panel.</summary>
-public sealed partial class PlayerEpisodeItem(int index, string label, string? name, double watched) : ObservableObject
+public sealed partial class PlayerEpisodeItem(int index, string label, string? name, double watched, string? stillUrl = null)
+    : ObservableObject
 {
     public int Index { get; } = index;
+
+    public string? StillUrl { get; } = stillUrl;
+
+    public Visibility StillVisibility => StillUrl is null ? Visibility.Collapsed : Visibility.Visible;
 
     public string Label { get; } = label;
 

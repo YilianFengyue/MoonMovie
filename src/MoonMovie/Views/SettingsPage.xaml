@@ -3,6 +3,7 @@
     x:Class="MoonMovie.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     Background="{StaticResource MoonCanvasBrush}">
 
     <Page.Resources>
@@ -18,474 +19,332 @@
         <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
         <SolidColorBrush x:Key="SliderOuterThumbBackground" Color="#33000000" />
 
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource MoonSurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource MoonCardStrokeBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-        </Style>
-        <Style x:Key="RowStyle" TargetType="Grid">
-            <Setter Property="Padding" Value="22,16,22,16" />
-            <Setter Property="ColumnSpacing" Value="24" />
-            <Setter Property="BorderBrush" Value="{StaticResource MoonHairlineBrush}" />
-        </Style>
-        <Style x:Key="RowTitleStyle" TargetType="TextBlock">
+        <!-- Windows Settings rhythm: a section label, then cards 4 px apart. -->
+        <Style x:Key="SectionStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="2,28,0,8" />
+            <Setter Property="FontFamily" Value="{StaticResource MoonFontBold}" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Foreground" Value="{StaticResource MoonTextPrimaryBrush}" />
         </Style>
-        <Style x:Key="RowCaptionStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,3,0,0" />
+        <Style x:Key="CaptionStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{StaticResource MoonTextTertiaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
-        <Style x:Key="SectionStyle" TargetType="TextBlock" BasedOn="{StaticResource MoonOverlineStyle}">
-            <Setter Property="Margin" Value="4,0,0,12" />
+        <Style x:Key="ChipRowStyle" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal" />
+            <Setter Property="Spacing" Value="4" />
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MoonGlassButtonStyle}">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="FontSize" Value="13" />
         </Style>
     </Page.Resources>
 
     <ScrollViewer HorizontalScrollMode="Disabled" VerticalAnchorRatio="NaN">
-        <StackPanel
-            MaxWidth="980"
-            Padding="56,104,56,72"
-            HorizontalAlignment="Left"
-            Spacing="36">
-            <StackPanel>
+        <!-- Left-aligned like the other pages; cards fill the column up to a readable width. -->
+        <Grid Padding="56,104,56,72">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="1040" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+        <StackPanel Spacing="4">
+            <StackPanel Margin="0,0,0,8">
                 <TextBlock Style="{StaticResource MoonOverlineStyle}" Text="偏好" />
                 <TextBlock Margin="0,10,0,0" Style="{StaticResource MoonDisplayStyle}" Text="设置" />
             </StackPanel>
 
             <!-- ===== 播放 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="播放" />
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="自动播放下一集" />
-                                <TextBlock x:Name="AutoNextChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="剧集播完后接着放下一集；片尾 30 秒会先给出提示，可以取消" />
-                            </StackPanel>
-                            <StackPanel x:Name="AutoNextChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="播放内核" />
-                                <TextBlock x:Name="EngineChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="mpv：几乎所有格式、ASS 特效字幕、HDR、超分；系统内核作为备用。下次打开播放器时生效" />
-                            </StackPanel>
-                            <StackPanel x:Name="EngineChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="画质档位" />
-                                <TextBlock x:Name="QualityChipsHostCaption" Style="{StaticResource RowCaptionStyle}" Text="" />
-                            </StackPanel>
-                            <StackPanel x:Name="QualityChipsHost" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="动画超分辨率" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="Anime4K 让线条更清晰、色块更干净。片源小于窗口时才会启用，播放时可在「画面」里按片调整" />
-                            </StackPanel>
-                            <StackPanel x:Name="AnimeUpscaleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="影视超分辨率" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="真人影视用 NVIDIA RTX 视频超分（需要 RTX 显卡和硬件解码）" />
-                            </StackPanel>
-                            <StackPanel x:Name="UpscaleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="运动平滑" />
-                                <TextBlock x:Name="InterpolationChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="把 24 帧电影重采样到屏幕刷新率，高刷屏上镜头平移不抖（略增显卡负担）" />
-                            </StackPanel>
-                            <StackPanel x:Name="InterpolationChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="字幕样式" />
-                                <TextBlock x:Name="SubtitleStyleChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="背景板：字幕下加半透明底；统一样式：番剧特效字幕也按统一字体字号显示" />
-                            </StackPanel>
-                            <StackPanel x:Name="SubtitleStyleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="声音" />
-                                <TextBlock x:Name="AudioChipsHostCaption" Style="{StaticResource RowCaptionStyle}" Text="夜间模式：压低爆炸声、提亮对白；源码输出：杜比 / DTS 原样送功放" />
-                            </StackPanel>
-                            <StackPanel x:Name="AudioChipsHost" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+            <TextBlock Style="{StaticResource SectionStyle}" Text="播放" />
+            <tk:SettingsCard Header="自动播放下一集">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE893;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="AutoNextChipsCaption" Style="{StaticResource CaptionStyle}" Text="剧集播完后接着放下一集；片尾 30 秒会先给出提示，可以取消" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="AutoNextChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="播放内核">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE714;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="EngineChipsCaption" Style="{StaticResource CaptionStyle}" Text="mpv：几乎所有格式、ASS 特效字幕、HDR、超分；系统内核作为备用。下次打开播放器时生效" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="EngineChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="画质档位">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8B9;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="QualityChipsHostCaption" Style="{StaticResource CaptionStyle}" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="QualityChipsHost" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="Anime4K 让线条更清晰、色块更干净。片源小于窗口时才会启用，播放时可在「画面」里按片调整" Header="动画超分辨率">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE91B;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="AnimeUpscaleChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="真人影视用 NVIDIA RTX 视频超分（需要 RTX 显卡和硬件解码）" Header="影视超分辨率">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7F4;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="UpscaleChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="运动平滑">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE916;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="InterpolationChipsCaption" Style="{StaticResource CaptionStyle}" Text="把 24 帧电影重采样到屏幕刷新率，高刷屏上镜头平移不抖（略增显卡负担）" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="InterpolationChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="字幕样式">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7F0;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="SubtitleStyleChipsCaption" Style="{StaticResource CaptionStyle}" Text="背景板：字幕下加半透明底；统一样式：番剧特效字幕也按统一字体字号显示" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="SubtitleStyleChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="声音">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE767;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="AudioChipsHostCaption" Style="{StaticResource CaptionStyle}" Text="夜间模式：压低爆炸声、提亮对白；源码输出：杜比 / DTS 原样送功放" />
+                </tk:SettingsCard.Description>
+                <StackPanel x:Name="AudioChipsHost" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
 
             <!-- ===== 弹幕 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="弹幕" />
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="播放时显示弹幕" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="播放中按 D 随时开关，按 B 打开弹幕面板" />
-                            </StackPanel>
-                            <Border x:Name="DanmakuOnHost" Grid.Column="1" VerticalAlignment="Center" />
-                        </Grid>
+            <TextBlock Style="{StaticResource SectionStyle}" Text="弹幕" />
+            <tk:SettingsCard Description="播放中按 D 随时开关，按 B 打开弹幕面板" Header="播放时显示弹幕">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8BD;" />
+                </tk:SettingsCard.HeaderIcon>
+                <Border x:Name="DanmakuOnHost" />
+            </tk:SettingsCard>
+            <tk:SettingsExpander Description="不透明度、字号与滚动速度" Header="样式" IsExpanded="True">
+                <tk:SettingsExpander.HeaderIcon>
+                    <FontIcon Glyph="&#xE790;" />
+                </tk:SettingsExpander.HeaderIcon>
+                <tk:SettingsExpander.Items>
+                    <tk:SettingsCard Header="不透明度">
+                        <tk:SettingsCard.Description>
+                            <TextBlock x:Name="OpacityValue" Style="{StaticResource CaptionStyle}" />
+                        </tk:SettingsCard.Description>
+                        <Slider
+                            x:Name="OpacitySlider"
+                            Width="260"
+                            IsThumbToolTipEnabled="False"
+                            Maximum="100"
+                            Minimum="20"
+                            StepFrequency="5"
+                            ValueChanged="OnSliderChanged" />
+                    </tk:SettingsCard>
+                    <tk:SettingsCard Header="字号">
+                        <tk:SettingsCard.Description>
+                            <TextBlock x:Name="FontValue" Style="{StaticResource CaptionStyle}" />
+                        </tk:SettingsCard.Description>
+                        <Slider
+                            x:Name="FontSlider"
+                            Width="260"
+                            IsThumbToolTipEnabled="False"
+                            Maximum="160"
+                            Minimum="60"
+                            StepFrequency="10"
+                            ValueChanged="OnSliderChanged" />
+                    </tk:SettingsCard>
+                    <tk:SettingsCard Header="滚动速度">
+                        <tk:SettingsCard.Description>
+                            <TextBlock x:Name="SpeedValue" Style="{StaticResource CaptionStyle}" />
+                        </tk:SettingsCard.Description>
+                        <Slider
+                            x:Name="SpeedSlider"
+                            Width="260"
+                            IsThumbToolTipEnabled="False"
+                            Maximum="200"
+                            Minimum="50"
+                            StepFrequency="10"
+                            ValueChanged="OnSliderChanged" />
+                    </tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+            </tk:SettingsExpander>
+            <tk:SettingsCard Description="弹幕最多铺到画面的哪里" Header="显示区域">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE740;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="AreaChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="智能：按显示区域控制每秒数量，密集时优先保留大家都在刷的和读得通的，过滤打卡、日期、纯数字" Header="弹幕密度">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE9D2;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="DensityChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="顶部、底部固定弹幕；把几秒内重复刷屏的同一句合并成一条" Header="显示内容">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8FD;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="KindChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard
+                HorizontalContentAlignment="Stretch"
+                ContentAlignment="Vertical"
+                Description="包含这些词的弹幕不显示。用空格、逗号或换行分隔；写成 /正则/ 可以按正则匹配"
+                Header="屏蔽词">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE72E;" />
+                </tk:SettingsCard.HeaderIcon>
+                <TextBox
+                    x:Name="BlockWordsBox"
+                    MinHeight="72"
+                    HorizontalAlignment="Stretch"
+                    AcceptsReturn="True"
+                    LostFocus="OnBlockWordsLostFocus"
+                    PlaceholderText="例如：剧透 前方高能 /^6+$/"
+                    TextWrapping="Wrap" />
+            </tk:SettingsCard>
 
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="320" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="样式" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="不透明度、字号与滚动速度" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="2">
-                                <Grid>
-                                    <TextBlock FontSize="12" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="不透明度" />
-                                    <TextBlock x:Name="OpacityValue" HorizontalAlignment="Right" Style="{StaticResource MoonCardMetaStyle}" />
-                                </Grid>
-                                <Slider x:Name="OpacitySlider" IsThumbToolTipEnabled="False" Maximum="100" Minimum="20" StepFrequency="5" ValueChanged="OnSliderChanged" />
-                                <Grid>
-                                    <TextBlock FontSize="12" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="字号" />
-                                    <TextBlock x:Name="FontValue" HorizontalAlignment="Right" Style="{StaticResource MoonCardMetaStyle}" />
-                                </Grid>
-                                <Slider x:Name="FontSlider" IsThumbToolTipEnabled="False" Maximum="160" Minimum="60" StepFrequency="10" ValueChanged="OnSliderChanged" />
-                                <Grid>
-                                    <TextBlock FontSize="12" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="滚动速度" />
-                                    <TextBlock x:Name="SpeedValue" HorizontalAlignment="Right" Style="{StaticResource MoonCardMetaStyle}" />
-                                </Grid>
-                                <Slider x:Name="SpeedSlider" IsThumbToolTipEnabled="False" Maximum="200" Minimum="50" StepFrequency="10" ValueChanged="OnSliderChanged" />
-                            </StackPanel>
-                        </Grid>
-
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="显示区域" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="弹幕最多铺到画面的哪里" />
-                            </StackPanel>
-                            <StackPanel x:Name="AreaChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="弹幕密度" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="智能：按显示区域控制每秒数量，密集时优先保留大家都在刷的和读得通的，过滤打卡、日期、纯数字" />
-                            </StackPanel>
-                            <StackPanel x:Name="DensityChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="显示内容" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="顶部、底部固定弹幕；把几秒内重复刷屏的同一句合并成一条" />
-                            </StackPanel>
-                            <StackPanel x:Name="KindChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-
-                        <Grid Style="{StaticResource RowStyle}" RowSpacing="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="屏蔽词" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="包含这些词的弹幕不显示。用空格、逗号或换行分隔；写成 /正则/ 可以按正则匹配" />
-                            </StackPanel>
-                            <TextBox
-                                x:Name="BlockWordsBox"
-                                Grid.Row="1"
-                                MinHeight="72"
-                                AcceptsReturn="True"
-                                LostFocus="OnBlockWordsLostFocus"
-                                PlaceholderText="例如：剧透 前方高能 /^6+$/"
-                                TextWrapping="Wrap" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-
-            <!-- ===== 影视资料 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="影视资料" />
-                <Border Style="{StaticResource CardStyle}">
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="360" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="TMDB 密钥" />
-                            <TextBlock
-                                x:Name="TmdbKeyCaption"
-                                Style="{StaticResource RowCaptionStyle}"
-                                Text="海报、简介、剧集都来自 TMDB。可在 themoviedb.org 免费申请（API Key 或 Read Access Token 均可），重启后生效"
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-                        <PasswordBox
-                            x:Name="TmdbKeyBox"
-                            Grid.Column="1"
-                            VerticalAlignment="Center"
-                            LostFocus="OnTmdbKeyLostFocus"
+            <!-- ===== 服务 ===== -->
+            <TextBlock Style="{StaticResource SectionStyle}" Text="服务" />
+            <tk:SettingsCard Header="TMDB 密钥">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8D7;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="TmdbKeyCaption" Style="{StaticResource CaptionStyle}" Text="海报、简介、剧集都来自 TMDB。可在 themoviedb.org 免费申请（API Key 或 Read Access Token 均可），重启后生效" />
+                </tk:SettingsCard.Description>
+                <PasswordBox
+                    x:Name="TmdbKeyBox"
+                    Width="320"
+                    LostFocus="OnTmdbKeyLostFocus"
+                    PlaceholderText="留空则使用 .env 中的配置" />
+            </tk:SettingsCard>
+            <tk:SettingsExpander Description="LogVar 弹幕 API（danmu_api）；留空则使用 .env 中的配置" Header="弹幕服务器" IsExpanded="True">
+                <tk:SettingsExpander.HeaderIcon>
+                    <FontIcon Glyph="&#xE774;" />
+                </tk:SettingsExpander.HeaderIcon>
+                <tk:SettingsExpander.Items>
+                    <tk:SettingsCard Header="服务器地址">
+                        <TextBox
+                            x:Name="ServerBox"
+                            Width="320"
+                            LostFocus="OnServerLostFocus"
+                            PlaceholderText="https://example.com" />
+                    </tk:SettingsCard>
+                    <tk:SettingsCard Description="服务器的 TOKEN，会拼在地址后面" Header="访问令牌">
+                        <TextBox
+                            x:Name="TokenBox"
+                            Width="320"
+                            LostFocus="OnServerLostFocus"
                             PlaceholderText="留空则使用 .env 中的配置" />
-                    </Grid>
-                </Border>
-            </StackPanel>
-
-            <!-- ===== 弹幕服务器 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="弹幕服务器" />
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="360" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="服务器地址" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="LogVar 弹幕 API（danmu_api）的地址；留空则使用 .env 中的配置" />
+                    </tk:SettingsCard>
+                    <tk:SettingsCard Header="连接状态">
+                        <tk:SettingsCard.Description>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse
+                                    x:Name="ServerDot"
+                                    Width="7"
+                                    Height="7"
+                                    VerticalAlignment="Center"
+                                    Fill="#80FFFFFF" />
+                                <TextBlock x:Name="ServerStatus" FontSize="12" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="未检测" />
                             </StackPanel>
-                            <TextBox
-                                x:Name="ServerBox"
-                                Grid.Column="1"
-                                VerticalAlignment="Center"
-                                LostFocus="OnServerLostFocus"
-                                PlaceholderText="https://example.com" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="360" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="访问令牌" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="服务器的 TOKEN，会拼在地址后面" />
-                            </StackPanel>
-                            <TextBox
-                                x:Name="TokenBox"
-                                Grid.Column="1"
-                                VerticalAlignment="Center"
-                                LostFocus="OnServerLostFocus"
-                                PlaceholderText="留空则使用 .env 中的配置" />
-                        </Grid>
-                        <Grid Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="连接状态" />
-                                <StackPanel Margin="0,3,0,0" Orientation="Horizontal" Spacing="8">
-                                    <Ellipse
-                                        x:Name="ServerDot"
-                                        Width="7"
-                                        Height="7"
-                                        VerticalAlignment="Center"
-                                        Fill="#80FFFFFF" />
-                                    <TextBlock x:Name="ServerStatus" FontSize="12" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="未检测" />
-                                </StackPanel>
-                            </StackPanel>
-                            <Button
-                                x:Name="TestButton"
-                                Grid.Column="1"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnTestServer"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="测试连接" />
-                            </Button>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                        </tk:SettingsCard.Description>
+                        <Button x:Name="TestButton" Click="OnTestServer" Style="{StaticResource ActionButtonStyle}">
+                            <TextBlock Text="测试连接" />
+                        </Button>
+                    </tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+            </tk:SettingsExpander>
 
             <!-- ===== 存储 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="存储" />
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="图片缓存" />
-                                <TextBlock x:Name="ImageCacheText" Style="{StaticResource RowCaptionStyle}" Text="正在计算…" />
-                            </StackPanel>
-                            <Button
-                                Grid.Column="1"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnClearImages"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="清理" />
-                            </Button>
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}" ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="视频缓存" />
-                                <TextBlock x:Name="SegmentCacheText" Style="{StaticResource RowCaptionStyle}" Text="正在计算…" />
-                            </StackPanel>
-                            <StackPanel x:Name="SegmentCacheChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                            <Button
-                                Grid.Column="2"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnClearSegments"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="清理" />
-                            </Button>
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}" ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="下载位置" />
-                                <TextBlock x:Name="DownloadFolderText" Style="{StaticResource RowCaptionStyle}" IsTextSelectionEnabled="True" />
-                            </StackPanel>
-                            <Button
-                                Grid.Column="1"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnChangeDownloadFolder"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="更改" />
-                            </Button>
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="同时下载" />
-                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="同时下载的集数；限速可以在下载页设置" />
-                            </StackPanel>
-                            <StackPanel x:Name="DownloadConcurrencyChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
-                        </Grid>
-                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="数据缓存" />
-                                <TextBlock x:Name="DataCacheText" Style="{StaticResource RowCaptionStyle}" Text="正在计算…" />
-                            </StackPanel>
-                            <Button
-                                Grid.Column="1"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnClearData"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="清理" />
-                            </Button>
-                        </Grid>
-                        <Grid Style="{StaticResource RowStyle}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="数据文件夹" />
-                                <TextBlock x:Name="DataFolderText" Style="{StaticResource RowCaptionStyle}" IsTextSelectionEnabled="True" />
-                            </StackPanel>
-                            <Button
-                                Grid.Column="1"
-                                Height="36"
-                                Padding="16,0"
-                                VerticalAlignment="Center"
-                                Click="OnOpenDataFolder"
-                                FontSize="13"
-                                Style="{StaticResource MoonGlassButtonStyle}">
-                                <TextBlock Text="打开" />
-                            </Button>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+            <TextBlock Style="{StaticResource SectionStyle}" Text="存储" />
+            <tk:SettingsCard Header="下载位置">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE896;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="DownloadFolderText" IsTextSelectionEnabled="True" Style="{StaticResource CaptionStyle}" />
+                </tk:SettingsCard.Description>
+                <Button Click="OnChangeDownloadFolder" Style="{StaticResource ActionButtonStyle}">
+                    <TextBlock Text="更改" />
+                </Button>
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="同时下载的集数；限速可以在下载页设置" Header="同时下载">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8CB;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel x:Name="DownloadConcurrencyChips" Style="{StaticResource ChipRowStyle}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="视频缓存">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE81E;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="SegmentCacheText" Style="{StaticResource CaptionStyle}" Text="正在计算…" />
+                </tk:SettingsCard.Description>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <StackPanel x:Name="SegmentCacheChips" VerticalAlignment="Center" Style="{StaticResource ChipRowStyle}" />
+                    <Button Click="OnClearSegments" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock Text="清理" />
+                    </Button>
+                </StackPanel>
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="图片缓存">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xEB9F;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="ImageCacheText" Style="{StaticResource CaptionStyle}" Text="正在计算…" />
+                </tk:SettingsCard.Description>
+                <Button Click="OnClearImages" Style="{StaticResource ActionButtonStyle}">
+                    <TextBlock Text="清理" />
+                </Button>
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="数据缓存">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE74E;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="DataCacheText" Style="{StaticResource CaptionStyle}" Text="正在计算…" />
+                </tk:SettingsCard.Description>
+                <Button Click="OnClearData" Style="{StaticResource ActionButtonStyle}">
+                    <TextBlock Text="清理" />
+                </Button>
+            </tk:SettingsCard>
+            <tk:SettingsCard Header="数据文件夹">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8B7;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="DataFolderText" IsTextSelectionEnabled="True" Style="{StaticResource CaptionStyle}" />
+                </tk:SettingsCard.Description>
+                <Button Click="OnOpenDataFolder" Style="{StaticResource ActionButtonStyle}">
+                    <TextBlock Text="打开" />
+                </Button>
+            </tk:SettingsCard>
 
             <!-- ===== 关于 ===== -->
-            <StackPanel>
-                <TextBlock Style="{StaticResource SectionStyle}" Text="关于" />
-                <Border Style="{StaticResource CardStyle}">
-                    <Grid Style="{StaticResource RowStyle}">
-                        <StackPanel>
-                            <TextBlock x:Name="VersionText" Style="{StaticResource RowTitleStyle}" />
-                            <TextBlock Style="{StaticResource RowCaptionStyle}" Text="影视资料与图片来自 TMDB；本产品使用 TMDB API，但未经 TMDB 认可或认证。片源来自公开资源站，弹幕由你配置的服务器提供。" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </StackPanel>
+            <TextBlock Style="{StaticResource SectionStyle}" Text="关于" />
+            <tk:SettingsCard Description="影视资料与图片来自 TMDB；本产品使用 TMDB API，但未经 TMDB 认可或认证。片源来自公开资源站，弹幕由你配置的服务器提供。">
+                <tk:SettingsCard.Header>
+                    <TextBlock x:Name="VersionText" />
+                </tk:SettingsCard.Header>
+                <tk:SettingsCard.HeaderIcon>
+                    <BitmapIcon ShowAsMonochrome="False" UriSource="ms-appx:///Assets/AppLogo.png" />
+                </tk:SettingsCard.HeaderIcon>
+            </tk:SettingsCard>
         </StackPanel>
+        </Grid>
     </ScrollViewer>
 </Page>

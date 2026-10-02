@@ -18,7 +18,12 @@ public static class Program
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
-        var main = AppInstance.FindOrRegisterForKey(InstanceKey);
+        var key = InstanceKey;
+#if DEBUG
+        // Test runs next to a copy that is in use: MOONMOVIE_INSTANCE=<name> keeps them apart.
+        key += Environment.GetEnvironmentVariable("MOONMOVIE_INSTANCE");
+#endif
+        var main = AppInstance.FindOrRegisterForKey(key);
         if (!main.IsCurrent)
         {
             Redirect(main, AppInstance.GetCurrent().GetActivatedEventArgs());

@@ -53,6 +53,7 @@ public partial class App : Application
         _window = MainWindow;
         _window.Activate();
         Services.GetRequiredService<LocalLibrary>().Initialize();
+        Services.GetRequiredService<BiliAccountService>().Restore();
         Services.GetRequiredService<DownloadManager>().Start();
 
         // Files from the command line or a file association, a jump-list "继续观看" entry.
@@ -123,6 +124,9 @@ public partial class App : Application
             .AddSingleton<SourceMatchCache>()
             .AddSingleton(_ => new Core.Bilibili.BiliClient(direct))
             .AddSingleton(_ => new Core.Douban.DoubanClient(direct))
+            .AddSingleton<BiliAccountService>()
+            .AddSingleton<ProfileStore>()
+            .AddTransient<ProfileViewModel>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()

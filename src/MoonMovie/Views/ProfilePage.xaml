@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.ProfilePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoonMovie.Controls"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    Background="{StaticResource MoonCanvasBrush}"
+    XYFocusKeyboardNavigation="Enabled">
+
+    <Grid>
+        <controls:AmbientBackdrop x:Name="Ambient" Opacity="0.4" />
+
+        <ScrollViewer HorizontalScrollMode="Disabled" VerticalAnchorRatio="NaN">
+            <StackPanel Padding="0,104,0,72">
+
+                <!-- ===== Who ===== -->
+                <Grid Margin="{StaticResource MoonGutter}" ColumnSpacing="28">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Width="120" Height="120">
+                        <Grid Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="60">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource MoonFontBold}"
+                                FontSize="44"
+                                Foreground="{StaticResource MoonTextSecondaryBrush}"
+                                Text="{x:Bind ViewModel.Initial, Mode=OneWay}" />
+                            <Image x:Name="AvatarImage" imaging:ImageEx.DecodeWidth="120" Stretch="UniformToFill" />
+                            <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="60" />
+                        </Grid>
+                        <Button
+                            Width="36"
+                            Height="36"
+                            Padding="0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            AutomationProperties.Name="更换头像"
+                            CornerRadius="18"
+                            Style="{StaticResource MoonGlassButtonStyle}"
+                            ToolTipService.ToolTip="更换头像">
+                            <FontIcon FontSize="13" Glyph="&#xE70F;" />
+                            <Button.Flyout>
+                                <MenuFlyout Placement="Bottom">
+                                    <MenuFlyoutItem Click="OnPickAvatar" Text="选择图片…">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xEB9F;" />
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="UseBiliAvatarItem" Click="OnUseBiliAvatar" Text="使用 B站头像" />
+                                    <MenuFlyoutItem Click="OnClearAvatar" Text="不使用头像" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                        <TextBlock Style="{StaticResource MoonOverlineStyle}" Text="个人主页" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="40"
+                                Style="{StaticResource MoonDisplayStyle}"
+                                Text="{x:Bind ViewModel.Name, Mode=OneWay}" />
+                            <Button
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="修改昵称"
+                                Click="OnEditName"
+                                Style="{StaticResource MoonTitleBarButtonStyle}"
+                                ToolTipService.ToolTip="修改昵称">
+                                <FontIcon FontSize="13" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE70F;" />
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource MoonMetaStyle}" Text="{x:Bind ViewModel.Stats, Mode=OneWay}" />
+                        <TextBlock Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind ViewModel.SinceText, Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- ===== 关联账号 ===== -->
+                <StackPanel Margin="56,44,56,0" Spacing="14">
+                    <TextBlock Style="{StaticResource MoonSectionTitleStyle}" Text="关联账号" />
+                    <Border
+                        MaxWidth="820"
+                        Padding="20,18"
+                        HorizontalAlignment="Left"
+                        Background="#0FFFFFFF"
+                        BorderBrush="#17FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                        <Grid ColumnSpacing="18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="*" MinWidth="360" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Not linked: the B站 mark; linked: the account's avatar. -->
+                            <Grid
+                                Width="52"
+                                Height="52"
+                                VerticalAlignment="Center"
+                                Background="#FB7299"
+                                CornerRadius="14"
+                                Visibility="{x:Bind ViewModel.UnlinkedVisibility, Mode=OneWay}">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="15"
+                                    Foreground="White"
+                                    Text="bili" />
+                            </Grid>
+                            <Grid
+                                Width="52"
+                                Height="52"
+                                VerticalAlignment="Center"
+                                Background="{StaticResource MoonSurfaceRaisedBrush}"
+                                CornerRadius="26"
+                                Visibility="{x:Bind ViewModel.LinkedVisibility, Mode=OneWay}">
+                                <Image x:Name="BiliFaceImage" imaging:ImageEx.DecodeWidth="52" Stretch="UniformToFill" />
+                                <Border BorderBrush="#FB7299" BorderThickness="1.5" CornerRadius="26" />
+                            </Grid>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock
+                                        FontFamily="{StaticResource MoonFontBold}"
+                                        FontSize="16"
+                                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                        Text="哔哩哔哩"
+                                        Visibility="{x:Bind ViewModel.UnlinkedVisibility, Mode=OneWay}" />
+                                    <TextBlock
+                                        FontFamily="{StaticResource MoonFontBold}"
+                                        FontSize="16"
+                                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                        Text="{x:Bind ViewModel.BiliName, Mode=OneWay}"
+                                        Visibility="{x:Bind ViewModel.LinkedVisibility, Mode=OneWay}" />
+                                    <Border
+                                        Padding="6,0,6,1"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#66FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Visibility="{x:Bind ViewModel.LinkedVisibility, Mode=OneWay}">
+                                        <TextBlock FontSize="11" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind ViewModel.BiliLevel, Mode=OneWay}" />
+                                    </Border>
+                                    <Border
+                                        Padding="7,0,7,1"
+                                        VerticalAlignment="Center"
+                                        Background="#FB7299"
+                                        CornerRadius="4"
+                                        Visibility="{x:Bind ViewModel.VipVisibility, Mode=OneWay}">
+                                        <TextBlock FontSize="11" Foreground="White" Text="{x:Bind ViewModel.BiliVip, Mode=OneWay}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock
+                                    Style="{StaticResource MoonCardMetaStyle}"
+                                    Text="{x:Bind ViewModel.BiliCaption, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <Button
+                                Grid.Column="2"
+                                Height="38"
+                                Padding="18,0"
+                                VerticalAlignment="Center"
+                                Click="OnLinkBili"
+                                Style="{StaticResource MoonPrimaryButtonStyle}"
+                                Visibility="{x:Bind ViewModel.UnlinkedVisibility, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xED14;" />
+                                    <TextBlock Text="扫码关联" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                FontSize="13"
+                                Style="{StaticResource MoonLinkButtonStyle}"
+                                Visibility="{x:Bind ViewModel.LinkedVisibility, Mode=OneWay}">
+                                <TextBlock Text="解除关联" />
+                                <Button.Flyout>
+                                    <Flyout Placement="Bottom">
+                                        <StackPanel MaxWidth="260" Spacing="12">
+                                            <TextBlock Style="{StaticResource MoonBodyStyle}" Text="解除后，这台电脑上的 B站登录信息会被删除，B站视频回到 480P。" TextWrapping="Wrap" />
+                                            <Button Click="OnUnlinkBili" Style="{StaticResource MoonGlassButtonStyle}">
+                                                <TextBlock Text="解除关联" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- ===== What you watch ===== -->
+                <controls:MediaRow
+                    x:Name="RecentRow"
+                    Margin="0,44,0,0"
+                    ItemTemplate="{StaticResource ContinueCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.Recent}"
+                    Spacing="20"
+                    Title="最近播放">
+                    <controls:MediaRow.HeaderContent>
+                        <Button Click="OnAllHistory" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                            <TextBlock Text="全部" />
+                        </Button>
+                    </controls:MediaRow.HeaderContent>
+                </controls:MediaRow>
+
+                <controls:MediaRow
+                    x:Name="FavoritesRow"
+                    Margin="0,36,0,0"
+                    ItemTemplate="{StaticResource PosterCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.Favorites}"
+                    Title="收藏">
+                    <controls:MediaRow.HeaderContent>
+                        <Button Click="OnAllFavorites" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                            <TextBlock Text="全部" />
+                        </Button>
+                    </controls:MediaRow.HeaderContent>
+                </controls:MediaRow>
+
+                <TextBlock
+                    x:Name="NothingYet"
+                    Margin="56,44,56,0"
+                    Style="{StaticResource MoonMetaStyle}"
+                    Text="看过的影片和收藏会出现在这里。"
+                    Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

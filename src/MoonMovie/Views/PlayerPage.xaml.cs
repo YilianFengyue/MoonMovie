@@ -149,7 +149,7 @@ public sealed partial class PlayerPage : Page
             _ = Task.Delay(5000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
             {
                 if (debugPanel == "info") ToggleInfoPanel();
-                else OpenSidePanel(debugPanel == "danmaku" ? DanmakuTab : CommentsTab);
+                else OpenSidePanel(debugPanel switch { "danmaku" => DanmakuTab, "picture" => PictureTab, _ => CommentsTab });
             }));
         }
 #endif
@@ -223,7 +223,7 @@ public sealed partial class PlayerPage : Page
 
             if (BiliPlayback.IsBiliUrl(episode.Url))
             {
-                await OpenBiliAsync(episode.Url, version);
+                await OpenBiliAsync(episode.Url, version, resume);
                 return;
             }
 
@@ -477,6 +477,7 @@ public sealed partial class PlayerPage : Page
         UpdateNextCard(position);
         UpdateSkips(position);
         if (++_taskbarTick % 4 == 0) UpdateTaskbar();
+        ReportBiliProgress(force: false);
         GrabThumbnail(position, state);
         PrefetchNext(position);
         TickUpscaler(state);
@@ -553,6 +554,7 @@ public sealed partial class PlayerPage : Page
 
     private void SaveProgress(bool flush)
     {
+        if (flush) ReportBiliProgress(force: true);
         // B站 clips are companions to a title, not something to continue: they stay out of history.
         if (_engine is null || _duration <= TimeSpan.Zero || _request.Bili is not null) return;
         var position = _engine.Position;

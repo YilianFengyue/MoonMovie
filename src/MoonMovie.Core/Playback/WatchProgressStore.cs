@@ -105,6 +105,15 @@ public sealed class WatchProgressStore
         }
     }
 
+    /// <summary>Every saved episode position (for totals such as time watched).</summary>
+    public IReadOnlyList<WatchProgress> All()
+    {
+        lock (_gate)
+        {
+            return Entries.Values.ToArray();
+        }
+    }
+
     public void Save(WatchProgress progress, bool flush = false)
     {
         lock (_gate)

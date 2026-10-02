@@ -103,6 +103,9 @@ public sealed partial class HomePage : Page
         // Visual QA hook: MOONMOVIE_DEBUG_NAV=movie|tv|anime|library|history|favorites opens that page.
         switch (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_NAV"))
         {
+            case "profile":
+                App.MainWindow.Navigate(typeof(ProfilePage), null);
+                return;
             case "movie": Navigator.OpenBrowse(Core.Browse.BrowseSection.Movie); break;
             case "tv": Navigator.OpenBrowse(Core.Browse.BrowseSection.Tv); break;
             case "anime": Navigator.OpenBrowse(Core.Browse.BrowseSection.Anime); break;

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using MoonMovie.Core.Bilibili;
 using MoonMovie.Core.Danmaku;
 using MoonMovie.Imaging;
@@ -16,6 +17,9 @@ public sealed partial class PlayerPage
     private readonly ObservableCollection<BiliCommentViewModel> _biliComments = [];
     private BiliStream? _biliStream;
     private bool _biliCommentsLoaded;
+    private int _biliCommentPage;
+    private int? _biliQualityCap;
+    private DateTimeOffset _biliLastReport;
 
     private BiliVideoDetail? Bili => _request.Bili;
 
@@ -47,7 +51,7 @@ public sealed partial class PlayerPage
     }
 
     /// <summary>Resolves the part's DASH streams (they expire, so only now) and opens them with B站's headers.</summary>
-    private async Task OpenBiliAsync(string url, int version)
+    private async Task OpenBiliAsync(string url, int version, bool resume)
     {
         if (Mpv is not { } mpv)
         {
@@ -59,7 +63,7 @@ public sealed partial class PlayerPage
         BiliStream stream;
         try
         {
-            stream = await _bili.StreamAsync(bvid, cid, [12, 7, 13]); // HEVC, then AVC, then AV1
+            stream = await _bili.StreamAsync(bvid, cid, [12, 7, 13], _biliQualityCap); // HEVC, then AVC, then AV1
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
         {
@@ -69,6 +73,15 @@ public sealed partial class PlayerPage
 
         if (version != _openVersion || _engine is null) return;
         _biliStream = stream;
+        SyncBiliQualities();
+
+        // Signed in: continue where B站 history says (also from the phone), unless near the end.
+        if (resume && _pendingSeek == TimeSpan.Zero && stream.ResumeSeconds is > 15 and var at
+            && (Bili?.Pages.ElementAtOrDefault(_episodeIndex)?.DurationSeconds is not { } length || at < length - 20))
+        {
+            _pendingSeek = TimeSpan.FromSeconds(at);
+        }
+
         _awaitingFirstFrame = true;
         var speed = _speed;
         await mpv.OpenStreamAsync(stream.VideoUrl, stream.AudioUrl, _pendingSeek,
@@ -103,19 +116,24 @@ public sealed partial class PlayerPage
         }
     }
 
-    /// <summary>Hot comments, loaded the first time the tab opens.</summary>
-    private async Task LoadBiliCommentsAsync()
+    /// <summary>Hot comments: the first page when the tab first opens, more on request (signed in).</summary>
+    private async Task LoadBiliCommentsAsync(bool more = false)
     {
-        if (_biliCommentsLoaded || Bili is not { } bili) return;
+        if ((_biliCommentsLoaded && !more) || Bili is not { } bili) return;
         _biliCommentsLoaded = true;
         CommentsRing.IsActive = true;
         CommentsRing.Visibility = Visibility.Visible;
         CommentsNote.Visibility = Visibility.Collapsed;
+        CommentsMoreButton.Visibility = Visibility.Collapsed;
+        BiliLinkButton.Visibility = Visibility.Collapsed;
         try
         {
-            var comments = await _bili.CommentsAsync(bili.Video.Aid);
-            _biliComments.Clear();
+            var page = more ? _biliCommentPage + 1 : 1;
+            var comments = await _bili.CommentsAsync(bili.Video.Aid, page);
+            _biliCommentPage = page;
+            if (!more) _biliComments.Clear();
             foreach (var c in comments.Items) _biliComments.Add(new BiliCommentViewModel(c));
+            CommentsMoreButton.Visibility = comments.HasMore ? Visibility.Visible : Visibility.Collapsed;
             CommentsCount.Text = comments.Total > 0 ? $"共 {BiliText.Count(comments.Total)} 条" : string.Empty;
             if (comments.Items.Count == 0)
             {
@@ -124,8 +142,9 @@ public sealed partial class PlayerPage
             }
             else if (comments.LimitedForGuests)
             {
-                CommentsNote.Text = "未登录时 B站只显示少量热门评论；登录 B站账号的功能即将推出。";
+                CommentsNote.Text = "未关联 B站账号时只能看到少量热门评论。";
                 CommentsNote.Visibility = Visibility.Visible;
+                BiliLinkButton.Visibility = Visibility.Visible;
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
@@ -139,6 +158,76 @@ public sealed partial class PlayerPage
             CommentsRing.IsActive = false;
             CommentsRing.Visibility = Visibility.Collapsed; // no empty band above the list
         }
+    }
+
+    private async void OnMoreComments(object sender, RoutedEventArgs e) => await LoadBiliCommentsAsync(more: true);
+
+    /// <summary>Link the account from here, then reload comments and reopen at the better quality.</summary>
+    private async void OnLinkBiliFromPlayer(object sender, RoutedEventArgs e)
+    {
+        var position = _engine?.Position ?? TimeSpan.Zero;
+        if (!await Controls.BiliLoginDialog.ShowAsync(XamlRoot)) return;
+        _biliCommentsLoaded = false;
+        _ = LoadBiliCommentsAsync();
+        _ = OpenAsync(resume: false, position);
+        ShowToast("已关联 B站账号，正在切换到更高画质");
+    }
+
+    /// <summary>B站画质 chips: the playable ones switch (keeping the position), locked ones explain why.</summary>
+    private void SyncBiliQualities()
+    {
+        if (_biliStream is not { Qualities.Count: > 0 } stream)
+        {
+            BiliQualitySection.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        BiliQualitySection.Visibility = Visibility.Visible;
+        BiliQualityChips.Children.Clear();
+        foreach (var quality in stream.Qualities)
+        {
+            var label = quality.Label;
+            var chip = Controls.Chips.Create(label, () =>
+            {
+                if (quality.Id == _biliStream?.Quality) return;
+                _biliQualityCap = quality.Id;
+                var position = _engine?.Position ?? TimeSpan.Zero;
+                _ = OpenAsync(resume: false, position);
+                ShowToast($"正在切换到 {label}");
+            });
+            Controls.Chips.Set(chip, quality.Id == stream.Quality);
+            if (!quality.Available)
+            {
+                chip.IsEnabled = false;
+                chip.Opacity = 0.4; // visibly locked, not just unclickable
+                ToolTipService.SetToolTip(chip, _bili.IsSignedIn ? "需要大会员" : "关联 B站账号后可用");
+            }
+
+            BiliQualityChips.Children.Add(chip);
+        }
+
+        BiliQualityNote.Text = stream.Qualities.Any(q => !q.Available) ? (_bili.IsSignedIn ? "部分画质需要大会员" : "关联 B站账号可解锁更高画质") : string.Empty;
+    }
+
+    /// <summary>Signed in: the position goes into B站 history every 15 s and when leaving the part.</summary>
+    private void ReportBiliProgress(bool force)
+    {
+        if (Bili is not { } bili || !_bili.IsSignedIn || _engine is null) return;
+        if (!force && (_engine.State != Playback.Engines.EngineState.Playing || DateTimeOffset.Now - _biliLastReport < TimeSpan.FromSeconds(15))) return;
+        var seconds = (int)_engine.Position.TotalSeconds;
+        if (seconds < 5) return;
+        _biliLastReport = DateTimeOffset.Now;
+        var (_, cid) = BiliPlayback.Parse(Line.Episodes[_episodeIndex].Url);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _bili.ReportProgressAsync(bili.Video.Aid, cid, seconds);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+            {
+            }
+        });
     }
 
     private void OnOpenBiliInBrowser(object sender, RoutedEventArgs e)

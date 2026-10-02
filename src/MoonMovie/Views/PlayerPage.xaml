@@ -7,6 +7,7 @@
     xmlns:imaging="using:MoonMovie.Imaging"
     xmlns:playback="using:MoonMovie.Playback"
     xmlns:vm="using:MoonMovie.ViewModels"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     Background="Black">
 
     <!--
@@ -795,6 +796,14 @@
                 <!-- ===== 画面 ===== -->
                 <ScrollViewer x:Name="PictureView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
                     <StackPanel Spacing="22">
+                        <!-- B站 videos: the qualities B站 offers this account; locked ones say what unlocks them. -->
+                        <StackPanel x:Name="BiliQualitySection" Spacing="8" Visibility="Collapsed">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="B站画质" />
+                                <TextBlock x:Name="BiliQualityNote" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <tk:WrapPanel x:Name="BiliQualityChips" HorizontalSpacing="4" VerticalSpacing="4" />
+                        </StackPanel>
                         <StackPanel Spacing="8">
                             <Grid>
                                 <TextBlock Style="{StaticResource PanelLabelStyle}" Text="画质档位" />
@@ -985,6 +994,22 @@
                                 Style="{StaticResource MoonCardMetaStyle}"
                                 TextWrapping="Wrap"
                                 Visibility="Collapsed" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button
+                                    x:Name="CommentsMoreButton"
+                                    Click="OnMoreComments"
+                                    Style="{StaticResource MoonGlassButtonStyle}"
+                                    Visibility="Collapsed">
+                                    <TextBlock Text="加载更多评论" />
+                                </Button>
+                                <Button
+                                    x:Name="BiliLinkButton"
+                                    Click="OnLinkBiliFromPlayer"
+                                    Style="{StaticResource MoonGlassButtonStyle}"
+                                    Visibility="Collapsed">
+                                    <TextBlock Text="关联 B站账号" />
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

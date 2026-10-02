@@ -39,8 +39,37 @@ public sealed record BiliVideoDetail(
     long Favorites,
     long Replies);
 
+/// <summary>A quality B站 lists for a video (e.g. 80 "高清 1080P"); <see cref="Available"/> is false when the
+/// account may not play it (needs login or 大会员).</summary>
+public sealed record BiliQuality(int Id, string Label, bool Available);
+
 /// <summary>Separate DASH video and audio URLs (they expire after a couple of hours: resolve at play time).</summary>
-public sealed record BiliStream(string VideoUrl, string? AudioUrl, int Quality, string QualityLabel, string Codec, int Width, int Height);
+/// <param name="ResumeSeconds">Where this account stopped last time (B站's own history), when it was this part.</param>
+public sealed record BiliStream(
+    string VideoUrl,
+    string? AudioUrl,
+    int Quality,
+    string QualityLabel,
+    string Codec,
+    int Width,
+    int Height,
+    IReadOnlyList<BiliQuality> Qualities,
+    double? ResumeSeconds);
+
+/// <summary>Cookies of a signed-in B站 account (from the QR login).</summary>
+public sealed record BiliCredentials(string SessData, string BiliJct, string UserId, string UserIdMd5, string? RefreshToken);
+
+public sealed record BiliAccount(long Mid, string Name, string? Face, bool IsVip, string? VipLabel, int Level);
+
+public enum BiliLoginState
+{
+    Waiting,
+    Scanned,
+    Expired,
+    Done,
+}
+
+public sealed record BiliLoginPoll(BiliLoginState State, BiliCredentials? Credentials);
 
 public sealed record BiliComment(
     long Id,
@@ -53,5 +82,5 @@ public sealed record BiliComment(
     bool Pinned,
     string? Location);
 
-/// <summary>Comments plus whether more exist than a guest may see.</summary>
-public sealed record BiliComments(IReadOnlyList<BiliComment> Items, long Total, bool LimitedForGuests);
+/// <summary>A page of comments, whether more pages follow, and whether a guest is seeing only a sample.</summary>
+public sealed record BiliComments(IReadOnlyList<BiliComment> Items, long Total, bool LimitedForGuests, bool HasMore);

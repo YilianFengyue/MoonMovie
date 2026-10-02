@@ -40,6 +40,11 @@ public sealed partial class BiliClient
     private readonly string _statePath = Path.Combine(AppPaths.Data, "bili.json");
     private BiliState _state;
 
+    /// <summary>The signed-in account's cookies (null: guest). Set by the app from its credential vault.</summary>
+    public BiliCredentials? Credentials { get; set; }
+
+    public bool IsSignedIn => Credentials is not null;
+
     public BiliClient(HttpClient http)
     {
         _http = http;
@@ -112,7 +117,8 @@ public sealed partial class BiliClient
     /// The best stream B站 offers this session (a guest gets up to 480P): highest quality first, then the codec
     /// order given (e.g. HEVC, AVC, AV1), on a regular CDN host rather than a peer-to-peer edge.
     /// </summary>
-    public async Task<BiliStream> StreamAsync(string bvid, long cid, IReadOnlyList<int> codecPreference, CancellationToken ct = default)
+    public async Task<BiliStream> StreamAsync(string bvid, long cid, IReadOnlyList<int> codecPreference, int? maxQuality = null,
+        CancellationToken ct = default)
     {
         var d = await GetAsync("/x/player/playurl", new()
         {
@@ -132,10 +138,16 @@ public sealed partial class BiliClient
             for (var i = 0; i < Math.Min(q.Length, l.Length); i++) labels[q[i]] = l[i];
         }
 
+        // B站's own history: resume where this account stopped (only meaningful for the same part).
+        double? resume = Long(d, "last_play_cid") == cid && Long(d, "last_play_time") > 0 ? Long(d, "last_play_time") / 1000.0 : null;
+
         if (d.TryGetProperty("dash", out var dash) && dash.ValueKind == JsonValueKind.Object)
         {
-            var videos = dash.GetProperty("video").EnumerateArray().ToArray();
-            if (videos.Length == 0) throw new BiliException(-404, "没有可播放的视频流");
+            var all = dash.GetProperty("video").EnumerateArray().ToArray();
+            if (all.Length == 0) throw new BiliException(-404, "没有可播放的视频流");
+            var playable = all.Select(v => (int)Long(v, "id")).ToHashSet();
+            var qualities = labels.Select(p => new BiliQuality(p.Key, p.Value, playable.Contains(p.Key))).OrderByDescending(q => q.Id).ToArray();
+            var videos = maxQuality is { } cap && all.Any(v => Long(v, "id") <= cap) ? all.Where(v => Long(v, "id") <= cap).ToArray() : all;
             var best = videos
                 .OrderByDescending(v => Long(v, "id"))
                 .ThenBy(v => Rank(codecPreference, (int)Long(v, "codecid")))
@@ -156,14 +168,14 @@ public sealed partial class BiliClient
             var quality = (int)Long(best, "id");
             return new BiliStream(PickUrl(best), audio, quality, labels.GetValueOrDefault(quality, $"{Long(best, "height")}P"),
                 (int)Long(best, "codecid") switch { 7 => "AVC", 12 => "HEVC", 13 => "AV1", var c => $"codec {c}" },
-                (int)Long(best, "width"), (int)Long(best, "height"));
+                (int)Long(best, "width"), (int)Long(best, "height"), qualities, resume);
         }
 
         // Very old uploads: one muxed FLV/MP4.
         if (d.TryGetProperty("durl", out var durl) && durl.GetArrayLength() > 0)
         {
             var quality = (int)Long(d, "quality");
-            return new BiliStream(Str(durl[0], "url")!, null, quality, labels.GetValueOrDefault(quality, ""), "", 0, 0);
+            return new BiliStream(Str(durl[0], "url")!, null, quality, labels.GetValueOrDefault(quality, ""), "", 0, 0, [], resume);
         }
 
         throw new BiliException(-404, "没有可播放的视频流");
@@ -199,20 +211,20 @@ public sealed partial class BiliClient
         return list;
     }
 
-    /// <summary>Hottest comments first (a guest sees only the top few).</summary>
-    public async Task<BiliComments> CommentsAsync(long aid, CancellationToken ct = default)
+    /// <summary>Hottest comments first, 20 a page (a guest sees only the top few).</summary>
+    public async Task<BiliComments> CommentsAsync(long aid, int page = 1, CancellationToken ct = default)
     {
         var d = await GetAsync("/x/v2/reply", new()
         {
             ["type"] = "1",
             ["oid"] = aid.ToString(CultureInfo.InvariantCulture),
             ["sort"] = "1",
-            ["pn"] = "1",
+            ["pn"] = page.ToString(CultureInfo.InvariantCulture),
             ["ps"] = "20",
         }, signed: false, ct).ConfigureAwait(false);
 
         var items = new List<BiliComment>();
-        if (d.TryGetProperty("upper", out var upper) && upper.ValueKind == JsonValueKind.Object
+        if (page == 1 && d.TryGetProperty("upper", out var upper) && upper.ValueKind == JsonValueKind.Object
             && upper.TryGetProperty("top", out var top) && top.ValueKind == JsonValueKind.Object)
         {
             items.Add(Comment(top, pinned: true));
@@ -223,8 +235,96 @@ public sealed partial class BiliClient
             items.AddRange(replies.EnumerateArray().Select(r => Comment(r, pinned: false)).Where(c => items.All(i => i.Id != c.Id)));
         }
 
-        var total = d.TryGetProperty("page", out var page) ? Long(page, "count") : items.Count;
-        return new BiliComments(items, total, LimitedForGuests: total > items.Count);
+        var total = d.TryGetProperty("page", out var paging) ? Long(paging, "count") : items.Count;
+        var hasMore = Credentials is not null && items.Count > 0 && page * 20 < total;
+        return new BiliComments(items, total, LimitedForGuests: Credentials is null && total > items.Count, hasMore);
+    }
+
+    // ----- Account ----------------------------------------------------------------------------------------
+
+    /// <summary>Starts a QR login: the URL to encode and the key to poll with (valid about three minutes).</summary>
+    public async Task<(string Url, string Key)> CreateLoginQrAsync(CancellationToken ct = default)
+    {
+        var d = await GetAsync("https://passport.bilibili.com/x/passport-login/web/qrcode/generate", [], signed: false, ct).ConfigureAwait(false);
+        return (Str(d, "url") ?? throw new BiliException(-1, "二维码生成失败"), Str(d, "qrcode_key") ?? "");
+    }
+
+    /// <summary>Waiting / scanned / expired, or done with the account's cookies (read from the redirect URL).</summary>
+    public async Task<BiliLoginPoll> PollLoginAsync(string key, CancellationToken ct = default)
+    {
+        var d = await GetAsync("https://passport.bilibili.com/x/passport-login/web/qrcode/poll", new() { ["qrcode_key"] = key },
+            signed: false, ct).ConfigureAwait(false);
+        switch (Long(d, "code"))
+        {
+            case 86101: return new BiliLoginPoll(BiliLoginState.Waiting, null);
+            case 86090: return new BiliLoginPoll(BiliLoginState.Scanned, null);
+            case 86038: return new BiliLoginPoll(BiliLoginState.Expired, null);
+            case 0:
+                var query = new Uri(Str(d, "url") ?? throw new BiliException(-1, "登录结果不完整")).Query.TrimStart('?')
+                    .Split('&', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Split('=', 2))
+                    .Where(p => p.Length == 2)
+                    .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+                if (!query.TryGetValue("SESSDATA", out var sess) || !query.TryGetValue("bili_jct", out var jct)) throw new BiliException(-1, "登录结果不完整");
+                return new BiliLoginPoll(BiliLoginState.Done, new BiliCredentials(sess, jct,
+                    query.GetValueOrDefault("DedeUserID", ""), query.GetValueOrDefault("DedeUserID__ckMd5", ""), Str(d, "refresh_token")));
+            default:
+                throw new BiliException((int)Long(d, "code"), Str(d, "message") ?? "登录失败");
+        }
+    }
+
+    /// <summary>Who is signed in (null when the cookies expired or nobody is).</summary>
+    public async Task<BiliAccount?> AccountAsync(CancellationToken ct = default)
+    {
+        if (Credentials is null) return null;
+        JsonElement d;
+        try
+        {
+            d = await GetAsync("/x/web-interface/nav", [], signed: false, ct).ConfigureAwait(false);
+        }
+        catch (BiliException ex) when (ex.Code == -101)
+        {
+            return null; // not logged in any more
+        }
+
+        if (!d.TryGetProperty("isLogin", out var login) || !login.GetBoolean()) return null;
+        string? vipLabel = null;
+        if (d.TryGetProperty("vip_label", out var label)) vipLabel = Str(label, "text");
+        if (string.IsNullOrEmpty(vipLabel) && d.TryGetProperty("vip", out var vip) && vip.TryGetProperty("label", out var vl)) vipLabel = Str(vl, "text");
+        var level = d.TryGetProperty("level_info", out var lv) ? (int)Long(lv, "current_level") : 0;
+        return new BiliAccount(Long(d, "mid"), Str(d, "uname") ?? "", Absolute(Str(d, "face")), Long(d, "vipStatus") == 1,
+            string.IsNullOrEmpty(vipLabel) ? null : vipLabel, level);
+    }
+
+    /// <summary>Ends the session on B站's side too (best effort), then forgets the cookies.</summary>
+    public async Task LogoutAsync(CancellationToken ct = default)
+    {
+        if (Credentials is { } c)
+        {
+            try
+            {
+                await PostAsync("https://passport.bilibili.com/login/exit/v2", new() { ["biliCSRF"] = c.BiliJct }, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or JsonException)
+            {
+            }
+        }
+
+        Credentials = null;
+    }
+
+    /// <summary>Writes the position into the account's B站 history (so the phone app continues from here).</summary>
+    public async Task ReportProgressAsync(long aid, long cid, int seconds, CancellationToken ct = default)
+    {
+        if (Credentials is not { } c) return;
+        await PostAsync("/x/v2/history/report", new()
+        {
+            ["aid"] = aid.ToString(CultureInfo.InvariantCulture),
+            ["cid"] = cid.ToString(CultureInfo.InvariantCulture),
+            ["progress"] = seconds.ToString(CultureInfo.InvariantCulture),
+            ["platform"] = "web",
+            ["csrf"] = c.BiliJct,
+        }, ct).ConfigureAwait(false);
     }
 
     /// <summary>A sized JPEG of a B站 image (the image CDN resizes on request).</summary>
@@ -238,14 +338,14 @@ public sealed partial class BiliClient
         for (var attempt = 0; ; attempt++)
         {
             await EnsureIdentityAsync(refresh: attempt > 0, ct).ConfigureAwait(false);
-            var url = Api + path + "?" + (signed ? Sign(query) : Encode(query));
+            var url = (path.StartsWith("https://", StringComparison.Ordinal) ? path : Api + path) + "?" + (signed ? Sign(query) : Encode(query));
 
             await _requestGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 Decorate(request);
-                request.Headers.Add("Cookie", $"buvid3={_state.Buvid3}; buvid4={_state.Buvid4}");
+                request.Headers.Add("Cookie", CookieHeader());
                 using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
                 if ((int)response.StatusCode == 412 && attempt == 0) continue; // risk control: new identity, once
                 response.EnsureSuccessStatusCode();
@@ -277,6 +377,31 @@ public sealed partial class BiliClient
                 _requestGate.Release();
             }
         }
+    }
+
+    /// <summary>A form POST for actions that need the account (history report, logout); CSRF is in the form.</summary>
+    private async Task PostAsync(string path, Dictionary<string, string> form, CancellationToken ct)
+    {
+        await EnsureIdentityAsync(refresh: false, ct).ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Post, path.StartsWith("https://", StringComparison.Ordinal) ? path : Api + path)
+        {
+            Content = new FormUrlEncodedContent(form),
+        };
+        Decorate(request);
+        request.Headers.Add("Cookie", CookieHeader());
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+        var code = doc.RootElement.TryGetProperty("code", out var c) ? c.GetInt32() : 0;
+        if (code != 0) throw new BiliException(code, Str(doc.RootElement, "message") ?? $"错误 {code}");
+    }
+
+    private string CookieHeader()
+    {
+        var cookie = $"buvid3={_state.Buvid3}; buvid4={_state.Buvid4}";
+        return Credentials is { } c
+            ? $"{cookie}; SESSDATA={Uri.EscapeDataString(c.SessData)}; bili_jct={c.BiliJct}; DedeUserID={c.UserId}; DedeUserID__ckMd5={c.UserIdMd5}"
+            : cookie;
     }
 
     private static void Decorate(HttpRequestMessage request)

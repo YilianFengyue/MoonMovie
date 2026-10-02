@@ -49,6 +49,10 @@ public sealed partial class MainWindow : Window
         var downloads = App.Services.GetRequiredService<Core.Downloads.DownloadManager>();
         downloads.Changed += _ => DispatcherQueue.TryEnqueue(UpdateDownloadBadge);
         UpdateDownloadBadge();
+
+        App.Services.GetRequiredService<Core.Library.ProfileStore>().Changed += (_, _) => UpdateProfilePicture();
+        App.Services.GetRequiredService<BiliAccountService>().Changed += () => DispatcherQueue.TryEnqueue(UpdateProfilePicture);
+        UpdateProfilePicture();
     }
 
     /// <summary>Thumbnail buttons and icon progress; the player owns them while it is open.</summary>
@@ -361,6 +365,25 @@ public sealed partial class MainWindow : Window
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         if (ContentFrame.CurrentSourcePageType != typeof(SettingsPage)) Navigate(typeof(SettingsPage), null);
+    }
+
+    private void OnProfileClick(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.CurrentSourcePageType != typeof(ProfilePage)) Navigate(typeof(ProfilePage), null);
+    }
+
+    /// <summary>The title-bar avatar mirrors the profile: chosen picture, B站 avatar, or the initial.</summary>
+    private void UpdateProfilePicture()
+    {
+        var profile = App.Services.GetRequiredService<Core.Library.ProfileStore>();
+        var account = App.Services.GetRequiredService<BiliAccountService>().Account;
+        var name = profile.DisplayName;
+        ProfileAvatar.Initials = name.Length > 0 ? name[..1].ToUpperInvariant() : "M";
+        ProfileAvatar.DisplayName = name;
+        var source = profile.Current.UseBiliAvatar && account?.Face is { } face
+            ? Core.Bilibili.BiliClient.Thumb(face, 64, 64)
+            : profile.Current.AvatarFile is { } file && File.Exists(file) ? file : null;
+        ProfileAvatar.ProfilePicture = source is null ? null : new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(source));
     }
 
     private void OnHistoryClick(object sender, RoutedEventArgs e) => Navigator.OpenLibrary(LibraryTab.History);

@@ -121,14 +121,17 @@ public sealed partial class PlayerPage
             return;
         }
 #endif
-        if (_request.Bili is not null)
+        // B站 videos and B站正版 use B站's own pool (it is the episode's, timed to this very cut).
+        if (_request.Bili is not null || _source.IsOfficial)
         {
             LoadBiliDanmaku();
             return;
         }
 
+        // A switch away from B站正版 on the same episode keeps B站's danmaku.
         if (_danmakuEpisode == _episodeIndex || !_danmaku.Client.IsConfigured) return;
         _danmakuEpisode = _episodeIndex;
+        _danmakuFromBili = false;
         _danmakuCts?.Cancel();
         var cts = _danmakuCts = new CancellationTokenSource();
         _danmakuTrack = null;

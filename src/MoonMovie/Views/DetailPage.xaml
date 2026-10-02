@@ -81,6 +81,18 @@
                                 </StackPanel>
                             </Button>
                             <TextBlock x:Name="MetaText" VerticalAlignment="Center" Style="{StaticResource MoonMetaStyle}" />
+                            <!-- B站 has it licensed: pink like B站's own mark; says whether 大会员 is needed. -->
+                            <Border
+                                x:Name="OfficialBadge"
+                                Padding="8,2,8,3"
+                                VerticalAlignment="Center"
+                                Background="#26FB7299"
+                                BorderBrush="#66FB7299"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Visibility="Collapsed">
+                                <TextBlock x:Name="OfficialText" FontSize="12" Foreground="#FF9DB8" />
+                            </Border>
                         </StackPanel>
 
                         <TextBlock

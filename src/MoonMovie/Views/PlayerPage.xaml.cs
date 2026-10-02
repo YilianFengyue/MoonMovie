@@ -136,7 +136,6 @@ public sealed partial class PlayerPage : Page
         VolumeBar.Value = _volume * 100;
 
         BuildEpisodeList();
-        ConfigureBiliPanels();
         StartDanmaku();
         _ = OpenAsync(resume: true);
         _tick.Start();
@@ -206,6 +205,10 @@ public sealed partial class PlayerPage : Page
         _stallSince = DateTimeOffset.Now;
         UpdateTitles();
         UpdateEpisodeMarkers();
+        _biliStream = null;
+        _pgcClips = [];
+        SyncBiliQualities();
+        ConfigureBiliPanels();
         LoadDanmakuForEpisode();
 
         var saved = _progress.Get(_request.Item.MediaKey, _request.Season, _episodeIndex);
@@ -224,6 +227,12 @@ public sealed partial class PlayerPage : Page
             if (BiliPlayback.IsBiliUrl(episode.Url))
             {
                 await OpenBiliAsync(episode.Url, version, resume);
+                return;
+            }
+
+            if (Core.Bilibili.BiliPgcSource.IsPgcUrl(episode.Url))
+            {
+                await OpenPgcAsync(episode.Url, version);
                 return;
             }
 
@@ -386,7 +395,9 @@ public sealed partial class PlayerPage : Page
         for (var i = 0; i < Line.Episodes.Count; i++)
         {
             var watched = _progress.Get(_request.Item.MediaKey, _request.Season, i);
-            _episodes.Add(new PlayerEpisodeItem(i, EpisodeLabel(i), EpisodeName(i), watched?.Fraction ?? 0, StillUrl(i))
+            // 「会员」 on B站正版 episodes this account cannot play in full (they switch to another source).
+            var label = Line.Episodes[i].Badge is { } badge && !IsBiliVip ? $"{EpisodeLabel(i)} · {badge}" : EpisodeLabel(i);
+            _episodes.Add(new PlayerEpisodeItem(i, label, EpisodeName(i), watched?.Fraction ?? 0, StillUrl(i))
             {
                 IsCurrent = i == _episodeIndex,
             });

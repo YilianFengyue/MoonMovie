@@ -33,7 +33,7 @@ public sealed partial class DetailViewModel : ObservableObject
 
     public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images,
         WatchProgressStore progress, LocalLibrary local, SourceMatchCache sourceCache, DownloadManager downloads,
-        BiliClient bili, DoubanClient douban)
+        BiliClient bili, DoubanClient douban, BiliPgcSource pgc, BiliAccountService accounts)
     {
         _tmdb = tmdb;
         _favorites = favorites;
@@ -49,10 +49,22 @@ public sealed partial class DetailViewModel : ObservableObject
             LocalProvider = target => _item is not null && _local.Find(_item.MediaKey) is { } title
                 ? LocalPlayback.Candidate(title, target.Season)
                 : null,
+
+            // B站正版 leads only when signed in and nothing is locked for this account (guests get 480P).
+            OfficialProvider = async (target, ct) =>
+            {
+                var found = await pgc.FindAsync(target, ct);
+                var vip = accounts.Account?.IsVip == true;
+                return found.Select(c => (c, bili.IsSignedIn && BiliPgcSource.FullyPlayable(c, vip))).ToArray();
+            },
         };
+        Sources.Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(Official));
     }
 
     public SourcePanelViewModel Sources { get; }
+
+    /// <summary>B站 has this title (the original version), for the 「B站正版」 badge.</summary>
+    public SourceItemViewModel? Official => Sources.Items.FirstOrDefault(i => i.IsOfficial);
 
     public MediaItem Item => _item ?? throw new InvalidOperationException("Not loaded.");
 
@@ -229,9 +241,9 @@ public sealed partial class DetailViewModel : ObservableObject
 
     /// <summary>The online source downloads come from: the chosen one, or the best reachable one when the chosen
     /// source is the files on disk.</summary>
-    public SourceItemViewModel? DownloadSource => Sources.Selected is { IsLocal: false } selected
+    public SourceItemViewModel? DownloadSource => Sources.Selected is { IsLocal: false, IsOfficial: false } selected
         ? selected
-        : Sources.Items.FirstOrDefault(i => !i.IsLocal && i.State is ProbeOutcome.Ok or ProbeOutcome.Slow);
+        : Sources.Items.FirstOrDefault(i => !i.IsLocal && !i.IsOfficial && i.State is ProbeOutcome.Ok or ProbeOutcome.Slow); // B站正版 is not downloadable
 
     /// <summary>The episode "播放" would start (zero-based).</summary>
     public int NextIndex => Resume switch

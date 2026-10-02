@@ -129,7 +129,44 @@ public sealed partial class BiliClient
             ["fnver"] = "0",
             ["fourk"] = "1",
         }, signed: false, ct).ConfigureAwait(false);
+        return ParseStream(d, cid, codecPreference, maxQuality);
+    }
 
+    /// <summary>
+    /// A 正版 episode's streams. Without 大会员 a 会员 episode answers with a few minutes' preview
+    /// (<see cref="BiliStream.IsPreview"/>); B站's OP/ED marks come along as <see cref="BiliStream.Clips"/>.
+    /// </summary>
+    public async Task<BiliStream> PgcStreamAsync(long epId, long cid, IReadOnlyList<int> codecPreference, int? maxQuality = null,
+        CancellationToken ct = default)
+    {
+        var d = await GetAsync("/pgc/player/web/playurl", new()
+        {
+            ["ep_id"] = epId.ToString(CultureInfo.InvariantCulture),
+            ["cid"] = cid.ToString(CultureInfo.InvariantCulture),
+            ["qn"] = "127",
+            ["fnval"] = "4048",
+            ["fnver"] = "0",
+            ["fourk"] = "1",
+        }, signed: false, ct).ConfigureAwait(false);
+        if (d.TryGetProperty("is_drm", out var drm) && drm.ValueKind == JsonValueKind.True) throw new BiliException(-1, "这一集有版权加密，无法在 MoonMovie 播放");
+
+        var clips = new List<BiliClip>();
+        if (d.TryGetProperty("clip_info_list", out var list) && list.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var c in list.EnumerateArray())
+            {
+                var type = Str(c, "clipType") ?? "";
+                double start = Long(c, "start"), end = Long(c, "end");
+                if (end > start && type is "CLIP_TYPE_OP" or "CLIP_TYPE_ED") clips.Add(new BiliClip(start, end, type == "CLIP_TYPE_OP"));
+            }
+        }
+
+        var preview = d.TryGetProperty("is_preview", out var p) && p.ValueKind == JsonValueKind.Number && p.GetInt32() == 1;
+        return ParseStream(d, cid, codecPreference, maxQuality) with { IsPreview = preview, Clips = clips, ResumeSeconds = null };
+    }
+
+    private static BiliStream ParseStream(JsonElement d, long cid, IReadOnlyList<int> codecPreference, int? maxQuality)
+    {
         var labels = new Dictionary<int, string>();
         if (d.TryGetProperty("accept_quality", out var qs) && d.TryGetProperty("accept_description", out var ds))
         {
@@ -259,6 +296,56 @@ public sealed partial class BiliClient
         return new BiliComments(items, total, LimitedForGuests: false, HasMore: items.Length > 0 && page * 20 < total);
     }
 
+    /// <summary>番剧 and 影视 (film, TV, documentary) seasons matching a title, in B站's order.</summary>
+    public async Task<IReadOnlyList<BiliMediaHit>> SearchMediaAsync(string keyword, CancellationToken ct = default)
+    {
+        var hits = new List<BiliMediaHit>();
+        foreach (var type in new[] { "media_bangumi", "media_ft" })
+        {
+            var data = await GetAsync("/x/web-interface/search/type", new()
+            {
+                ["search_type"] = type,
+                ["keyword"] = keyword,
+            }, signed: false, ct).ConfigureAwait(false);
+            if (!data.TryGetProperty("result", out var results) || results.ValueKind != JsonValueKind.Array) continue;
+            hits.AddRange(results.EnumerateArray().Where(r => Long(r, "season_id") > 0).Select(r => new BiliMediaHit(
+                Long(r, "season_id"),
+                Plain(Str(r, "title")),
+                Str(r, "org_title") is { Length: > 0 } org ? Plain(org) : null,
+                (int)Long(r, "season_type"),
+                Str(r, "season_type_name") ?? "",
+                Long(r, "pubtime") is > 0 and var t ? DateTimeOffset.FromUnixTimeSeconds(t).ToOffset(TimeSpan.FromHours(8)).Year : null,
+                (int)Long(r, "ep_size"),
+                Absolute(Str(r, "cover")))));
+        }
+
+        return hits;
+    }
+
+    public async Task<BiliSeason> SeasonAsync(long seasonId, CancellationToken ct = default)
+    {
+        var d = await GetAsync("/pgc/view/web/season", new() { ["season_id"] = seasonId.ToString(CultureInfo.InvariantCulture) },
+            signed: false, ct).ConfigureAwait(false);
+        int? year = Str(d.TryGetProperty("publish", out var publish) ? publish : default, "pub_time") is { Length: >= 4 } pub
+                    && int.TryParse(pub[..4], out var y) && y > 1900 ? y : null;
+        var episodes = d.TryGetProperty("episodes", out var eps) && eps.ValueKind == JsonValueKind.Array
+            ? eps.EnumerateArray().Select(e => new BiliEpisode(
+                Long(e, "id"),
+                Long(e, "aid"),
+                Long(e, "cid"),
+                Str(e, "title") ?? "",
+                Str(e, "long_title") ?? "",
+                Str(e, "badge") is { Length: > 0 } badge ? badge : null,
+                (int)Long(e, "status"),
+                (int)(Long(e, "duration") / 1000))).ToArray()
+            : [];
+        var seasons = d.TryGetProperty("seasons", out var ss) && ss.ValueKind == JsonValueKind.Array
+            ? ss.EnumerateArray().Select(x => new BiliSeasonRef(Long(x, "season_id"), Str(x, "season_title") ?? "")).ToArray()
+            : [];
+        return new BiliSeason(Long(d, "season_id"), Str(d, "title") ?? "", Str(d, "season_title") ?? "", (int)Long(d, "type"), year,
+            Absolute(Str(d, "cover")), episodes, seasons);
+    }
+
     // ----- Account ----------------------------------------------------------------------------------------
 
     /// <summary>Starts a QR login: the URL to encode and the key to poll with (valid about three minutes).</summary>
@@ -374,6 +461,26 @@ public sealed partial class BiliClient
             ["cid"] = cid.ToString(CultureInfo.InvariantCulture),
             ["progress"] = seconds.ToString(CultureInfo.InvariantCulture),
             ["platform"] = "web",
+            ["csrf"] = c.BiliJct,
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>A 正版 episode's position into the account's history and 追番 progress (the web player's heartbeat).</summary>
+    public async Task ReportPgcProgressAsync(long aid, long cid, long epId, long seasonId, int seasonType, int seconds, CancellationToken ct = default)
+    {
+        if (Credentials is not { } c) return;
+        await PostAsync("/x/click-interface/web/heartbeat", new()
+        {
+            ["aid"] = aid.ToString(CultureInfo.InvariantCulture),
+            ["cid"] = cid.ToString(CultureInfo.InvariantCulture),
+            ["epid"] = epId.ToString(CultureInfo.InvariantCulture),
+            ["sid"] = seasonId.ToString(CultureInfo.InvariantCulture),
+            ["mid"] = c.UserId,
+            ["played_time"] = seconds.ToString(CultureInfo.InvariantCulture),
+            ["type"] = "4",
+            ["sub_type"] = seasonType.ToString(CultureInfo.InvariantCulture),
+            ["dt"] = "2",
+            ["play_type"] = "0",
             ["csrf"] = c.BiliJct,
         }, ct).ConfigureAwait(false);
     }

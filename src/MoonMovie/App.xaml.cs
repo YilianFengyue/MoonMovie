@@ -139,6 +139,7 @@ public partial class App : Application
             .AddSingleton<SourceMatchCache>()
             .AddSingleton(_ => new Core.Bilibili.BiliClient(bili))
             .AddSingleton(_ => new Core.Douban.DoubanClient(direct))
+            .AddSingleton<Core.Bilibili.BiliPgcSource>()
             .AddSingleton<BiliAccountService>()
             .AddSingleton<ProfileStore>()
             .AddTransient<ProfileViewModel>()

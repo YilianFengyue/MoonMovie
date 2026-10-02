@@ -4,13 +4,18 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MoonMovie.Core.Bilibili;
 using MoonMovie.Core.Danmaku;
+using MoonMovie.Core.Models;
+using MoonMovie.Core.Sources;
 using MoonMovie.Imaging;
 using MoonMovie.Services;
 using MoonMovie.ViewModels;
 
 namespace MoonMovie.Views;
 
-/// <summary>Player: B站 videos — DASH streams through mpv, B站's own danmaku, and the 评论 tab.</summary>
+/// <summary>
+/// Player: B站 videos and B站正版 episodes — DASH streams through mpv, B站's own danmaku, the 评论 tab, B站画质,
+/// progress into the account's history, and (正版) B站's OP/ED marks.
+/// </summary>
 public sealed partial class PlayerPage
 {
     private readonly BiliClient _bili = App.Services.GetRequiredService<BiliClient>();
@@ -20,20 +25,72 @@ public sealed partial class PlayerPage
     private int _biliCommentPage;
     private int? _biliQualityCap;
     private DateTimeOffset _biliLastReport;
+    private IReadOnlyList<BiliClip> _pgcClips = [];
+    private bool _danmakuFromBili;
+    private long _commentsAid;
 
     private BiliVideoDetail? Bili => _request.Bili;
 
-    /// <summary>B站 videos swap 片源 (there is only B站) for 评论; everything else drops 评论.</summary>
+    private bool IsBiliVip => App.Services.GetRequiredService<BiliAccountService>().Account?.IsVip == true;
+
+    private string CurrentUrl => Line.Episodes[_episodeIndex].Url;
+
+    /// <summary>The B站 part or 正版 episode playing now: its aid (comments) and cid (danmaku).</summary>
+    private (long Aid, long Cid)? BiliIds
+    {
+        get
+        {
+            if (BiliPlayback.IsBiliUrl(CurrentUrl) && Bili is { } bili) return (bili.Video.Aid, BiliPlayback.Parse(CurrentUrl).Cid);
+            if (BiliPgcSource.IsPgcUrl(CurrentUrl))
+            {
+                var ids = BiliPgcSource.Parse(CurrentUrl);
+                return (ids.Aid, ids.Cid);
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// B站 videos swap 片源 (there is only B站) for 评论. B站正版 keeps 片源 and adds 评论 for the episode
+    /// playing; other sources have no 评论. Runs at every open: episodes and source switches change it.
+    /// </summary>
     private void ConfigureBiliPanels()
     {
-        if (Bili is not { } bili)
+        var aid = BiliIds?.Aid ?? 0;
+        if (aid != _commentsAid)
         {
+            _commentsAid = aid;
+            _biliComments.Clear();
+            _biliCommentsLoaded = false;
+            _biliCommentPage = 0;
+            if (aid != 0 && _sideOpen && PanelTabs.SelectedItem == CommentsTab) _ = LoadBiliCommentsAsync();
+        }
+
+        CommentsRepeater.ItemsSource = _biliComments;
+        if (aid == 0)
+        {
+            if (PanelTabs.SelectedItem == CommentsTab) PanelTabs.SelectedItem = PanelTabs.Items.FirstOrDefault(i => i != CommentsTab);
             PanelTabs.Items.Remove(CommentsTab);
             return;
         }
 
+        if (!PanelTabs.Items.Contains(CommentsTab)) PanelTabs.Items.Add(CommentsTab);
+        if (Bili is not { } bili)
+        {
+            // 正版: the episode, not an uploader.
+            var episode = Line.Episodes[_episodeIndex];
+            BiliTitle.Text = _request.Item.Kind == MediaKind.Tv
+                ? $"{_request.Item.Title} · {EpisodeLabel(_episodeIndex)}  {episode.Name}"
+                : _request.Item.Title;
+            BiliAuthor.Text = _source.Candidate.Category is { } category ? $"{_source.SiteName} · {category}" : _source.SiteName;
+            BiliAuthorFaceHost.Visibility = Visibility.Collapsed;
+            BiliStats.Visibility = Visibility.Collapsed;
+            BiliDescription.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         PanelTabs.Items.Remove(SourcesTab);
-        CommentsRepeater.ItemsSource = _biliComments;
         var video = bili.Video;
         BiliTitle.Text = video.Title;
         BiliAuthor.Text = $"{video.Author} · {BiliText.Age(video.Published)}";
@@ -90,11 +147,67 @@ public sealed partial class PlayerPage
         UpdateSystemMediaInfo();
     }
 
+    /// <summary>
+    /// A B站正版 episode. Without 大会员 a 会员 episode is only a preview: another reachable source takes over for
+    /// it (with a note), or, with none, the preview plays and says so.
+    /// </summary>
+    private async Task OpenPgcAsync(string url, int version)
+    {
+        if (Mpv is not { } mpv)
+        {
+            OnMediaFailed("B站正版需要 mpv 内核（设置 → 播放内核）");
+            return;
+        }
+
+        var (ep, cid, _, _, _) = BiliPgcSource.Parse(url);
+        BiliStream stream;
+        try
+        {
+            stream = await _bili.PgcStreamAsync(ep, cid, [12, 7, 13], _biliQualityCap);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+        {
+            if (version == _openVersion) OnMediaFailed(ex is BiliException b ? b.Message : "连接 B站失败");
+            return;
+        }
+
+        if (version != _openVersion || _engine is null) return;
+        if (stream.IsPreview)
+        {
+            var other = _request.Sources.Items.FirstOrDefault(i =>
+                !i.IsOfficial && i.State is ProbeOutcome.Ok or ProbeOutcome.Slow
+                && !_failedSources.Contains(i.Candidate.Identity)
+                && i.Candidate.PrimaryLine.Episodes.Count > _episodeIndex);
+            if (other is not null)
+            {
+                ShowToast($"这一集是 B站大会员内容，已换用 {other.SiteName}", duration: TimeSpan.FromSeconds(6));
+                SwitchSource(other, _pendingSeek);
+                return;
+            }
+
+            ShowToast("正在试看：这一集需要 B站大会员", duration: TimeSpan.FromSeconds(8));
+        }
+
+        _biliStream = stream;
+        _pgcClips = stream.Clips ?? [];
+        SyncBiliQualities();
+        UpdateMarks();
+
+        _awaitingFirstFrame = true;
+        var speed = _speed;
+        await mpv.OpenStreamAsync(stream.VideoUrl, stream.AudioUrl, _pendingSeek,
+            new Dictionary<string, string> { ["Referer"] = BiliClient.Referer }, BiliClient.UserAgent);
+        _engine.Rate = speed;
+        UpdateSystemMediaInfo();
+    }
+
     /// <summary>The part's own danmaku pool, filtered by the same density and block rules as LogVar's.</summary>
     private async void LoadBiliDanmaku()
     {
-        if (_danmakuEpisode == _episodeIndex) return;
+        if (_danmakuEpisode == _episodeIndex && _danmakuFromBili) return;
+        if (BiliIds is not { } ids) return;
         _danmakuEpisode = _episodeIndex;
+        _danmakuFromBili = true;
         _danmakuCts?.Cancel();
         var cts = _danmakuCts = new CancellationTokenSource();
         Danmaku.Clear();
@@ -104,8 +217,7 @@ public sealed partial class PlayerPage
 
         try
         {
-            var (_, cid) = BiliPlayback.Parse(Line.Episodes[_episodeIndex].Url);
-            var raw = await Task.Run(() => _bili.DanmakuAsync(cid, cts.Token), cts.Token);
+            var raw = await Task.Run(() => _bili.DanmakuAsync(ids.Cid, cts.Token), cts.Token);
             if (cts.IsCancellationRequested) return;
             var match = new DanmakuMatch(0, "哔哩哔哩", Line.Episodes.Count > 1 ? Line.Episodes[_episodeIndex].Name : Bili?.Video.Title ?? "");
             ApplyTrack(new DanmakuTrack(match, _danmaku.Filter(raw), raw), announce: true);
@@ -119,7 +231,7 @@ public sealed partial class PlayerPage
     /// <summary>Hot comments: the first page when the tab first opens, more on request (signed in).</summary>
     private async Task LoadBiliCommentsAsync(bool more = false)
     {
-        if ((_biliCommentsLoaded && !more) || Bili is not { } bili) return;
+        if ((_biliCommentsLoaded && !more) || BiliIds is not { } ids) return;
         _biliCommentsLoaded = true;
         CommentsRing.IsActive = true;
         CommentsRing.Visibility = Visibility.Visible;
@@ -129,10 +241,11 @@ public sealed partial class PlayerPage
         try
         {
             var page = more ? _biliCommentPage + 1 : 1;
-            var comments = await _bili.CommentsAsync(bili.Video.Aid, page);
+            var comments = await _bili.CommentsAsync(ids.Aid, page);
+            if (ids.Aid != _commentsAid) return; // the episode changed meanwhile
             _biliCommentPage = page;
             if (!more) _biliComments.Clear();
-            var aid = bili.Video.Aid;
+            var aid = ids.Aid;
             foreach (var c in comments.Items) _biliComments.Add(new BiliCommentViewModel(c, (root, pn) => _bili.RepliesAsync(aid, root, pn)));
             CommentsMoreButton.Visibility = comments.HasMore ? Visibility.Visible : Visibility.Collapsed;
             CommentsCount.Text = comments.Total > 0 ? $"共 {BiliText.Count(comments.Total)} 条" : string.Empty;
@@ -213,17 +326,25 @@ public sealed partial class PlayerPage
     /// <summary>Signed in: the position goes into B站 history every 15 s and when leaving the part.</summary>
     private void ReportBiliProgress(bool force)
     {
-        if (Bili is not { } bili || !_bili.IsSignedIn || _engine is null) return;
+        if (BiliIds is not { } ids || !_bili.IsSignedIn || _engine is null) return;
         if (!force && (_engine.State != Playback.Engines.EngineState.Playing || DateTimeOffset.Now - _biliLastReport < TimeSpan.FromSeconds(15))) return;
         var seconds = (int)_engine.Position.TotalSeconds;
         if (seconds < 5) return;
         _biliLastReport = DateTimeOffset.Now;
-        var (_, cid) = BiliPlayback.Parse(Line.Episodes[_episodeIndex].Url);
+        var url = CurrentUrl;
         _ = Task.Run(async () =>
         {
             try
             {
-                await _bili.ReportProgressAsync(bili.Video.Aid, cid, seconds);
+                if (BiliPgcSource.IsPgcUrl(url))
+                {
+                    var (ep, cid, aid, season, type) = BiliPgcSource.Parse(url);
+                    await _bili.ReportPgcProgressAsync(aid, cid, ep, season, type, seconds);
+                }
+                else
+                {
+                    await _bili.ReportProgressAsync(ids.Aid, ids.Cid, seconds);
+                }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
             {
@@ -233,10 +354,12 @@ public sealed partial class PlayerPage
 
     private void OnOpenBiliInBrowser(object sender, RoutedEventArgs e)
     {
-        if (Bili is not { } bili) return;
+        string web;
+        if (Bili is { } bili) web = bili.Video.WebUrl + (_episodeIndex > 0 ? $"?p={_episodeIndex + 1}" : string.Empty);
+        else if (BiliPgcSource.IsPgcUrl(CurrentUrl)) web = BiliPgcSource.WebUrl(BiliPgcSource.Parse(CurrentUrl).EpId);
+        else return;
         _engine?.Pause();
-        var part = _episodeIndex > 0 ? $"?p={_episodeIndex + 1}" : string.Empty;
-        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(bili.Video.WebUrl + part));
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(web));
     }
 
     /// <summary>Info panel row: what B站 gave this session.</summary>

@@ -144,6 +144,9 @@ public sealed partial class DetailPage : Page
             case nameof(DetailViewModel.Douban):
                 ApplyDouban();
                 break;
+            case nameof(DetailViewModel.Official):
+                ApplyOfficial();
+                break;
             case "" or null:
                 ApplyHeader();
                 break;
@@ -191,6 +194,24 @@ public sealed partial class DetailPage : Page
     private void OnFavoriteClick(object sender, RoutedEventArgs e) => ViewModel.ToggleFavorite();
 
     // ----- 豆瓣 / B站 ----------------------------------------------------------------------------------------
+
+    /// <summary>「B站正版 · 免费」: the title is on B站; tells whether 大会员 is needed for (some of) it.</summary>
+    private void ApplyOfficial()
+    {
+        var official = ViewModel.Official;
+        OfficialBadge.Visibility = Visible(official is not null);
+        if (official is null) return;
+        var remarks = official.Candidate.Remarks;
+        OfficialText.Text = remarks is "免费" or "大会员" ? $"B站正版 · {remarks}" : "B站正版 · 部分大会员";
+        var tip = remarks switch
+        {
+            "免费" => "哔哩哔哩正版，全部免费观看",
+            "大会员" => "哔哩哔哩正版，需要大会员",
+            _ => $"哔哩哔哩正版，{remarks}；没有大会员时这些集会自动换用其他片源",
+        };
+        ToolTipService.SetToolTip(OfficialBadge, tip);
+        AutomationProperties.SetName(OfficialBadge, tip);
+    }
 
     private void ApplyDouban()
     {

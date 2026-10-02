@@ -24,6 +24,10 @@ public sealed class BiliAccountService(BiliClient client)
     /// <summary>Startup: load saved cookies and confirm they still work (in the background).</summary>
     public void Restore()
     {
+#if DEBUG
+        // QA hook: MOONMOVIE_DEBUG_BILI_GUEST=1 starts as a guest (the saved login stays untouched).
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_BILI_GUEST") == "1") return;
+#endif
         try
         {
             var vault = new PasswordVault();

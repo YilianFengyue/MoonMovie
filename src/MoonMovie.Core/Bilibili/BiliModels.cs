@@ -54,7 +54,47 @@ public sealed record BiliStream(
     int Width,
     int Height,
     IReadOnlyList<BiliQuality> Qualities,
-    double? ResumeSeconds);
+    double? ResumeSeconds,
+    bool IsPreview = false,
+    IReadOnlyList<BiliClip>? Clips = null);
+
+/// <summary>An opening (OP) or ending (ED) span B站 marks in an episode, in seconds.</summary>
+public sealed record BiliClip(double Start, double End, bool IsOpening);
+
+// ----- 正版 (PGC): 番剧, 国创, 电影, 电视剧, 纪录片, 综艺 ---------------------------------------------------------
+
+/// <summary>A season in B站's 番剧 / 影视 search.</summary>
+public sealed record BiliMediaHit(
+    long SeasonId,
+    string Title,
+    string? OriginalTitle,
+    int SeasonType,
+    string TypeName,
+    int? Year,
+    int EpisodeCount,
+    string? Cover);
+
+/// <summary>An episode of a season. <see cref="Status"/> 2 is free; anything else needs 大会员 or a purchase.</summary>
+public sealed record BiliEpisode(long EpId, long Aid, long Cid, string Number, string Title, string? Badge, int Status, int DurationSeconds)
+{
+    public bool IsFree => Status == 2;
+}
+
+public sealed record BiliSeasonRef(long SeasonId, string Title);
+
+/// <summary>
+/// One season with its main episodes (PVs and extras excluded) and the series' other seasons: further seasons,
+/// dubbed versions ("第一季(中配)"), films.
+/// </summary>
+public sealed record BiliSeason(
+    long SeasonId,
+    string Title,
+    string SeasonTitle,
+    int SeasonType,
+    int? Year,
+    string? Cover,
+    IReadOnlyList<BiliEpisode> Episodes,
+    IReadOnlyList<BiliSeasonRef> Seasons);
 
 /// <summary>Cookies of a signed-in B站 account (from the QR login).</summary>
 public sealed record BiliCredentials(string SessData, string BiliJct, string UserId, string UserIdMd5, string? RefreshToken);

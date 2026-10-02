@@ -469,12 +469,19 @@ public sealed partial class PlayerPage
         var prefs = Prefs;
         if (prefs.IntroEnd > 0) marks.Add(TimeSpan.FromSeconds(prefs.IntroEnd));
         if (prefs.OutroLength > 0 && _duration > TimeSpan.Zero) marks.Add(_duration - TimeSpan.FromSeconds(prefs.OutroLength));
+        foreach (var clip in _pgcClips) marks.Add(TimeSpan.FromSeconds(clip.IsOpening ? clip.End : clip.Start));
         SeekBar.SetMarks(marks);
     }
 
     /// <summary>Called every tick: jumps over a marked opening, and from marked credits into the next episode.</summary>
     private void UpdateSkips(TimeSpan position)
     {
+        if (_pgcClips.Count > 0)
+        {
+            UpdateClipSkips(position); // B站's own OP/ED marks for this episode replace the per-title ones
+            return;
+        }
+
         if (_engine?.State != EngineState.Playing || _request.Item.Kind != MediaKind.Tv) return;
         var prefs = Prefs;
 
@@ -499,6 +506,53 @@ public sealed partial class PlayerPage
             _outroHandled = true;
             ShowToast("已跳过片尾");
             PlayEpisode(_episodeIndex + 1);
+        }
+    }
+
+    /// <summary>
+    /// B站正版 marks the opening and ending of each episode. With 自动跳过 on they are skipped like the per-title
+    /// marks; otherwise a 「跳过」 offer appears while they play.
+    /// </summary>
+    private void UpdateClipSkips(TimeSpan position)
+    {
+        if (_engine?.State != EngineState.Playing) return;
+        var prefs = Prefs;
+        var seconds = position.TotalSeconds;
+
+        if (!_introHandled && _pgcClips.FirstOrDefault(c => c.IsOpening) is { } op && seconds >= op.Start && seconds < op.End - 3)
+        {
+            _introHandled = true;
+            var end = TimeSpan.FromSeconds(op.End);
+            if (prefs.SkipIntro)
+            {
+                SeekTo(end);
+                ShowToast("已跳过片头", "看片头", () => SeekTo(TimeSpan.FromSeconds(op.Start)), TimeSpan.FromSeconds(6));
+            }
+            else
+            {
+                ShowToast("片头", "跳过片头", () => SeekTo(end), TimeSpan.FromSeconds(op.End - seconds));
+            }
+        }
+
+        if (!_outroHandled && _pgcClips.FirstOrDefault(c => !c.IsOpening) is { } ed && seconds >= ed.Start && seconds < ed.End - 3)
+        {
+            _outroHandled = true;
+            if (HasNext)
+            {
+                if (prefs.SkipOutro && _settings.Current.Playback.AutoNext)
+                {
+                    ShowToast("已跳过片尾");
+                    PlayEpisode(_episodeIndex + 1);
+                }
+                else
+                {
+                    ShowToast("片尾", "下一集", () => PlayEpisode(_episodeIndex + 1), TimeSpan.FromSeconds(Math.Min(ed.End - seconds, 20)));
+                }
+            }
+            else if (_duration.TotalSeconds - ed.End > 5)
+            {
+                ShowToast("片尾", "跳过片尾", () => SeekTo(TimeSpan.FromSeconds(ed.End)), TimeSpan.FromSeconds(Math.Min(ed.End - seconds, 20)));
+            }
         }
     }
 

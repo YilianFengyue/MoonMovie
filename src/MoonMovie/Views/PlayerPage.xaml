@@ -1023,7 +1023,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Grid Width="28" Height="28" Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="14">
+                                <Grid x:Name="BiliAuthorFaceHost" Width="28" Height="28" Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="14">
                                     <Image x:Name="BiliAuthorFace" imaging:ImageEx.DecodeWidth="28" Stretch="UniformToFill" />
                                 </Grid>
                                 <TextBlock

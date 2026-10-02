@@ -24,6 +24,12 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
 
     public bool IsLocal => LocalPlayback.IsLocal(Candidate);
 
+    /// <summary>B站正版.</summary>
+    public bool IsOfficial => Core.Bilibili.BiliPgcSource.IsOfficial(Candidate);
+
+    /// <summary>An official copy that plays everything in full for this account: it leads the list.</summary>
+    public bool Preferred { get; init; }
+
     /// <summary>"庆余年第二季 · 36 集 · HD国语"</summary>
     public string Detail
     {
@@ -52,7 +58,7 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
     public string LatencyText => Probe switch
     {
         _ when IsLocal => "本地",
-        _ when BiliPlayback.IsBili(Candidate) => "官方",
+        _ when BiliPlayback.IsBili(Candidate) || IsOfficial => "官方",
         null => "测速中",
         { Outcome: ProbeOutcome.Failed, Error: { } e } => e,
         { Outcome: ProbeOutcome.Failed } => "不可用",
@@ -89,13 +95,16 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
 
         return (Probe?.LatencyMs ?? int.MaxValue).CompareTo(other.Probe?.LatencyMs ?? int.MaxValue);
 
+        // An official copy leads when it plays everything for this account; otherwise it comes after the
+        // reachable resource sites (480P for guests, or 会员 episodes), still ahead of the unmeasured ones.
         static int Tier(SourceItemViewModel i) => i.State switch
         {
+            _ when i.IsOfficial && i.State == ProbeOutcome.Ok => i.Preferred ? -1 : 2,
             ProbeOutcome.Ok => 0,
             ProbeOutcome.Slow => 1,
-            null => 2,
-            ProbeOutcome.Failed => 3,
-            _ => 4,
+            null => 3,
+            ProbeOutcome.Failed => 4,
+            _ => 5,
         };
     }
 

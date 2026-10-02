@@ -5,7 +5,8 @@ namespace MoonMovie.Core.Sources;
 
 public sealed record SourceSite(string Key, string Name, string Api);
 
-public sealed record PlayEpisode(int Index, string Name, string Url);
+/// <summary>An episode on a source; <see cref="Badge"/> marks one the source restricts ("会员").</summary>
+public sealed record PlayEpisode(int Index, string Name, string Url, string? Badge = null);
 
 public sealed record PlayLine(string Name, IReadOnlyList<PlayEpisode> Episodes);
 

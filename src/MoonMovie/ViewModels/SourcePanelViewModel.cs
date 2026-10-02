@@ -61,6 +61,13 @@ public sealed partial class SourcePanelViewModel : ObservableObject
     /// <summary>Files on disk for the target, offered first (and chosen) ahead of the online search.</summary>
     public Func<SourceTarget, SourceCandidate?>? LocalProvider { get; set; }
 
+    /// <summary>
+    /// Licensed copies (B站正版), looked up alongside the resource sites. Each comes with whether it should lead:
+    /// only when it plays every episode in full at a good quality for this account; otherwise it ranks behind the
+    /// reachable resource sites and serves as a fallback.
+    /// </summary>
+    public Func<SourceTarget, CancellationToken, Task<IReadOnlyList<(SourceCandidate Candidate, bool Preferred)>>>? OfficialProvider { get; set; }
+
     /// <summary>Only the given local source: no online search (files opened directly, unidentified titles).</summary>
     public SourceItemViewModel UseLocal(SourceCandidate candidate)
     {
@@ -97,6 +104,8 @@ public sealed partial class SourcePanelViewModel : ObservableObject
             Insert(local).ApplyProbe(new ProbeResult(ProbeOutcome.Ok, 0));
             Reevaluate();
         }
+
+        if (OfficialProvider is not null) _ = RunOfficialAsync(target, ct);
 
         if (SessionCache.TryGetValue(target.CacheKey, out var cached) && cached.Count > 0)
         {
@@ -199,6 +208,34 @@ public sealed partial class SourcePanelViewModel : ObservableObject
         });
     }
 
+    private async Task RunOfficialAsync(SourceTarget target, CancellationToken ct)
+    {
+        _pendingProbes++;
+        try
+        {
+            var found = await OfficialProvider!(target, ct);
+            if (ct.IsCancellationRequested) return;
+            foreach (var (candidate, preferred) in found)
+            {
+                if (Items.Any(i => i.Candidate.Identity == candidate.Identity)) continue;
+                var item = new SourceItemViewModel(candidate, this) { Preferred = preferred };
+                item.ApplyProbe(new ProbeResult(ProbeOutcome.Ok, 0)); // nothing to measure: B站's own CDN
+                InsertSorted(item);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException
+                                       or Core.Bilibili.BiliException or System.Text.Json.JsonException)
+        {
+            // B站 unreachable or the title is not there: the resource sites carry on alone.
+        }
+        finally
+        {
+            _pendingProbes--;
+        }
+
+        if (!ct.IsCancellationRequested) Reevaluate();
+    }
+
     private async Task ProbeAsync(SourceItemViewModel item, SemaphoreSlim gate, CancellationToken ct)
     {
         _pendingProbes++;
@@ -231,9 +268,10 @@ public sealed partial class SourcePanelViewModel : ObservableObject
         Reevaluate();
     }
 
-    private SourceItemViewModel Insert(SourceCandidate candidate)
+    private SourceItemViewModel Insert(SourceCandidate candidate) => InsertSorted(new SourceItemViewModel(candidate, this));
+
+    private SourceItemViewModel InsertSorted(SourceItemViewModel item)
     {
-        var item = new SourceItemViewModel(candidate, this);
         var index = 0;
         while (index < Items.Count && Items[index].CompareTo(item) <= 0) index++;
         Items.Insert(index, item);
@@ -280,8 +318,10 @@ public sealed partial class SourcePanelViewModel : ObservableObject
 
         if (_searchComplete && _pendingProbes == 0 && _target is not null && Items.Count > 0)
         {
-            SessionCache[_target.CacheKey] = Items.Where(i => !i.IsLocal).Select(i => (i.Candidate, i.Probe)).ToList();
-            _disk?.Save(_target.CacheKey, Items.Where(i => !i.IsLocal).Select(i => new CachedSource(i.Candidate, i.Probe)).ToArray());
+            // Files and B站正版 are looked up fresh each time (rights and sign-in change); resource sites are kept.
+            var keep = Items.Where(i => !i.IsLocal && !i.IsOfficial).ToArray();
+            SessionCache[_target.CacheKey] = keep.Select(i => (i.Candidate, i.Probe)).ToList();
+            _disk?.Save(_target.CacheKey, keep.Select(i => new CachedSource(i.Candidate, i.Probe)).ToArray());
         }
     }
 

@@ -52,6 +52,7 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
     public string LatencyText => Probe switch
     {
         _ when IsLocal => "本地",
+        _ when BiliPlayback.IsBili(Candidate) => "官方",
         null => "测速中",
         { Outcome: ProbeOutcome.Failed, Error: { } e } => e,
         { Outcome: ProbeOutcome.Failed } => "不可用",

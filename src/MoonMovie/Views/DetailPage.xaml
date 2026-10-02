@@ -49,6 +49,37 @@
                                     FontSize="14"
                                     Foreground="{StaticResource MoonTextPrimaryBrush}" />
                             </StackPanel>
+                            <!-- 豆瓣: the green mark Chinese viewers recognise; opens the Douban page. -->
+                            <Button
+                                x:Name="DoubanButton"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Click="OnDoubanClick"
+                                Style="{StaticResource MoonLinkButtonStyle}"
+                                Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border
+                                        Width="17"
+                                        Height="17"
+                                        VerticalAlignment="Center"
+                                        Background="#2E963D"
+                                        CornerRadius="4">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource MoonFontBold}"
+                                            FontSize="11"
+                                            Foreground="White"
+                                            Text="豆" />
+                                    </Border>
+                                    <TextBlock
+                                        x:Name="DoubanText"
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource MoonFontBold}"
+                                        FontSize="14"
+                                        Foreground="{StaticResource MoonTextPrimaryBrush}" />
+                                </StackPanel>
+                            </Button>
                             <TextBlock x:Name="MetaText" VerticalAlignment="Center" Style="{StaticResource MoonMetaStyle}" />
                         </StackPanel>
 
@@ -179,6 +210,38 @@
                     Visibility="Collapsed">
                     <controls:MediaRow.HeaderContent>
                         <SelectorBar x:Name="SeasonBar" SelectionChanged="OnSeasonChanged" />
+                    </controls:MediaRow.HeaderContent>
+                </controls:MediaRow>
+
+                <!-- B站相关: whatever B站 has on the title (reviews, clips, trailers…), sorted as chosen. -->
+                <controls:MediaRow
+                    x:Name="BiliRow"
+                    Margin="0,36,0,0"
+                    ItemTemplate="{StaticResource BiliVideoCardTemplate}"
+                    ItemsSource="{x:Bind ViewModel.BiliVideos}"
+                    Spacing="20"
+                    Title="B站相关"
+                    Visibility="Collapsed">
+                    <controls:MediaRow.HeaderContent>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <SelectorBar x:Name="BiliOrderBar" SelectionChanged="OnBiliOrderChanged">
+                                <SelectorBarItem IsSelected="True" Tag="Relevance" Text="综合" />
+                                <SelectorBarItem Tag="Plays" Text="最多播放" />
+                                <SelectorBarItem Tag="Newest" Text="最新发布" />
+                                <SelectorBarItem Tag="Danmaku" Text="最多弹幕" />
+                            </SelectorBar>
+                            <Button
+                                VerticalAlignment="Center"
+                                Click="OnBiliMoreClick"
+                                FontSize="13"
+                                Style="{StaticResource MoonLinkButtonStyle}"
+                                ToolTipService.ToolTip="在浏览器里打开 B站搜索">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="在 B站搜索" />
+                                    <FontIcon FontSize="10" Glyph="&#xE8A7;" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </controls:MediaRow.HeaderContent>
                 </controls:MediaRow>
 

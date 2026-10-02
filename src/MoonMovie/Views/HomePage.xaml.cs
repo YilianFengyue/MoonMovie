@@ -93,6 +93,13 @@ public sealed partial class HomePage : Page
             App.MainWindow.Navigate(typeof(MpvLabPage), mpvUrl);
         }
 
+        // QA hook: MOONMOVIE_DEBUG_BILI=<BV id> plays that B站 video.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_BILI") is { Length: > 0 } bvid)
+        {
+            _ = Services.BiliPlayback.PlayAsync(new Core.Bilibili.BiliVideo(bvid, 0, "", "", 0, "", 0, 0, 0, DateTimeOffset.Now, null));
+            return;
+        }
+
         // Visual QA hook: MOONMOVIE_DEBUG_NAV=movie|tv|anime|library|history|favorites opens that page.
         switch (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_NAV"))
         {

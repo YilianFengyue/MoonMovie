@@ -22,6 +22,9 @@ public sealed record MediaDetail(
     string? LogoPath,
     string? Status)
 {
+    /// <summary>"tt0903747": the exact key for Douban lookups.</summary>
+    public string? ImdbId { get; init; }
+
     public static MediaDetail FromDto(TmdbDetailsDto dto, MediaKind kind)
     {
         var genreIds = dto.Genres?.Select(g => g.Id).ToList() ?? [];
@@ -100,6 +103,9 @@ public sealed record MediaDetail(
                 .Take(20)
                 .ToArray(),
             logo,
-            dto.Status);
+            dto.Status)
+        {
+            ImdbId = dto.ImdbId ?? dto.ExternalIds?.ImdbId,
+        };
     }
 }

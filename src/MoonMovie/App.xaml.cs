@@ -121,6 +121,8 @@ public partial class App : Application
             .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
             .AddSingleton(settings)
             .AddSingleton<SourceMatchCache>()
+            .AddSingleton(_ => new Core.Bilibili.BiliClient(direct))
+            .AddSingleton(_ => new Core.Douban.DoubanClient(direct))
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()

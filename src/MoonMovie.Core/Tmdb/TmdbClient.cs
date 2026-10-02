@@ -41,8 +41,11 @@ public sealed class TmdbClient
     /// <summary>Image root currently in use, without size segment.</summary>
     public string ImageRoot { get; private set; }
 
+    /// <summary>A TMDB image at a size; absolute URLs (B站 covers carried in a MediaItem) pass through.</summary>
     public string? ImageUrl(string? path, string size) =>
-        string.IsNullOrEmpty(path) ? null : $"{ImageRoot}/{size}{path}";
+        string.IsNullOrEmpty(path) ? null
+        : path.StartsWith("http", StringComparison.Ordinal) ? path
+        : $"{ImageRoot}/{size}{path}";
 
     /// <summary>Switch to the next configured image root (called by the image loader after repeated failures).</summary>
     public void FailoverImageRoot()
@@ -126,7 +129,7 @@ public sealed class TmdbClient
         {
             ["append_to_response"] = kind == MediaKind.Movie
                 ? "credits,recommendations,images"
-                : "aggregate_credits,recommendations,images",
+                : "aggregate_credits,recommendations,images,external_ids",
             ["include_image_language"] = "zh,en,null",
         };
 

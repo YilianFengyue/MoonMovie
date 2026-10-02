@@ -44,6 +44,11 @@ public sealed class TmdbDetailsDto
 
     public string? OriginalLanguage { get; set; }
 
+    /// <summary>Films carry it directly; series in external_ids.</summary>
+    public string? ImdbId { get; set; }
+
+    public TmdbExternalIdsDto? ExternalIds { get; set; }
+
     public List<TmdbCountryDto>? ProductionCountries { get; set; }
 
     public List<string>? OriginCountry { get; set; }
@@ -177,3 +182,8 @@ public sealed class TmdbEpisodeDto
 [JsonSerializable(typeof(TmdbDetailsDto))]
 [JsonSerializable(typeof(TmdbSeasonDto))]
 internal sealed partial class TmdbDetailJsonContext : JsonSerializerContext;
+
+public sealed class TmdbExternalIdsDto
+{
+    public string? ImdbId { get; set; }
+}

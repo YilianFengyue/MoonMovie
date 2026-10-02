@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MoonMovie.Core.Bilibili;
+using MoonMovie.Core.Douban;
 using MoonMovie.Core.Downloads;
 using MoonMovie.Core.Library;
 using MoonMovie.Core.Local;
@@ -22,11 +24,16 @@ public sealed partial class DetailViewModel : ObservableObject
     private readonly WatchProgressStore _progress;
     private readonly LocalLibrary _local;
     private readonly DownloadManager _downloads;
+    private readonly BiliClient _bili;
+    private readonly DoubanClient _douban;
+    private int _biliVersion;
+    private int _doubanVersion;
     private MediaItem? _item;
     private int _seasonVersion;
 
     public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images,
-        WatchProgressStore progress, LocalLibrary local, SourceMatchCache sourceCache, DownloadManager downloads)
+        WatchProgressStore progress, LocalLibrary local, SourceMatchCache sourceCache, DownloadManager downloads,
+        BiliClient bili, DoubanClient douban)
     {
         _tmdb = tmdb;
         _favorites = favorites;
@@ -34,6 +41,8 @@ public sealed partial class DetailViewModel : ObservableObject
         _progress = progress;
         _local = local;
         _downloads = downloads;
+        _bili = bili;
+        _douban = douban;
         Sources = new SourcePanelViewModel(sources, sourceCache)
         {
             // Files on disk come first: "本地文件" is chosen whenever it has the title (and the season).
@@ -71,6 +80,15 @@ public sealed partial class DetailViewModel : ObservableObject
     public ObservableCollection<MediaCardViewModel> Recommendations { get; } = [];
 
     public ObservableCollection<SeasonSummary> Seasons { get; } = [];
+
+    /// <summary>「B站相关」: B站 search for the title, in the order chosen above the row.</summary>
+    public ObservableCollection<BiliVideoViewModel> BiliVideos { get; } = [];
+
+    [ObservableProperty]
+    public partial BiliOrder BiliOrder { get; set; }
+
+    [ObservableProperty]
+    public partial DoubanRating? Douban { get; private set; }
 
     public ObservableCollection<EpisodeViewModel> Episodes { get; } = [];
 
@@ -137,6 +155,8 @@ public sealed partial class DetailViewModel : ObservableObject
         foreach (var rec in detail.Recommendations) Recommendations.Add(new MediaCardViewModel(rec, _tmdb));
 
         _ = ResolveLogoAsync(detail.LogoPath);
+        _ = LoadBiliAsync();
+        if (item.Kind == MediaKind.Movie) _ = LoadDoubanAsync(null);
 
         if (item.Kind == MediaKind.Tv)
         {
@@ -163,6 +183,7 @@ public sealed partial class DetailViewModel : ObservableObject
         SelectedSeason = season;
         var version = ++_seasonVersion;
         Sources.Start(BuildTarget(season));
+        _ = LoadDoubanAsync(season); // Douban rates each season separately
 
         var episodes = await _tmdb.SeasonAsync(Item.TmdbId, season.Number);
         if (version != _seasonVersion)
@@ -269,6 +290,42 @@ public sealed partial class DetailViewModel : ObservableObject
             season?.Number,
             season?.EpisodeCount,
             people);
+    }
+
+    public string BiliSearchUrl => $"https://search.bilibili.com/all?keyword={Uri.EscapeDataString(Title)}";
+
+    partial void OnBiliOrderChanged(BiliOrder value) => _ = LoadBiliAsync();
+
+    private async Task LoadBiliAsync()
+    {
+        if (_item is null) return;
+        var version = ++_biliVersion;
+        try
+        {
+            var found = await _bili.SearchAsync(_item.Title, BiliOrder);
+            if (version != _biliVersion) return;
+            BiliVideos.Clear();
+            foreach (var video in found.Take(20)) BiliVideos.Add(new BiliVideoViewModel(video));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+        {
+            if (version == _biliVersion) BiliVideos.Clear(); // the row hides; nothing to apologise for on a detail page
+        }
+    }
+
+    private async Task LoadDoubanAsync(SeasonSummary? season)
+    {
+        if (_item is null) return;
+        var version = ++_doubanVersion;
+        Douban = null;
+        try
+        {
+            var rating = await _douban.RatingAsync(Detail?.Item ?? _item, season?.Number, season?.Year, Detail?.ImdbId);
+            if (version == _doubanVersion) Douban = rating;
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private async Task ResolveLogoAsync(string? path)

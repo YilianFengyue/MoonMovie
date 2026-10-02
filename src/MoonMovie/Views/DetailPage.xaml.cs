@@ -47,6 +47,12 @@ public sealed partial class DetailPage : Page
         ViewModel.Cast.CollectionChanged += (_, _) => CastRow.Visibility = Visible(ViewModel.Cast.Count > 0);
         ViewModel.Recommendations.CollectionChanged += (_, _) =>
             RecommendationsRow.Visibility = Visible(ViewModel.Recommendations.Count > 0);
+        ViewModel.BiliVideos.CollectionChanged += (_, _) =>
+        {
+            // Keep the row (and its sort bar) while a re-sort is loading; hide it only when B站 has nothing at all.
+            if (ViewModel.BiliVideos.Count > 0) BiliRow.Visibility = Visibility.Visible;
+            else if (ViewModel.BiliOrder == Core.Bilibili.BiliOrder.Relevance) BiliRow.Visibility = Visibility.Collapsed;
+        };
     }
 
     public DetailViewModel ViewModel { get; }
@@ -135,6 +141,9 @@ public sealed partial class DetailPage : Page
             case nameof(DetailViewModel.SelectedSeason):
                 SyncSeasonBar();
                 break;
+            case nameof(DetailViewModel.Douban):
+                ApplyDouban();
+                break;
             case "" or null:
                 ApplyHeader();
                 break;
@@ -180,6 +189,36 @@ public sealed partial class DetailPage : Page
     }
 
     private void OnFavoriteClick(object sender, RoutedEventArgs e) => ViewModel.ToggleFavorite();
+
+    // ----- 豆瓣 / B站 ----------------------------------------------------------------------------------------
+
+    private void ApplyDouban()
+    {
+        var rating = ViewModel.Douban;
+        DoubanButton.Visibility = Visible(rating is not null);
+        if (rating is null) return;
+        DoubanText.Text = rating.Value.ToString("0.0");
+        var people = rating.Count >= 10_000 ? $"{rating.Count / 10_000.0:0.#} 万" : rating.Count.ToString();
+        var label = $"豆瓣 {rating.Value:0.0} · {people}人评价";
+        ToolTipService.SetToolTip(DoubanButton, label + "，点击打开豆瓣页面");
+        AutomationProperties.SetName(DoubanButton, label);
+    }
+
+    private void OnDoubanClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Douban is { } rating) _ = Windows.System.Launcher.LaunchUriAsync(new Uri(rating.Url));
+    }
+
+    private void OnBiliOrderChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        if (sender.SelectedItem?.Tag is string tag && Enum.TryParse<Core.Bilibili.BiliOrder>(tag, out var order))
+        {
+            ViewModel.BiliOrder = order;
+        }
+    }
+
+    private void OnBiliMoreClick(object sender, RoutedEventArgs e) =>
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(ViewModel.BiliSearchUrl));
 
     // ----- Play button & status line --------------------------------------------------------------------
 

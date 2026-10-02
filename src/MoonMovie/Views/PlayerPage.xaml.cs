@@ -136,11 +136,23 @@ public sealed partial class PlayerPage : Page
         VolumeBar.Value = _volume * 100;
 
         BuildEpisodeList();
+        ConfigureBiliPanels();
         StartDanmaku();
         _ = OpenAsync(resume: true);
         _tick.Start();
         ShowChrome();
         Focus(FocusState.Programmatic);
+#if DEBUG
+        // QA hook: MOONMOVIE_DEBUG_PLAYER_PANEL=comments|danmaku|info opens that after a few seconds.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAYER_PANEL") is { Length: > 0 } debugPanel)
+        {
+            _ = Task.Delay(5000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+            {
+                if (debugPanel == "info") ToggleInfoPanel();
+                else OpenSidePanel(debugPanel == "danmaku" ? DanmakuTab : CommentsTab);
+            }));
+        }
+#endif
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -206,6 +218,12 @@ public sealed partial class PlayerPage : Page
             if (LocalPlayback.IsLocal(_source.Candidate))
             {
                 await OpenLocalAsync(episode.Url);
+                return;
+            }
+
+            if (BiliPlayback.IsBiliUrl(episode.Url))
+            {
+                await OpenBiliAsync(episode.Url, version);
                 return;
             }
 
@@ -535,7 +553,8 @@ public sealed partial class PlayerPage : Page
 
     private void SaveProgress(bool flush)
     {
-        if (_engine is null || _duration <= TimeSpan.Zero) return;
+        // B站 clips are companions to a title, not something to continue: they stay out of history.
+        if (_engine is null || _duration <= TimeSpan.Zero || _request.Bili is not null) return;
         var position = _engine.Position;
         if (position < TimeSpan.FromSeconds(5)) return;
 
@@ -932,6 +951,9 @@ public sealed partial class PlayerPage : Page
             case VirtualKey.B:
                 OpenSidePanel(DanmakuTab);
                 break;
+            case VirtualKey.C when _request.Bili is not null:
+                OpenSidePanel(CommentsTab);
+                break;
             case (VirtualKey)219: // [
                 StepSpeed(-1);
                 break;
@@ -1068,7 +1090,7 @@ public sealed partial class PlayerPage : Page
         _sideOpen = true;
         HidePausedInfo();
         SideLayer.Visibility = Visibility.Visible;
-        PanelTabs.SelectedItem = PanelTabs.Items.Contains(tab) ? tab : SourcesTab;
+        PanelTabs.SelectedItem = PanelTabs.Items.Contains(tab) ? tab : PanelTabs.Items.FirstOrDefault();
         _ = Motion.SlideFadeAsync(SidePanel, 40, 0, 0, 0, 0, 1, TimeSpan.FromMilliseconds(320));
         ShowChrome(pin: true);
     }
@@ -1093,6 +1115,8 @@ public sealed partial class PlayerPage : Page
         PictureView.Visibility = sender.SelectedItem == PictureTab ? Visibility.Visible : Visibility.Collapsed;
         AudioView.Visibility = sender.SelectedItem == AudioTab ? Visibility.Visible : Visibility.Collapsed;
         SubtitleView.Visibility = sender.SelectedItem == SubtitleTab ? Visibility.Visible : Visibility.Collapsed;
+        CommentsView.Visibility = sender.SelectedItem == CommentsTab ? Visibility.Visible : Visibility.Collapsed;
+        if (sender.SelectedItem == CommentsTab) _ = LoadBiliCommentsAsync();
         if (sender.SelectedItem == DanmakuTab) OnDanmakuTabShown();
         if (sender.SelectedItem == PictureTab || sender.SelectedItem == AudioTab || sender.SelectedItem == SubtitleTab)
         {

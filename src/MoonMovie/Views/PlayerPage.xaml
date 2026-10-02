@@ -6,6 +6,7 @@
     xmlns:controls="using:MoonMovie.Controls"
     xmlns:imaging="using:MoonMovie.Imaging"
     xmlns:playback="using:MoonMovie.Playback"
+    xmlns:vm="using:MoonMovie.ViewModels"
     Background="Black">
 
     <!--
@@ -14,6 +15,62 @@
     -->
 
     <Page.Resources>
+        <!-- B站 comment: avatar, name (and 置顶), text, when · where · likes. -->
+        <DataTemplate x:Key="BiliCommentTemplate" x:DataType="vm:BiliCommentViewModel">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid
+                    Width="32"
+                    Height="32"
+                    VerticalAlignment="Top"
+                    Background="{StaticResource MoonSurfaceRaisedBrush}"
+                    CornerRadius="16">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextTertiaryBrush}"
+                        Text="{x:Bind Initial}" />
+                    <Image imaging:ImageEx.DecodeWidth="32" imaging:ImageEx.Url="{x:Bind AvatarUrl}" Stretch="UniformToFill" />
+                </Grid>
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock FontSize="12" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind User}" />
+                        <Border
+                            Padding="5,0,5,1"
+                            VerticalAlignment="Center"
+                            Background="#33FB7299"
+                            CornerRadius="3"
+                            Visibility="{x:Bind PinnedVisibility}">
+                            <TextBlock FontSize="10" Foreground="#FB7299" Text="置顶" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        LineHeight="21"
+                        Text="{x:Bind Text}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <TextBlock FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="{x:Bind Meta}" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE8E1;" />
+                            <TextBlock FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="{x:Bind Likes}" />
+                        </StackPanel>
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{StaticResource MoonTextTertiaryBrush}"
+                            Text="{x:Bind RepliesText}"
+                            Visibility="{x:Bind RepliesVisibility}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
         <Style x:Key="PanelLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="{StaticResource MoonTextSecondaryBrush}" />
@@ -578,6 +635,7 @@
                         <SelectorBarItem x:Name="PictureTab" Text="画面" />
                         <SelectorBarItem x:Name="AudioTab" Text="声音" />
                         <SelectorBarItem x:Name="SubtitleTab" Text="字幕" />
+                        <SelectorBarItem x:Name="CommentsTab" Text="评论" />
                     </SelectorBar>
                     <Button
                         HorizontalAlignment="Right"
@@ -856,6 +914,77 @@
                         <StackPanel Spacing="6">
                             <TextBlock Style="{StaticResource PanelLabelStyle}" Text="输出设备" />
                             <StackPanel x:Name="AudioDeviceList" Spacing="2" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== 评论 (B站 videos): the video, then its hot comments ===== -->
+                <ScrollViewer x:Name="CommentsView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <StackPanel Spacing="18">
+                        <StackPanel Spacing="10">
+                            <TextBlock
+                                x:Name="BiliTitle"
+                                FontFamily="{StaticResource MoonFontBold}"
+                                FontSize="16"
+                                Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                LineHeight="24"
+                                MaxLines="3"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Width="28" Height="28" Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="14">
+                                    <Image x:Name="BiliAuthorFace" imaging:ImageEx.DecodeWidth="28" Stretch="UniformToFill" />
+                                </Grid>
+                                <TextBlock
+                                    x:Name="BiliAuthor"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="13"
+                                    Foreground="{StaticResource MoonTextSecondaryBrush}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <Button
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Click="OnOpenBiliInBrowser"
+                                    FontSize="12"
+                                    Style="{StaticResource MoonLinkButtonStyle}">
+                                    <TextBlock Text="在 B站打开" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="BiliStats" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" TextWrapping="Wrap" />
+                            <TextBlock
+                                x:Name="BiliDescription"
+                                FontSize="12"
+                                IsTextSelectionEnabled="True"
+                                LineHeight="20"
+                                MaxLines="5"
+                                Style="{StaticResource MoonBodyStyle}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Rectangle Height="1" Fill="#14FFFFFF" />
+                        <StackPanel Spacing="14">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="热门评论" />
+                                <TextBlock x:Name="CommentsCount" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <ProgressRing x:Name="CommentsRing" Width="20" Height="20" HorizontalAlignment="Left" IsActive="False" Visibility="Collapsed" />
+                            <ItemsRepeater x:Name="CommentsRepeater" ItemTemplate="{StaticResource BiliCommentTemplate}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Spacing="18" />
+                                </ItemsRepeater.Layout>
+                            </ItemsRepeater>
+                            <TextBlock
+                                x:Name="CommentsNote"
+                                FontSize="12"
+                                Style="{StaticResource MoonCardMetaStyle}"
+                                TextWrapping="Wrap"
+                                Visibility="Collapsed" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

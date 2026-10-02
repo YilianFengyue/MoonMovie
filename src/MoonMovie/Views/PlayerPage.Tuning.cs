@@ -523,6 +523,7 @@ public sealed partial class PlayerPage
             ? mpv.Stats()
             : [("内核", "系统（Media Foundation）"), ("缓冲", $"{_engine?.BufferedAhead ?? 0:0} 秒")];
         rows = [.. rows, ("片源", $"{_source.SiteName} · {_source.LatencyText}")];
+        if (BiliStreamRow is { } bili) rows = [.. rows, bili];
 
         InfoRows.Children.Clear();
         InfoRows.RowDefinitions.Clear();

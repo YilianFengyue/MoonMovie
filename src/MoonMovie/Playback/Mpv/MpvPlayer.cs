@@ -96,10 +96,17 @@ public sealed unsafe class MpvPlayer : IDisposable
 
     // ----- Commands ------------------------------------------------------------------------------------
 
-    /// <summary>Opens a file or URL, optionally starting at a position and with extra HTTP headers.</summary>
-    public void Load(string url, double? start = null, IReadOnlyDictionary<string, string>? headers = null)
+    /// <summary>Opens a file or URL, optionally starting at a position, with extra HTTP headers and per-file options
+    /// (values are length-quoted, so URLs with commas or ampersands pass intact).</summary>
+    public void Load(string url, double? start = null, IReadOnlyDictionary<string, string>? headers = null,
+        IReadOnlyDictionary<string, string>? fileOptions = null)
     {
         var options = new List<string>();
+        foreach (var (name, value) in fileOptions ?? new Dictionary<string, string>())
+        {
+            options.Add($"{name}=%{System.Text.Encoding.UTF8.GetByteCount(value)}%{value}");
+        }
+
         if (start is { } s && s > 0) options.Add("start=" + s.ToString("0.###", CultureInfo.InvariantCulture));
         if (headers is { Count: > 0 })
         {

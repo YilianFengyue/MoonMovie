@@ -121,6 +121,12 @@ public sealed partial class PlayerPage
             return;
         }
 #endif
+        if (_request.Bili is not null)
+        {
+            LoadBiliDanmaku();
+            return;
+        }
+
         if (_danmakuEpisode == _episodeIndex || !_danmaku.Client.IsConfigured) return;
         _danmakuEpisode = _episodeIndex;
         _danmakuCts?.Cancel();

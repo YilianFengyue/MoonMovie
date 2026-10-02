@@ -123,6 +123,25 @@ public sealed class MpvEngine : IPlaybackEngine
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// A stream that needs request headers and may come as separate DASH video and audio (B站): both URLs are opened
+    /// together, with the same headers.
+    /// </summary>
+    public Task OpenStreamAsync(string videoUrl, string? audioUrl, TimeSpan start, IReadOnlyDictionary<string, string> headers,
+        string? userAgent = null)
+    {
+        _loaded = _restarted = _eof = false;
+        _position = start.TotalSeconds;
+        _duration = 0;
+        var options = new Dictionary<string, string>();
+        if (audioUrl is not null) options["audio-files"] = audioUrl; // "audio-file" is a CLI-only alias
+        if (userAgent is not null) options["user-agent"] = userAgent;
+        _player.SetPause(false);
+        _player.Load(videoUrl, start.TotalSeconds, headers, options);
+        StateChanged?.Invoke();
+        return Task.CompletedTask;
+    }
+
     public void Play()
     {
         if (_eof) _player.Seek(0);

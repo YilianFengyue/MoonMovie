@@ -63,7 +63,8 @@ public sealed record PlaybackRequest(
     int EpisodeIndex,
     int? Season,
     IReadOnlyList<EpisodeInfo> Episodes,
-    bool IsAnimation = false);
+    bool IsAnimation = false,
+    Core.Bilibili.BiliVideoDetail? Bili = null);
 
 public sealed record PlaceholderArgs(string Title, string Caption);
 

@@ -15,7 +15,8 @@ public sealed class PersonViewModel(Person person, TmdbClient tmdb)
     public string Initial => person.Name.Length > 0 ? person.Name[..1] : "?";
 }
 
-public sealed partial class EpisodeViewModel(EpisodeInfo episode, TmdbClient tmdb, Action<EpisodeViewModel> play)
+public sealed partial class EpisodeViewModel(EpisodeInfo episode, TmdbClient tmdb, Action<EpisodeViewModel> play,
+    Action<EpisodeViewModel>? download = null)
 {
     public EpisodeInfo Episode { get; } = episode;
 
@@ -49,4 +50,7 @@ public sealed partial class EpisodeViewModel(EpisodeInfo episode, TmdbClient tmd
 
     [RelayCommand]
     private void Play() => play(this);
+
+    [RelayCommand]
+    private void Download() => download?.Invoke(this);
 }

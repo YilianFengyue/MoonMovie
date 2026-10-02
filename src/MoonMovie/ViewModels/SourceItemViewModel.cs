@@ -10,7 +10,15 @@ namespace MoonMovie.ViewModels;
 public sealed partial class SourceItemViewModel(SourceCandidate candidate, SourcePanelViewModel owner)
     : ObservableObject, IComparable<SourceItemViewModel>
 {
-    public SourceCandidate Candidate { get; } = candidate;
+    public SourceCandidate Candidate { get; private set; } = candidate;
+
+    /// <summary>A fresh copy of the same title on the same site (new episodes since it was cached).</summary>
+    public void Update(SourceCandidate fresh)
+    {
+        Candidate = fresh;
+        OnPropertyChanged(nameof(Candidate));
+        OnPropertyChanged(nameof(Detail));
+    }
 
     public string SiteName => Candidate.Site.Name;
 

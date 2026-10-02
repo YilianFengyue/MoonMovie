@@ -42,6 +42,7 @@ public sealed partial class DetailPage : Page
         ViewModel.Sources.PropertyChanged += (_, _) => UpdatePlayState();
         ViewModel.Sources.Items.CollectionChanged += (_, _) => UpdatePlayState();
         ViewModel.Sources.Chosen += (_, _) => ClosePanel();
+        ViewModel.DownloadQueued += ConfirmDownload;
         ViewModel.Seasons.CollectionChanged += (_, _) => BuildSeasonBar();
         ViewModel.Cast.CollectionChanged += (_, _) => CastRow.Visibility = Visible(ViewModel.Cast.Count > 0);
         ViewModel.Recommendations.CollectionChanged += (_, _) =>
@@ -277,6 +278,72 @@ public sealed partial class DetailPage : Page
     }
 
     private void OnSourcesClick(object sender, RoutedEventArgs e) => OpenPanel();
+
+    // ----- Download -----------------------------------------------------------------------------------------
+
+    /// <summary>Series: this episode, from here on, or the whole season; films: each version.</summary>
+    private void OnDownloadClick(object sender, RoutedEventArgs e)
+    {
+        var flyout = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom };
+        if (ViewModel.DownloadSource is not { } source)
+        {
+            flyout.Items.Add(new MenuFlyoutItem
+            {
+                Text = ViewModel.Sources.Phase == SourcePhase.Searching ? "正在寻找可下载的片源…" : "没有可下载的在线片源",
+                IsEnabled = false,
+            });
+        }
+        else
+        {
+            var episodes = source.Candidate.PrimaryLine.Episodes;
+            if (ViewModel.IsSeries)
+            {
+                var next = Math.Clamp(ViewModel.NextIndex, 0, episodes.Count - 1);
+                AddDownload(flyout, $"下载第 {next + 1} 集", [next]);
+                if (next > 0 && next < episodes.Count - 1)
+                {
+                    AddDownload(flyout, $"下载第 {next + 1}–{episodes.Count} 集", Enumerable.Range(next, episodes.Count - next));
+                }
+
+                AddDownload(flyout, $"下载本季全部（{episodes.Count} 集）", Enumerable.Range(0, episodes.Count));
+            }
+            else if (episodes.Count == 1)
+            {
+                AddDownload(flyout, "下载正片", [0]);
+            }
+            else
+            {
+                for (var i = 0; i < episodes.Count; i++) AddDownload(flyout, $"下载 {episodes[i].Name}", [i]);
+            }
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            var from = new MenuFlyoutItem { Text = $"片源：{source.SiteName}", IsEnabled = false };
+            flyout.Items.Add(from);
+        }
+
+        var manage = new MenuFlyoutItem { Text = "管理下载…" };
+        manage.Click += (_, _) => App.MainWindow.Navigate(typeof(DownloadsPage), null);
+        flyout.Items.Add(manage);
+        flyout.ShowAt(DownloadButton);
+    }
+
+    private void AddDownload(MenuFlyout flyout, string text, IEnumerable<int> indexes)
+    {
+        var list = indexes.ToArray();
+        var item = new MenuFlyoutItem { Text = text };
+        item.Click += (_, _) => ConfirmDownload(ViewModel.Download(list));
+        flyout.Items.Add(item);
+    }
+
+    /// <summary>The button itself says what happened for a moment.</summary>
+    private async void ConfirmDownload(int added)
+    {
+        DownloadLabel.Text = added > 0 ? $"已加入下载（{added}）" : "已在下载列表中";
+        DownloadIcon.Glyph = "\uE73E";
+        await Task.Delay(2400);
+        DownloadLabel.Text = "下载";
+        DownloadIcon.Glyph = "\uE896";
+    }
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => ViewModel.RetrySources();
 

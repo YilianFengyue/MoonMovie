@@ -350,6 +350,59 @@
                                 <TextBlock Text="清理" />
                             </Button>
                         </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="视频缓存" />
+                                <TextBlock x:Name="SegmentCacheText" Style="{StaticResource RowCaptionStyle}" Text="正在计算…" />
+                            </StackPanel>
+                            <StackPanel x:Name="SegmentCacheChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                            <Button
+                                Grid.Column="2"
+                                Height="36"
+                                Padding="16,0"
+                                VerticalAlignment="Center"
+                                Click="OnClearSegments"
+                                FontSize="13"
+                                Style="{StaticResource MoonGlassButtonStyle}">
+                                <TextBlock Text="清理" />
+                            </Button>
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="下载位置" />
+                                <TextBlock x:Name="DownloadFolderText" Style="{StaticResource RowCaptionStyle}" IsTextSelectionEnabled="True" />
+                            </StackPanel>
+                            <Button
+                                Grid.Column="1"
+                                Height="36"
+                                Padding="16,0"
+                                VerticalAlignment="Center"
+                                Click="OnChangeDownloadFolder"
+                                FontSize="13"
+                                Style="{StaticResource MoonGlassButtonStyle}">
+                                <TextBlock Text="更改" />
+                            </Button>
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="同时下载" />
+                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="同时下载的集数；限速可以在下载页设置" />
+                            </StackPanel>
+                            <StackPanel x:Name="DownloadConcurrencyChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
                         <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

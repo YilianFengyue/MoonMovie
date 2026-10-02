@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using MoonMovie.Core.Models;
 
 namespace MoonMovie.Core.Sources;
@@ -32,11 +33,14 @@ public sealed record SourceCandidate(
     IReadOnlyList<PlayLine> Lines,
     int Score)
 {
+    [JsonIgnore]
     public string Identity => $"{Site.Key}:{RemoteId}";
 
     /// <summary>The line with the most episodes; resource sites often keep a partial mirror line.</summary>
+    [JsonIgnore]
     public PlayLine PrimaryLine => Lines.OrderByDescending(l => l.Episodes.Count).First();
 
+    [JsonIgnore]
     public int EpisodeCount => PrimaryLine.Episodes.Count;
 }
 

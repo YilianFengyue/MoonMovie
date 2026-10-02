@@ -34,14 +34,62 @@ public sealed partial class MainWindow : Window
         AppTitleBar.Loaded += (_, _) => UpdateTitleBarRegions();
         foreach (var item in Nav.Items) item.Tapped += OnNavItemTapped;
         AppTitleBar.SizeChanged += (_, _) => UpdateTitleBarRegions();
+        // Interactive parts move when their neighbours change size (search box, badges, nav): keep the
+        // click-through rectangles in step or the buttons stop responding to clicks.
+        foreach (var element in new FrameworkElement[] { BackButton, Nav, SearchBox, Actions })
+        {
+            element.SizeChanged += (_, _) => UpdateTitleBarRegions();
+        }
 
         ContentFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
+
+        Taskbar = new Playback.TaskbarControls(WinRT.Interop.WindowNative.GetWindowHandle(this));
+        Closed += (_, _) => Taskbar.Dispose();
+
+        var downloads = App.Services.GetRequiredService<Core.Downloads.DownloadManager>();
+        downloads.Changed += _ => DispatcherQueue.TryEnqueue(UpdateDownloadBadge);
+        UpdateDownloadBadge();
+    }
+
+    /// <summary>Thumbnail buttons and icon progress; the player owns them while it is open.</summary>
+    public Playback.TaskbarControls Taskbar { get; }
+
+    public bool PlayerOwnsTaskbar { get; set; }
+
+    /// <summary>The number of downloads still running or waiting, on the title-bar button.</summary>
+    private void UpdateDownloadBadge()
+    {
+        var active = App.Services.GetRequiredService<Core.Downloads.DownloadManager>().ActiveCount;
+        DownloadBadge.Visibility = active > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DownloadBadgeText.Text = active > 9 ? "9+" : active.ToString();
+
+        // Outside the player the icon shows overall download progress.
+        if (PlayerOwnsTaskbar) return;
+        var running = App.Services.GetRequiredService<Core.Downloads.DownloadManager>().Items
+            .Where(i => i.State is Core.Downloads.DownloadState.Queued or Core.Downloads.DownloadState.Running).ToArray();
+        Taskbar.SetProgress(running.Length > 0 ? running.Average(i => i.Progress) : null, paused: false);
+    }
+
+    private void OnDownloadsClick(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.CurrentSourcePageType != typeof(DownloadsPage)) Navigate(typeof(DownloadsPage), null);
     }
 
     public void Navigate(Type page, object? parameter, NavigationTransitionInfo? transition = null) =>
         ContentFrame.Navigate(page, parameter, transition ?? new EntranceNavigationTransitionInfo());
 
     public object? CurrentPage => ContentFrame.Content;
+
+    /// <summary>Another launch handed us work: come forward (restoring from the taskbar if minimized).</summary>
+    public void BringToFront()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter) presenter.Restore();
+        Activate();
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hwnd);
 
     /// <summary>Forgets the page before the current one (used when a page replaces itself).</summary>
     public void DropPreviousEntry()

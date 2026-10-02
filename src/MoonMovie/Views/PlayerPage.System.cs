@@ -73,6 +73,43 @@ public sealed partial class PlayerPage
         return ((int)Math.Max(64, width * scale), (int)Math.Max(64, height * scale));
     }
 
+    private void InitTaskbar()
+    {
+        var taskbar = App.MainWindow.Taskbar;
+        App.MainWindow.PlayerOwnsTaskbar = true;
+        taskbar.PlayPausePressed += OnTaskbarPlayPause;
+        taskbar.PreviousPressed += OnTaskbarPrevious;
+        taskbar.NextPressed += OnTaskbarNext;
+    }
+
+    private void DisposeTaskbar()
+    {
+        var taskbar = App.MainWindow.Taskbar;
+        taskbar.PlayPausePressed -= OnTaskbarPlayPause;
+        taskbar.PreviousPressed -= OnTaskbarPrevious;
+        taskbar.NextPressed -= OnTaskbarNext;
+        taskbar.HidePlayer();
+        App.MainWindow.PlayerOwnsTaskbar = false;
+    }
+
+    private void OnTaskbarPlayPause() => TogglePlay();
+
+    private void OnTaskbarPrevious() => PlayEpisode(_episodeIndex - 1);
+
+    private void OnTaskbarNext() => PlayEpisode(_episodeIndex + 1);
+
+    /// <summary>Button states and the icon's progress bar (yellow while paused).</summary>
+    private void UpdateTaskbar()
+    {
+        if (_engine is null) return;
+        var state = _engine.State;
+        var playing = state is EngineState.Playing or EngineState.Buffering or EngineState.Opening;
+        App.MainWindow.Taskbar.ShowPlayer(playing, _episodeIndex > 0, HasNext);
+        App.MainWindow.Taskbar.SetProgress(
+            _duration > TimeSpan.Zero ? _engine.Position.TotalSeconds / _duration.TotalSeconds : null,
+            paused: state == EngineState.Paused);
+    }
+
     private void InitSystemMedia()
     {
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);

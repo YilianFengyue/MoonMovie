@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MoonMovie.Core.Downloads;
 using MoonMovie.Core.Library;
 using MoonMovie.Core.Local;
 using MoonMovie.Core.Models;
@@ -20,18 +21,20 @@ public sealed partial class DetailViewModel : ObservableObject
     private readonly ImageLoader _images;
     private readonly WatchProgressStore _progress;
     private readonly LocalLibrary _local;
+    private readonly DownloadManager _downloads;
     private MediaItem? _item;
     private int _seasonVersion;
 
     public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images,
-        WatchProgressStore progress, LocalLibrary local)
+        WatchProgressStore progress, LocalLibrary local, SourceMatchCache sourceCache, DownloadManager downloads)
     {
         _tmdb = tmdb;
         _favorites = favorites;
         _images = images;
         _progress = progress;
         _local = local;
-        Sources = new SourcePanelViewModel(sources)
+        _downloads = downloads;
+        Sources = new SourcePanelViewModel(sources, sourceCache)
         {
             // Files on disk come first: "本地文件" is chosen whenever it has the title (and the season).
             LocalProvider = target => _item is not null && _local.Find(_item.MediaKey) is { } title
@@ -168,7 +171,7 @@ public sealed partial class DetailViewModel : ObservableObject
         }
 
         Episodes.Clear();
-        foreach (var e in episodes) Episodes.Add(new EpisodeViewModel(e, _tmdb, PlayEpisode));
+        foreach (var e in episodes) Episodes.Add(new EpisodeViewModel(e, _tmdb, PlayEpisode, ep => DownloadQueued?.Invoke(Download([ep.Number - 1]))));
     }
 
     public void ToggleFavorite() => IsFavorite = _favorites.Toggle(Item);
@@ -202,6 +205,35 @@ public sealed partial class DetailViewModel : ObservableObject
         { } r => r.EpisodeIndex,
         null => 0,
     });
+
+    /// <summary>The online source downloads come from: the chosen one, or the best reachable one when the chosen
+    /// source is the files on disk.</summary>
+    public SourceItemViewModel? DownloadSource => Sources.Selected is { IsLocal: false } selected
+        ? selected
+        : Sources.Items.FirstOrDefault(i => !i.IsLocal && i.State is ProbeOutcome.Ok or ProbeOutcome.Slow);
+
+    /// <summary>The episode "播放" would start (zero-based).</summary>
+    public int NextIndex => Resume switch
+    {
+        { HasNextEpisode: true } r => r.EpisodeIndex + 1,
+        { } r => r.EpisodeIndex,
+        null => 0,
+    };
+
+    /// <summary>An episode card's "下载这一集": how many were added.</summary>
+    public event Action<int>? DownloadQueued;
+
+    /// <summary>Queues episodes (indexes into the source's list); returns how many were new.</summary>
+    public int Download(IEnumerable<int> indexes)
+    {
+        if (DownloadSource is not { } source) return 0;
+        var line = source.Candidate.PrimaryLine;
+        var item = Detail?.Item ?? Item;
+        return _downloads.Enqueue(indexes
+            .Where(i => i >= 0 && i < line.Episodes.Count)
+            .Select(i => new DownloadRequest(item, SelectedSeason?.Number, i,
+                IsSeries ? $"第 {i + 1} 集" : line.Episodes[i].Name, line.Episodes[i].Url, source.SiteName)));
+    }
 
     private void PlayEpisode(EpisodeViewModel episode) => PlayIndex(episode.Number - 1);
 

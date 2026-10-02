@@ -60,11 +60,9 @@
                             </StackPanel>
                             <TextBlock VerticalAlignment="Center" Style="{StaticResource MoonCardMetaStyle}" FontSize="13" Text="{x:Bind Meta}" />
                         </StackPanel>
-                        <!-- One measure for every row: a long synopsis must not set its own line length. -->
+                        <!-- Fills the row (which grows with the window), so every row reads to the same edge. -->
                         <TextBlock
-                            MaxWidth="760"
-                            Margin="0,2,0,0"
-                            HorizontalAlignment="Left"
+                            Margin="0,2,24,0"
                             FontSize="13"
                             LineHeight="21"
                             MaxLines="2"
@@ -106,10 +104,10 @@
                     </SelectorBar>
                 </StackPanel>
 
-                <!-- Rows share one width (the hover wash lines up), capped for readability. -->
+                <!-- Rows share one width (the hover wash lines up) that follows the window, capped for readability. -->
                 <Grid Margin="44,20,44,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" MaxWidth="1040" />
+                        <ColumnDefinition Width="*" MaxWidth="1480" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ItemsRepeater

@@ -280,6 +280,18 @@ public sealed class LocalLibrary : IDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>A file MoonMovie saved itself (offline download): its TMDB identity is known, no search needed.</summary>
+    public void Remember(string path, MediaItem item)
+    {
+        var key = KeyOf(LocalFile.Create(path, 0, DateTime.UtcNow, false));
+        lock (_gate)
+        {
+            if (_data.Matches.TryGetValue(key, out var existing) && existing.Manual) return;
+            _data.Matches[key] = LocalMatch.From(item, manual: false);
+            Save();
+        }
+    }
+
     /// <summary>
     /// A title for files opened directly (not in the library): the file plus its siblings of the same title, so the
     /// next episode is there. Not stored.

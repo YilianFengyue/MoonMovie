@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MoonMovie.Views.DownloadsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:vm="using:MoonMovie.ViewModels"
+    Background="{StaticResource MoonCanvasBrush}"
+    XYFocusKeyboardNavigation="Enabled">
+
+    <Page.Resources>
+        <!-- Task row: still, title and episode, a hairline of progress, status; actions on the right. -->
+        <DataTemplate x:Key="DownloadRowTemplate" x:DataType="vm:DownloadItemViewModel">
+            <Grid
+                Padding="10"
+                Background="#0AFFFFFF"
+                ColumnSpacing="20"
+                CornerRadius="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="160" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid Height="90" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="6">
+                    <FontIcon FontSize="20" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE714;" />
+                    <Image imaging:ImageEx.DecodeWidth="160" imaging:ImageEx.Url="{x:Bind ThumbUrl}" Stretch="UniformToFill" />
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="6" />
+                </Grid>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                    <TextBlock
+                        FontFamily="{StaticResource MoonFontBold}"
+                        FontSize="17"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        Text="{x:Bind Title}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="13" Style="{StaticResource MoonMetaStyle}" Text="{x:Bind Subtitle}" TextTrimming="CharacterEllipsis" />
+                    <ProgressBar
+                        Margin="0,4,0,0"
+                        Maximum="100"
+                        ShowPaused="{x:Bind ShowPaused, Mode=OneWay}"
+                        Visibility="{x:Bind ProgressVisibility, Mode=OneWay}"
+                        Value="{x:Bind ProgressValue, Mode=OneWay}" />
+                    <TextBlock FontSize="12" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4">
+                    <Button
+                        AutomationProperties.Name="播放"
+                        Command="{x:Bind PlayCommand}"
+                        Style="{StaticResource MoonTitleBarButtonStyle}"
+                        ToolTipService.ToolTip="播放"
+                        Visibility="{x:Bind PlayVisibility, Mode=OneWay}">
+                        <FontIcon FontSize="15" Glyph="&#xF5B0;" />
+                    </Button>
+                    <Button
+                        AutomationProperties.Name="{x:Bind ToggleLabel, Mode=OneWay}"
+                        Command="{x:Bind ToggleCommand}"
+                        Style="{StaticResource MoonTitleBarButtonStyle}"
+                        ToolTipService.ToolTip="{x:Bind ToggleLabel, Mode=OneWay}"
+                        Visibility="{x:Bind ToggleVisibility, Mode=OneWay}">
+                        <FontIcon FontSize="15" Glyph="{x:Bind ToggleGlyph, Mode=OneWay}" />
+                    </Button>
+                    <Button
+                        AutomationProperties.Name="在文件夹中显示"
+                        Command="{x:Bind RevealCommand}"
+                        Style="{StaticResource MoonTitleBarButtonStyle}"
+                        ToolTipService.ToolTip="在文件夹中显示">
+                        <FontIcon FontSize="15" Glyph="&#xE838;" />
+                    </Button>
+                    <Button AutomationProperties.Name="删除" Style="{StaticResource MoonTitleBarButtonStyle}" ToolTipService.ToolTip="删除">
+                        <FontIcon FontSize="15" Glyph="&#xE74D;" />
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem Command="{x:Bind RemoveCommand}" Text="只删除记录（保留已下载的文件）" />
+                                <MenuFlyoutItem Command="{x:Bind RemoveWithFileCommand}" Text="删除记录和文件" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <ScrollViewer HorizontalScrollMode="Disabled" VerticalAnchorRatio="NaN">
+        <StackPanel Padding="0,104,0,72">
+            <Grid Margin="{StaticResource MoonGutter}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource MoonOverlineStyle}" Text="离线" />
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource MoonDisplayStyle}" Text="下载" />
+                    <TextBlock
+                        Margin="0,14,0,0"
+                        Style="{StaticResource MoonMetaStyle}"
+                        Text="{x:Bind ViewModel.Summary, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <StackPanel
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Orientation="Horizontal"
+                    Spacing="18">
+                    <TextBlock VerticalAlignment="Center" Style="{StaticResource MoonCardMetaStyle}" Text="限速" />
+                    <StackPanel x:Name="SpeedChips" Orientation="Horizontal" Spacing="4" />
+                    <Button Click="OnOpenFolder" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                        <TextBlock Text="打开文件夹" />
+                    </Button>
+                    <Button Click="OnChangeFolder" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                        <TextBlock Text="更改位置" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="44,30,44,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="1240" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ItemsRepeater ItemTemplate="{StaticResource DownloadRowTemplate}" ItemsSource="{x:Bind ViewModel.Items}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="8" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </Grid>
+
+            <StackPanel
+                x:Name="EmptyState"
+                Margin="56,30,56,0"
+                HorizontalAlignment="Left"
+                Spacing="10"
+                Visibility="Collapsed">
+                <FontIcon HorizontalAlignment="Left" FontSize="34" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE896;" />
+                <TextBlock Margin="0,8,0,0" Style="{StaticResource MoonSectionTitleStyle}" Text="还没有下载" />
+                <TextBlock Style="{StaticResource MoonMetaStyle}" Text="在详情页点「下载」，可以下载单集或整季。下载时会去掉片源插播的广告，下完的影片出现在「媒体库 · 本地」，断网也能看" TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

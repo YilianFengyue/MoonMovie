@@ -151,6 +151,33 @@
                 Orientation="Horizontal"
                 Spacing="4">
                 <Button
+                    AutomationProperties.Name="下载"
+                    Click="OnDownloadsClick"
+                    Style="{StaticResource MoonTitleBarButtonStyle}"
+                    ToolTipService.ToolTip="下载">
+                    <Grid>
+                        <FontIcon FontSize="15" Glyph="&#xE896;" />
+                        <Border
+                            x:Name="DownloadBadge"
+                            MinWidth="15"
+                            Height="15"
+                            Margin="0,-9,-11,0"
+                            Padding="4,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            CornerRadius="7.5"
+                            Visibility="Collapsed">
+                            <TextBlock
+                                x:Name="DownloadBadgeText"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="10"
+                                Foreground="Black" />
+                        </Border>
+                    </Grid>
+                </Button>
+                <Button
                     AutomationProperties.Name="观看历史"
                     Click="OnHistoryClick"
                     Style="{StaticResource MoonTitleBarButtonStyle}"

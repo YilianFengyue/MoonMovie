@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using MoonMovie.Core.Caching;
 using MoonMovie.Core.Configuration;
 using MoonMovie.Core.Danmaku;
+using MoonMovie.Core.Downloads;
 using MoonMovie.Core.Settings;
 using MoonMovie.Core.Home;
 using MoonMovie.Core.Library;
@@ -52,10 +53,11 @@ public partial class App : Application
         _window = MainWindow;
         _window.Activate();
         Services.GetRequiredService<LocalLibrary>().Initialize();
+        Services.GetRequiredService<DownloadManager>().Start();
 
-        // "Open with MoonMovie" / dropping a file on the exe: play it.
-        var files = Environment.GetCommandLineArgs().Skip(1).Where(a => File.Exists(a) || Directory.Exists(a)).ToArray();
-        if (files.Length > 0) MainWindow.DispatcherQueue.TryEnqueue(() => _ = LocalPlayback.OpenPathsAsync(files));
+        // Files from the command line or a file association, a jump-list "继续观看" entry.
+        MainWindow.DispatcherQueue.TryEnqueue(ActivationRouter.OnLaunched);
+        JumpListUpdater.Start();
     }
 
     private static ServiceProvider ConfigureServices()
@@ -111,13 +113,17 @@ public partial class App : Application
             .AddSingleton(_ => new TmdbClient(http, tmdbOptions, new JsonDiskCache(AppPaths.ApiCache)))
             .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
             .AddSingleton<SettingsStore>()
+            .AddSingleton<SourceMatchCache>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()
             .AddSingleton<WatchProgressStore>()
             .AddSingleton<TitlePrefsStore>()
             .AddSingleton<LocalLibrary>()
-            .AddSingleton(_ => new MediaProxy(direct))
+            .AddSingleton(sp => new DownloadManager(direct, sp.GetRequiredService<SegmentCache>(),
+                sp.GetRequiredService<SettingsStore>(), sp.GetRequiredService<LocalLibrary>()))
+            .AddSingleton(sp => new SegmentCache(() => (long)sp.GetRequiredService<SettingsStore>().Current.Cache.SegmentCacheGb << 30))
+            .AddSingleton(sp => new MediaProxy(direct, sp.GetRequiredService<SegmentCache>()))
             .AddSingleton<HomeFeedService>()
             .AddSingleton<SearchService>()
             .AddSingleton(sp => new ImageLoader(http, sp.GetRequiredService<TmdbOptions>().ImageRoots))
@@ -126,6 +132,7 @@ public partial class App : Application
             .AddTransient<SearchViewModel>()
             .AddTransient<LibraryViewModel>()
             .AddTransient<LocalLibraryViewModel>()
+            .AddTransient<DownloadsViewModel>()
             .AddSingleton<BrowseSections>()
             .BuildServiceProvider();
     }

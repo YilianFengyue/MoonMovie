@@ -25,6 +25,7 @@ public sealed partial class SourcePanelViewModel : ObservableObject
     private static readonly Dictionary<string, List<(SourceCandidate Candidate, ProbeResult? Probe)>> SessionCache = [];
 
     private readonly SourceSearchService _search;
+    private readonly SourceMatchCache? _disk;
     private readonly DispatcherQueue _dispatcher = DispatcherQueue.GetForCurrentThread();
     private CancellationTokenSource? _cts;
     private bool _userPicked;
@@ -32,9 +33,10 @@ public sealed partial class SourcePanelViewModel : ObservableObject
     private bool _searchComplete;
     private SourceTarget? _target;
 
-    public SourcePanelViewModel(SourceSearchService search)
+    public SourcePanelViewModel(SourceSearchService search, SourceMatchCache? disk = null)
     {
         _search = search;
+        _disk = disk;
         SitesTotal = search.Sites.Count;
     }
 
@@ -113,6 +115,20 @@ public sealed partial class SourcePanelViewModel : ObservableObject
             return;
         }
 
+        // Known from an earlier visit: show it now (playable at once), then refresh latency and episode lists.
+        if (_disk?.Load(target.CacheKey) is { } disk)
+        {
+            var gate = new SemaphoreSlim(ProbeConcurrency);
+            foreach (var (candidate, probe) in disk.Items)
+            {
+                var item = Insert(candidate);
+                if (probe is not null) item.ApplyProbe(probe);
+                _ = ProbeAsync(item, gate, ct);
+            }
+
+            Reevaluate();
+        }
+
         _ = RunAsync(target, ct);
     }
 
@@ -148,6 +164,12 @@ public sealed partial class SourcePanelViewModel : ObservableObject
                     Post(() =>
                     {
                         if (ct.IsCancellationRequested) return;
+                        if (Items.FirstOrDefault(i => i.Candidate.Identity == candidate.Identity) is { } known)
+                        {
+                            known.Update(candidate); // already shown from the disk cache (and re-probed there)
+                            return;
+                        }
+
                         var item = Insert(candidate);
                         _ = ProbeAsync(item, probeGate, ct);
                     });
@@ -259,6 +281,7 @@ public sealed partial class SourcePanelViewModel : ObservableObject
         if (_searchComplete && _pendingProbes == 0 && _target is not null && Items.Count > 0)
         {
             SessionCache[_target.CacheKey] = Items.Where(i => !i.IsLocal).Select(i => (i.Candidate, i.Probe)).ToList();
+            _disk?.Save(_target.CacheKey, Items.Where(i => !i.IsLocal).Select(i => new CachedSource(i.Candidate, i.Probe)).ToArray());
         }
     }
 

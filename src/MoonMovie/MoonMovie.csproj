@@ -14,6 +14,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Program.cs owns Main: single instance with activation redirection. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 
     <!-- Unpackaged during development: run bin\...\MoonMovie.exe directly. MSIX packaging comes back at release time. -->
     <WindowsPackageType>None</WindowsPackageType>

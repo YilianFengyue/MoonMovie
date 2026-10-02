@@ -62,6 +62,8 @@ public sealed partial class PlayerPage : Page
     private bool _nextCancelled;
     private bool _pausedInfoShown;
     private bool _thumbTaken;
+    private bool _nextPrefetched;
+    private int _taskbarTick;
     private string? _thumbPath;
     private Action? _toastAction;
     private Windows.Foundation.Point _lastPointer = new(-100, -100);
@@ -130,6 +132,7 @@ public sealed partial class PlayerPage : Page
 
         CreateEngine();
         InitSystemMedia();
+        InitTaskbar();
         VolumeBar.Value = _volume * 100;
 
         BuildEpisodeList();
@@ -153,6 +156,7 @@ public sealed partial class PlayerPage : Page
         KeepAwake(false);
 
         DisposeSystemMedia();
+        DisposeTaskbar();
         if (_engine is not null)
         {
             _engine.Pause();
@@ -182,6 +186,7 @@ public sealed partial class PlayerPage : Page
         ErrorPanel.Visibility = Visibility.Collapsed;
         ResetSkips();
         _thumbTaken = false;
+        _nextPrefetched = false;
         HideNextCard(resetCancel: true);
         HidePausedInfo();
         ShowLoading(LocalPlayback.IsLocal(_source.Candidate) ? "正在打开…" : $"正在连接 {_source.SiteName}…");
@@ -453,7 +458,9 @@ public sealed partial class PlayerPage : Page
 
         UpdateNextCard(position);
         UpdateSkips(position);
+        if (++_taskbarTick % 4 == 0) UpdateTaskbar();
         GrabThumbnail(position, state);
+        PrefetchNext(position);
         TickUpscaler(state);
         SyncDanmaku(position);
         if (InfoPanel.Visibility == Visibility.Visible) UpdateInfoPanel();
@@ -498,6 +505,15 @@ public sealed partial class PlayerPage : Page
     {
         var shown = _showRemaining && _duration > TimeSpan.Zero ? $"-{TimeText.Format(_duration - position)}" : TimeText.Format(position);
         TimeLabel.Text = $"{shown} / {TimeText.Format(_duration)}";
+    }
+
+    /// <summary>Two minutes before the end, the next episode's opening segments go into the disk cache.</summary>
+    private void PrefetchNext(TimeSpan position)
+    {
+        if (_nextPrefetched || !HasNext || _duration <= TimeSpan.FromMinutes(3) || _duration - position > TimeSpan.FromMinutes(2)) return;
+        _nextPrefetched = true;
+        var next = Line.Episodes[_episodeIndex + 1].Url;
+        if (next.Contains(".m3u8", StringComparison.OrdinalIgnoreCase)) _ = _proxy.PrefetchAsync(next, segments: 4);
     }
 
     /// <summary>Local titles TMDB does not know have no artwork: a frame from the file stands in on 继续观看.</summary>
@@ -550,6 +566,7 @@ public sealed partial class PlayerPage : Page
         var state = _engine.State;
         PlayPauseGlyph.Glyph = state == EngineState.Playing ? "\uE769" : "\uE768";
         KeepAwake(state is EngineState.Playing or EngineState.Buffering or EngineState.Opening);
+        UpdateTaskbar();
         _media?.SetPlaying(state switch
         {
             EngineState.Playing or EngineState.Buffering => true,

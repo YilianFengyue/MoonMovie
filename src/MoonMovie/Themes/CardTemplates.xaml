@@ -97,6 +97,20 @@
             Command="{x:Bind PlayCommand}"
             Style="{StaticResource MoonCardButtonStyle}"
             motion:CardMotion.IsEnabled="True">
+            <Button.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Command="{x:Bind PlayCommand}" Text="播放">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE768;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Command="{x:Bind DownloadCommand}" Text="下载这一集">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE896;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Button.ContextFlyout>
             <StackPanel>
                 <Grid Height="169" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
                     <Image imaging:ImageEx.DecodeWidth="300" imaging:ImageEx.Url="{x:Bind StillUrl}" Stretch="UniformToFill" />

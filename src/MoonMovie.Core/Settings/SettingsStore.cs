@@ -146,8 +146,33 @@ public sealed class AudioSettings
     public string Languages { get; set; } = "chi,zho,zh,cmn,jpn,ja,eng,en";
 }
 
+public sealed class CacheSettings
+{
+    /// <summary>Disk cache for streamed video segments (re-watching and seeking back start instantly).</summary>
+    public int SegmentCacheGb { get; set; } = 5;
+}
+
+public sealed class DownloadSettings
+{
+    /// <summary>Null: Videos\MoonMovie.</summary>
+    public string? Folder { get; set; }
+
+    /// <summary>Episodes downloading at the same time.</summary>
+    public int Concurrent { get; set; } = 2;
+
+    /// <summary>MB/s across all downloads; 0 is unlimited.</summary>
+    public int SpeedLimitMb { get; set; }
+
+    public static string DefaultFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "MoonMovie");
+}
+
 public sealed class AppSettings
 {
+    public CacheSettings Cache { get; set; } = new();
+
+    public DownloadSettings Downloads { get; set; } = new();
+
     public DanmakuSettings Danmaku { get; set; } = new();
 
     public PlaybackSettings Playback { get; set; } = new();

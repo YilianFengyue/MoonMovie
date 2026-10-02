@@ -128,6 +128,18 @@
                             </Button>
 
                             <Button
+                                x:Name="DownloadButton"
+                                AutomationProperties.Name="下载"
+                                Click="OnDownloadClick"
+                                Style="{StaticResource MoonGlassButtonStyle}"
+                                ToolTipService.ToolTip="下载到本地，断网也能看">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon x:Name="DownloadIcon" FontSize="16" Glyph="&#xE896;" />
+                                    <TextBlock x:Name="DownloadLabel" Text="下载" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button
                                 x:Name="FavoriteButton"
                                 Padding="0"
                                 AutomationProperties.Name="收藏"

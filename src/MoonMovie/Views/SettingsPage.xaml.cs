@@ -1,3 +1,5 @@
+using MoonMovie.Core.Caching;
+using MoonMovie.Core.Downloads;
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -133,6 +135,21 @@ public sealed partial class SettingsPage : Page
             Add(UpscaleChips, "RTX 超分", () => video.Upscale == UpscaleMode.RtxVsr, () => video.Upscale = UpscaleMode.RtxVsr);
         }
 
+        foreach (var gb in new[] { 2, 5, 10, 20 })
+        {
+            Add(SegmentCacheChips, $"{gb} GB", () => _settings.Current.Cache.SegmentCacheGb == gb, () =>
+            {
+                _settings.Current.Cache.SegmentCacheGb = gb;
+                App.Services.GetRequiredService<SegmentCache>().Trim();
+            });
+        }
+
+        foreach (var n in new[] { 1, 2, 3 })
+        {
+            Add(DownloadConcurrencyChips, n.ToString(), () => _settings.Current.Downloads.Concurrent == n,
+                () => _settings.Current.Downloads.Concurrent = n);
+        }
+
         Add(InterpolationChips, "运动平滑", () => video.Interpolation, () => video.Interpolation = !video.Interpolation);
         Add(SubtitleStyleChips, "背景板", () => subs.Background, () => subs.Background = !subs.Background);
         Add(SubtitleStyleChips, "统一样式", () => subs.OverrideAss, () => subs.OverrideAss = !subs.OverrideAss);
@@ -228,6 +245,9 @@ public sealed partial class SettingsPage : Page
             Measure(AppPaths.ImageCache),
             Measure(AppPaths.ApiCache) + Measure(DanmakuCache)));
         ImageCacheText.Text = $"海报与剧照 · {Format(images)}";
+        var segments = await Task.Run(() => App.Services.GetRequiredService<SegmentCache>().SizeBytes);
+        SegmentCacheText.Text = $"看过的片段存在本地，回看和往回拖不用重新下载 · 已用 {Format(segments)}";
+        DownloadFolderText.Text = App.Services.GetRequiredService<DownloadManager>().Folder;
         DataCacheText.Text = $"影视资料与弹幕 · {Format(data)} · 清理后会重新从网络获取";
     }
 
@@ -245,6 +265,20 @@ public sealed partial class SettingsPage : Page
             Clear(DanmakuCache);
         });
         await UpdateCacheSizesAsync();
+    }
+
+    private async void OnClearSegments(object sender, RoutedEventArgs e)
+    {
+        await Task.Run(() => App.Services.GetRequiredService<SegmentCache>().Clear());
+        await UpdateCacheSizesAsync();
+    }
+
+    private async void OnChangeDownloadFolder(object sender, RoutedEventArgs e)
+    {
+        if (await Services.LocalPlayback.PickFolderAsync() is not { } folder) return;
+        _settings.Current.Downloads.Folder = folder;
+        _settings.Save();
+        DownloadFolderText.Text = folder;
     }
 
     private void OnOpenDataFolder(object sender, RoutedEventArgs e) =>

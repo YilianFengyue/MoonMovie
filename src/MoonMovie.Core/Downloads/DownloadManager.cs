@@ -121,6 +121,9 @@ public sealed class DownloadManager
     /// <summary>Raised on a background thread: an item's progress or state (null: the list itself) changed.</summary>
     public event Action<DownloadItem?>? Changed;
 
+    /// <summary>Raised on a background thread when an item completes or fails (not when paused or removed).</summary>
+    public event Action<DownloadItem>? Finished;
+
     public IReadOnlyList<DownloadItem> Items
     {
         get
@@ -317,6 +320,7 @@ public sealed class DownloadManager
         {
             lock (_gate) _running.Remove(item.Id);
             Changed?.Invoke(item);
+            if (item.State is DownloadState.Completed or DownloadState.Failed) Finished?.Invoke(item);
             Pump();
         }
     }

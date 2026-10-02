@@ -465,8 +465,19 @@ public sealed partial class MainWindow : Window
     private void ShowSearchHistory()
     {
         var history = App.Services.GetRequiredService<SearchService>().History;
-        SearchBox.ItemsSource = history.Take(8).Select(SuggestionItem.ForHistory).ToArray();
+        SearchBox.ItemsSource = history.Count == 0
+            ? null
+            : history.Take(8).Select(SuggestionItem.ForHistory).Append(SuggestionItem.ClearAll()).ToArray();
         SearchBox.IsSuggestionListOpen = history.Count > 0;
+    }
+
+    private void OnForgetQuery(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string query })
+        {
+            App.Services.GetRequiredService<SearchService>().Forget(query);
+            ShowSearchHistory();
+        }
     }
 
     private void OnSearchGotFocus(object sender, RoutedEventArgs e)
@@ -479,6 +490,15 @@ public sealed partial class MainWindow : Window
         _suggestTimer?.Stop();
         _suggestCts?.Cancel();
         var search = App.Services.GetRequiredService<SearchService>();
+
+        if (args.ChosenSuggestion is SuggestionItem { IsClearAll: true })
+        {
+            search.ClearHistory();
+            sender.Text = string.Empty;
+            sender.ItemsSource = null;
+            sender.IsSuggestionListOpen = false;
+            return;
+        }
 
         if (args.ChosenSuggestion is SuggestionItem { Item: { } item })
         {

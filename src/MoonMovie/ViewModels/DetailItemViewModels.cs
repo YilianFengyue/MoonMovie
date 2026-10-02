@@ -16,8 +16,16 @@ public sealed class PersonViewModel(Person person, TmdbClient tmdb)
 }
 
 public sealed partial class EpisodeViewModel(EpisodeInfo episode, TmdbClient tmdb, Action<EpisodeViewModel> play,
-    Action<EpisodeViewModel>? download = null)
+    Action<EpisodeViewModel>? download = null) : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
 {
+    /// <summary>"会员" when B站正版 has this episode only for 大会员 and the linked account is not one.</summary>
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty]
+    [CommunityToolkit.Mvvm.ComponentModel.NotifyPropertyChangedFor(nameof(BadgeVisibility))]
+    public partial string? Badge { get; set; }
+
+    public Microsoft.UI.Xaml.Visibility BadgeVisibility =>
+        Badge is null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
     public EpisodeInfo Episode { get; } = episode;
 
     public int Number => Episode.Number;

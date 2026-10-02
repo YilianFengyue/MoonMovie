@@ -142,6 +142,13 @@ public sealed partial class SearchService(TmdbClient tmdb)
         File.WriteAllText(_historyPath, JsonSerializer.Serialize(list, SearchJsonContext.Default.ListString));
     }
 
+    public void Forget(string query)
+    {
+        var list = _history ??= LoadHistory();
+        if (list.RemoveAll(q => string.Equals(q, query, StringComparison.OrdinalIgnoreCase)) == 0) return;
+        File.WriteAllText(_historyPath, JsonSerializer.Serialize(list, SearchJsonContext.Default.ListString));
+    }
+
     public void ClearHistory()
     {
         _history = [];

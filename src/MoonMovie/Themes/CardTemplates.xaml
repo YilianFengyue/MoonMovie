@@ -191,6 +191,17 @@
                         CornerRadius="20">
                         <FontIcon FontSize="14" Foreground="{StaticResource MoonTextPrimaryBrush}" Glyph="&#xF5B0;" />
                     </Border>
+                    <Border
+                        Margin="10"
+                        Padding="6,1,6,2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Background="#E6FB7299"
+                        CornerRadius="4"
+                        ToolTipService.ToolTip="B站正版这一集需要大会员；播放时会换用其他片源"
+                        Visibility="{x:Bind BadgeVisibility, Mode=OneWay}">
+                        <TextBlock FontSize="11" Foreground="White" Text="{x:Bind Badge, Mode=OneWay}" />
+                    </Border>
                     <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
                 </Grid>
                 <TextBlock Margin="2,12,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />

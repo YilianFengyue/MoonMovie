@@ -12,13 +12,14 @@ namespace MoonMovie.ViewModels;
 /// <summary>One row of the title-bar suggestion list: a title, or a past query.</summary>
 public sealed class SuggestionItem
 {
-    private SuggestionItem(string text, string meta, string? posterUrl, MediaItem? item, bool isHistory)
+    private SuggestionItem(string text, string meta, string? posterUrl, MediaItem? item, bool isHistory, bool isClearAll = false)
     {
         Text = text;
         Meta = meta;
         PosterUrl = posterUrl;
         Item = item;
         IsHistory = isHistory;
+        IsClearAll = isClearAll;
     }
 
     public string Text { get; }
@@ -31,9 +32,16 @@ public sealed class SuggestionItem
 
     public bool IsHistory { get; }
 
-    public Visibility PosterVisibility => IsHistory ? Visibility.Collapsed : Visibility.Visible;
+    /// <summary>The last row under past queries: 「清除搜索记录」.</summary>
+    public bool IsClearAll { get; }
+
+    public Visibility PosterVisibility => IsHistory || IsClearAll ? Visibility.Collapsed : Visibility.Visible;
 
     public Visibility HistoryVisibility => IsHistory ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility EntryVisibility => IsClearAll ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility ClearAllVisibility => IsClearAll ? Visibility.Visible : Visibility.Collapsed;
 
     public static SuggestionItem ForMedia(MediaItem item, TmdbClient tmdb) =>
         new(item.Title, item.Year is { } y ? $"{y} · {item.KindLabel}" : item.KindLabel,
@@ -41,8 +49,10 @@ public sealed class SuggestionItem
 
     public static SuggestionItem ForHistory(string query) => new(query, "最近搜索", null, null, isHistory: true);
 
+    public static SuggestionItem ClearAll() => new("清除搜索记录", string.Empty, null, null, isHistory: false, isClearAll: true);
+
     // AutoSuggestBox writes ToString() into the text box while the user arrows through suggestions.
-    public override string ToString() => Text;
+    public override string ToString() => IsClearAll ? string.Empty : Text;
 }
 
 /// <summary>A row in the search result list: enough detail to tell same-named titles apart.</summary>

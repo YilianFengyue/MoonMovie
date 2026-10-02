@@ -49,6 +49,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        Notifications.Init();
         MainWindow = new MainWindow();
         _window = MainWindow;
         _window.Activate();

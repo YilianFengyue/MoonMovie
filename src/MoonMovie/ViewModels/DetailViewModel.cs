@@ -26,6 +26,7 @@ public sealed partial class DetailViewModel : ObservableObject
     private readonly DownloadManager _downloads;
     private readonly BiliClient _bili;
     private readonly DoubanClient _douban;
+    private readonly BiliAccountService _accounts;
     private int _biliVersion;
     private int _doubanVersion;
     private MediaItem? _item;
@@ -58,7 +59,12 @@ public sealed partial class DetailViewModel : ObservableObject
                 return found.Select(c => (c, bili.IsSignedIn && BiliPgcSource.FullyPlayable(c, vip))).ToArray();
             },
         };
-        Sources.Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(Official));
+        _accounts = accounts;
+        Sources.Items.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(Official));
+            UpdateEpisodeBadges();
+        };
     }
 
     public SourcePanelViewModel Sources { get; }
@@ -205,6 +211,7 @@ public sealed partial class DetailViewModel : ObservableObject
 
         Episodes.Clear();
         foreach (var e in episodes) Episodes.Add(new EpisodeViewModel(e, _tmdb, PlayEpisode, ep => DownloadQueued?.Invoke(Download([ep.Number - 1]))));
+        UpdateEpisodeBadges();
     }
 
     public void ToggleFavorite() => IsFavorite = _favorites.Toggle(Item);
@@ -241,6 +248,17 @@ public sealed partial class DetailViewModel : ObservableObject
 
     /// <summary>The online source downloads come from: the chosen one, or the best reachable one when the chosen
     /// source is the files on disk.</summary>
+    /// <summary>Marks the episodes B站正版 keeps for 大会员 (none for a 大会员 account: it plays them all).</summary>
+    private void UpdateEpisodeBadges()
+    {
+        var official = Official?.Candidate.PrimaryLine.Episodes;
+        var vip = _accounts.Account?.IsVip == true;
+        foreach (var episode in Episodes)
+        {
+            episode.Badge = official is not null && !vip ? official.ElementAtOrDefault(episode.Number - 1)?.Badge : null;
+        }
+    }
+
     public SourceItemViewModel? DownloadSource => Sources.Selected is { IsLocal: false, IsOfficial: false } selected
         ? selected
         : Sources.Items.FirstOrDefault(i => !i.IsLocal && !i.IsOfficial && i.State is ProbeOutcome.Ok or ProbeOutcome.Slow); // B站正版 is not downloadable

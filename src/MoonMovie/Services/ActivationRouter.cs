@@ -28,6 +28,13 @@ public static class ActivationRouter
     private static void Handle(AppActivationArguments args, string[]? commandLine)
     {
         var words = commandLine ?? [];
+        // A click on a 下载完成 notification that launched (packaged) MoonMovie.
+        if (args.Kind == ExtendedActivationKind.ToastNotification && args.Data is IToastNotificationActivatedEventArgs toast)
+        {
+            Notifications.Handle(toast.Argument);
+            return;
+        }
+
         if (args.Kind == ExtendedActivationKind.File && args.Data is IFileActivatedEventArgs file)
         {
             var paths = file.Files.Select(f => f.Path).Where(p => !string.IsNullOrEmpty(p)).ToArray();

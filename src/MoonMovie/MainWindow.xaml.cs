@@ -235,6 +235,11 @@ public sealed partial class MainWindow : Window
         DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
     }
 
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.CurrentSourcePageType != typeof(SettingsPage)) Navigate(typeof(SettingsPage), null);
+    }
+
     private void OnHistoryClick(object sender, RoutedEventArgs e) => Navigator.OpenLibrary(LibraryTab.History);
 
     private void OnBackClick(object sender, RoutedEventArgs e) => GoBack();

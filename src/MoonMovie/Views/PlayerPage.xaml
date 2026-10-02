@@ -93,6 +93,9 @@
             Fill="Transparent"
             Tapped="OnSurfaceTapped" />
 
+        <!-- Bullet comments: above the picture, below every piece of chrome. -->
+        <controls:DanmakuOverlay x:Name="Danmaku" />
+
         <!-- ===== Opening / switching cover ===== -->
         <Grid x:Name="LoadingCover" IsHitTestVisible="False">
             <Image x:Name="LoadingBackdrop" imaging:ImageEx.DecodeWidth="1280" Opacity="0.4" Stretch="UniformToFill" />
@@ -367,6 +370,35 @@
                         TextTrimming="CharacterEllipsis" />
 
                     <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal" Spacing="2">
+                        <!-- 弹幕: the badge fills when comments are on. -->
+                        <Button
+                            x:Name="DanmakuButton"
+                            AutomationProperties.Name="弹幕开关"
+                            Click="OnDanmakuToggleClick"
+                            Style="{StaticResource MoonPlayerIconButtonStyle}"
+                            ToolTipService.ToolTip="弹幕开关 (D)">
+                            <Border
+                                x:Name="DanmakuBadge"
+                                Width="26"
+                                Height="21"
+                                Background="White"
+                                BorderBrush="White"
+                                BorderThickness="1.5"
+                                CornerRadius="5">
+                                <TextBlock
+                                    x:Name="DanmakuBadgeText"
+                                    Margin="0,0,0,1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="12"
+                                    Foreground="Black"
+                                    Text="弹" />
+                            </Border>
+                        </Button>
+                        <Button AutomationProperties.Name="弹幕设置" Click="OnDanmakuSettingsClick" Style="{StaticResource MoonPlayerIconButtonStyle}" ToolTipService.ToolTip="弹幕设置 (B)">
+                            <FontIcon FontSize="18" Glyph="&#xE9E9;" />
+                        </Button>
                         <Button
                             x:Name="SpeedButton"
                             Width="Auto"
@@ -509,6 +541,7 @@
                     <SelectorBar x:Name="PanelTabs" SelectionChanged="OnPanelTabChanged">
                         <SelectorBarItem x:Name="EpisodesTab" Text="选集" />
                         <SelectorBarItem x:Name="SourcesTab" Text="片源" />
+                        <SelectorBarItem x:Name="DanmakuTab" Text="弹幕" />
                     </SelectorBar>
                     <Button
                         HorizontalAlignment="Right"
@@ -532,6 +565,132 @@
                             <StackLayout Spacing="2" />
                         </ItemsRepeater.Layout>
                     </ItemsRepeater>
+                </ScrollViewer>
+
+                <!-- ===== 弹幕 ===== -->
+                <ScrollViewer x:Name="DanmakuView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <ScrollViewer.Resources>
+                        <SolidColorBrush x:Key="SliderTrackValueFill" Color="White" />
+                        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
+                        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#D9FFFFFF" />
+                        <SolidColorBrush x:Key="SliderTrackFill" Color="#33FFFFFF" />
+                        <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#4DFFFFFF" />
+                        <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#33FFFFFF" />
+                        <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
+                        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
+                        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
+                        <SolidColorBrush x:Key="SliderOuterThumbBackground" Color="#33000000" />
+                    </ScrollViewer.Resources>
+                    <StackPanel Spacing="22">
+                        <!-- Status: what is attached, how many, and the master switch. -->
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ProgressRing
+                                        x:Name="DanmakuRing"
+                                        Width="14"
+                                        Height="14"
+                                        MinWidth="14"
+                                        MinHeight="14"
+                                        Foreground="White"
+                                        IsActive="True"
+                                        Visibility="Collapsed" />
+                                    <TextBlock
+                                        x:Name="DanmakuStatusTitle"
+                                        FontFamily="{StaticResource MoonFontBold}"
+                                        FontSize="15"
+                                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                        Text="弹幕" />
+                                </StackPanel>
+                                <TextBlock
+                                    x:Name="DanmakuStatusDetail"
+                                    FontSize="12"
+                                    Style="{StaticResource MoonCardMetaStyle}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button
+                                x:Name="DanmakuPowerChip"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Click="OnDanmakuToggleClick"
+                                Style="{StaticResource MoonChipButtonStyle}" />
+                        </Grid>
+
+                        <StackPanel Spacing="6">
+                            <Grid>
+                                <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="不透明度" />
+                                <TextBlock x:Name="OpacityValue" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <Slider x:Name="OpacitySlider" IsThumbToolTipEnabled="False" Maximum="100" Minimum="20" StepFrequency="5" ValueChanged="OnDanmakuSliderChanged" />
+                            <Grid>
+                                <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="字号" />
+                                <TextBlock x:Name="FontValue" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <Slider x:Name="FontSlider" IsThumbToolTipEnabled="False" Maximum="160" Minimum="60" StepFrequency="10" ValueChanged="OnDanmakuSliderChanged" />
+                            <Grid>
+                                <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="滚动速度" />
+                                <TextBlock x:Name="SpeedValue" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <Slider x:Name="DanmakuSpeedSlider" IsThumbToolTipEnabled="False" Maximum="200" Minimum="50" StepFrequency="10" ValueChanged="OnDanmakuSliderChanged" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="显示区域" />
+                            <StackPanel x:Name="AreaChips" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="显示内容" />
+                            <StackPanel x:Name="KindChips" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="时间轴校准" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button AutomationProperties.Name="弹幕提前 0.5 秒" Click="OnOffsetEarlier" Style="{StaticResource MoonTitleBarButtonStyle}" ToolTipService.ToolTip="提前 0.5 秒">
+                                    <FontIcon FontSize="12" Glyph="&#xE738;" />
+                                </Button>
+                                <TextBlock
+                                    x:Name="OffsetText"
+                                    MinWidth="84"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="13"
+                                    Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                    TextAlignment="Center" />
+                                <Button AutomationProperties.Name="弹幕延后 0.5 秒" Click="OnOffsetLater" Style="{StaticResource MoonTitleBarButtonStyle}" ToolTipService.ToolTip="延后 0.5 秒">
+                                    <FontIcon FontSize="12" Glyph="&#xE710;" />
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Wrong show? Pick another one; the choice sticks for the rest of the season. -->
+                        <StackPanel Spacing="8">
+                            <Grid>
+                                <TextBlock FontSize="13" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="弹幕来源" />
+                                <ProgressRing
+                                    x:Name="CandidatesRing"
+                                    Width="14"
+                                    Height="14"
+                                    MinWidth="14"
+                                    MinHeight="14"
+                                    HorizontalAlignment="Right"
+                                    Foreground="White"
+                                    IsActive="True"
+                                    Visibility="Collapsed" />
+                            </Grid>
+                            <TextBox
+                                x:Name="DanmakuSearchBox"
+                                KeyDown="OnDanmakuSearchKeyDown"
+                                PlaceholderText="不对？输入片名回车搜索" />
+                            <TextBlock x:Name="CandidatesEmpty" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" TextWrapping="Wrap" Visibility="Collapsed" />
+                            <StackPanel x:Name="CandidatesList" Spacing="2" />
+                        </StackPanel>
+                    </StackPanel>
                 </ScrollViewer>
             </Grid>
         </Grid>

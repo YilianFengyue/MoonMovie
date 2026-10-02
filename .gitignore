@@ -12,3 +12,4 @@ BundleArtifacts/
 *.db
 *.db-wal
 *.db-shm
+artifacts/

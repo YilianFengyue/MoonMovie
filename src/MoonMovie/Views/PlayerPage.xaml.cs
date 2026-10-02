@@ -94,6 +94,7 @@ public sealed partial class PlayerPage : Page
         EpisodesRepeater.ItemsSource = _episodes;
         ElementCompositionPreview.GetElementVisual(CenterGlyphHost).Opacity = 0;
         _proxy.AdsRemoved += OnAdsRemoved;
+        InitDanmaku();
     }
 
     private DispatcherQueueTimer CreateTimer(TimeSpan interval, bool repeating, Action tick)
@@ -133,6 +134,7 @@ public sealed partial class PlayerPage : Page
         VolumeBar.Value = _volume * 100;
 
         BuildEpisodeList();
+        StartDanmaku();
         _ = OpenAsync(resume: true);
         _tick.Start();
         ShowChrome();
@@ -148,6 +150,7 @@ public sealed partial class PlayerPage : Page
         _proxy.AdsRemoved -= OnAdsRemoved;
         _request.Sources.Chosen -= OnSourceChosen;
         SetCursorHidden(false);
+        StopDanmaku();
 
         if (_player is not null)
         {
@@ -183,6 +186,7 @@ public sealed partial class PlayerPage : Page
         _stallSince = DateTimeOffset.Now;
         UpdateTitles();
         UpdateEpisodeMarkers();
+        LoadDanmakuForEpisode();
 
         var saved = _progress.Get(_request.Item.MediaKey, _request.Season, _episodeIndex);
         _pendingSeek = startAt ?? (resume && saved is { IsFinished: false, PositionMs: > 30_000 }
@@ -277,7 +281,7 @@ public sealed partial class PlayerPage : Page
     private void OnMediaEnded()
     {
         SaveProgress(flush: true);
-        if (HasNext && !_nextCancelled)
+        if (HasNext && !_nextCancelled && _settings.Current.Playback.AutoNext)
         {
             PlayEpisode(_episodeIndex + 1);
         }
@@ -330,7 +334,9 @@ public sealed partial class PlayerPage : Page
 
         var multiple = Line.Episodes.Count > 1;
         EpisodesButton.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
-        EpisodesTab.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
+        // A collapsed SelectorBarItem blanks the whole bar, so single-episode titles drop the tab instead.
+        if (!multiple) PanelTabs.Items.Remove(EpisodesTab);
+        else if (!PanelTabs.Items.Contains(EpisodesTab)) PanelTabs.Items.Insert(0, EpisodesTab);
         UpdateEpisodeMarkers();
     }
 
@@ -407,6 +413,7 @@ public sealed partial class PlayerPage : Page
         }
 
         UpdateNextCard(position);
+        SyncDanmaku(position);
 
         if (session.PlaybackState == MediaPlaybackState.Playing && DateTimeOffset.Now - _lastSave > TimeSpan.FromSeconds(5))
         {
@@ -471,6 +478,7 @@ public sealed partial class PlayerPage : Page
         if (_player is null) return;
         var state = _player.PlaybackSession.PlaybackState;
         PlayPauseGlyph.Glyph = state == MediaPlaybackState.Playing ? "" : "";
+        SyncDanmaku();
 
         if (state == MediaPlaybackState.Playing && _awaitingFirstFrame)
         {
@@ -547,7 +555,9 @@ public sealed partial class PlayerPage : Page
 
         if (_nextShown)
         {
-            NextCountdown.Text = $"下一集 · {Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds))} 秒后播放";
+            NextCountdown.Text = _settings.Current.Playback.AutoNext
+                ? $"下一集 · {Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds))} 秒后播放"
+                : "下一集";
         }
     }
 
@@ -585,6 +595,7 @@ public sealed partial class PlayerPage : Page
         if (_duration > TimeSpan.Zero && target > _duration) target = _duration - TimeSpan.FromSeconds(1);
         _player.PlaybackSession.Position = target;
         UpdateTimeText(target);
+        SyncDanmaku(target);
     }
 
     private void SeekBy(double seconds)
@@ -610,6 +621,7 @@ public sealed partial class PlayerPage : Page
     {
         if (_player is null) return;
         _player.PlaybackSession.PlaybackRate = speed;
+        SyncDanmaku();
         SpeedText.Text = $"{speed:0.0#}x";
         foreach (var item in SpeedMenu.Items.OfType<RadioMenuFlyoutItem>()) item.IsChecked = (double)item.Tag == speed;
     }
@@ -785,6 +797,12 @@ public sealed partial class PlayerPage : Page
             case VirtualKey.S:
                 OpenSidePanel(SourcesTab);
                 break;
+            case VirtualKey.D:
+                ToggleDanmaku();
+                break;
+            case VirtualKey.B:
+                OpenSidePanel(DanmakuTab);
+                break;
             case (VirtualKey)219: // [
                 StepSpeed(-1);
                 break;
@@ -921,7 +939,7 @@ public sealed partial class PlayerPage : Page
         _sideOpen = true;
         HidePausedInfo();
         SideLayer.Visibility = Visibility.Visible;
-        PanelTabs.SelectedItem = tab.Visibility == Visibility.Visible ? tab : SourcesTab;
+        PanelTabs.SelectedItem = PanelTabs.Items.Contains(tab) ? tab : SourcesTab;
         _ = Motion.SlideFadeAsync(SidePanel, 40, 0, 0, 0, 0, 1, TimeSpan.FromMilliseconds(320));
         ShowChrome(pin: true);
     }
@@ -939,9 +957,10 @@ public sealed partial class PlayerPage : Page
 
     private void OnPanelTabChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        var episodes = sender.SelectedItem == EpisodesTab;
-        EpisodesView.Visibility = episodes ? Visibility.Visible : Visibility.Collapsed;
-        SourcesView.Visibility = episodes ? Visibility.Collapsed : Visibility.Visible;
+        EpisodesView.Visibility = sender.SelectedItem == EpisodesTab ? Visibility.Visible : Visibility.Collapsed;
+        SourcesView.Visibility = sender.SelectedItem == SourcesTab ? Visibility.Visible : Visibility.Collapsed;
+        DanmakuView.Visibility = sender.SelectedItem == DanmakuTab ? Visibility.Visible : Visibility.Collapsed;
+        if (sender.SelectedItem == DanmakuTab) OnDanmakuTabShown();
     }
 
     private void OnEpisodeRowClick(object sender, RoutedEventArgs e)

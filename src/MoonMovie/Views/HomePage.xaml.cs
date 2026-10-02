@@ -96,6 +96,7 @@ public sealed partial class HomePage : Page
             case "library": Navigator.OpenLibrary(); break;
             case "history": Navigator.OpenLibrary(LibraryTab.History); break;
             case "favorites": Navigator.OpenLibrary(LibraryTab.Favorites); break;
+            case "settings": App.MainWindow.Navigate(typeof(SettingsPage), null); break;
         }
 
         // Visual QA hook: MOONMOVIE_DEBUG_SEARCH=<query> opens the search page.

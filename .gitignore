@@ -13,3 +13,4 @@ BundleArtifacts/
 *.db-wal
 *.db-shm
 artifacts/
+lib/

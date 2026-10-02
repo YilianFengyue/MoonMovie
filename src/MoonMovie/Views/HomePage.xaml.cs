@@ -87,6 +87,12 @@ public sealed partial class HomePage : Page
             Scroller.ChangeView(null, debugOffset, null, disableAnimation: true);
         }
 
+        // M0 engine lab: MOONMOVIE_DEBUG_MPV=<url or file> plays it straight through libmpv.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_MPV") is { Length: > 0 } mpvUrl)
+        {
+            App.MainWindow.Navigate(typeof(MpvLabPage), mpvUrl);
+        }
+
         // Visual QA hook: MOONMOVIE_DEBUG_NAV=movie|tv|anime|library|history|favorites opens that page.
         switch (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_NAV"))
         {

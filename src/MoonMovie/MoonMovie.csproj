@@ -13,6 +13,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- Unpackaged during development: run bin\...\MoonMovie.exe directly. MSIX packaging comes back at release time. -->
     <WindowsPackageType>None</WindowsPackageType>
@@ -28,6 +29,11 @@
   <!-- Local secrets (repo-root .env, gitignored) are copied next to the exe for development. -->
   <ItemGroup Condition="Exists('..\..\.env')">
     <None Include="..\..\.env" Link=".env" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- libmpv (player engine): lib\mpv is gitignored; see docs/播放器内核升级方案.md for the pinned build. -->
+  <ItemGroup Condition="Exists('..\..\lib\mpv\libmpv-2.dll')">
+    <None Include="..\..\lib\mpv\libmpv-2.dll" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

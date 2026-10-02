@@ -21,8 +21,18 @@ public static class Navigator
     public static void OpenLibrary(LibraryTab tab = LibraryTab.Continue) =>
         App.MainWindow.Navigate(typeof(LibraryPage), tab, new EntranceNavigationTransitionInfo());
 
-    public static void OpenPlayback(PlaybackRequest request) =>
+    public static void OpenPlayback(PlaybackRequest request)
+    {
+#if DEBUG
+        // M0 engine lab: MOONMOVIE_DEBUG_ENGINE=mpv plays through libmpv instead of the current player.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_ENGINE") == "mpv")
+        {
+            App.MainWindow.Navigate(typeof(MpvLabPage), request, new SuppressNavigationTransitionInfo());
+            return;
+        }
+#endif
         App.MainWindow.Navigate(typeof(PlayerPage), request, new SuppressNavigationTransitionInfo());
+    }
 }
 
 /// <summary>Everything the player needs; the source panel is shared so switching stays in sync with the detail page.</summary>

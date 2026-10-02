@@ -22,7 +22,12 @@ public sealed record MediaItem(
     IReadOnlyList<int> GenreIds,
     string? OriginalLanguage)
 {
-    public string MediaKey => $"tmdb:{(Kind == MediaKind.Movie ? "movie" : "tv")}:{TmdbId}";
+    /// <summary>Set for local files TMDB could not identify ("local:…"); such items have no detail page.</summary>
+    public string? LocalKey { get; init; }
+
+    public bool IsLocalOnly => LocalKey is not null;
+
+    public string MediaKey => LocalKey ?? $"tmdb:{(Kind == MediaKind.Movie ? "movie" : "tv")}:{TmdbId}";
 
     public string KindLabel => Kind == MediaKind.Movie ? "电影" : "剧集";
 

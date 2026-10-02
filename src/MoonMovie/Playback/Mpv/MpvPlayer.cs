@@ -43,6 +43,11 @@ public sealed unsafe class MpvPlayer : IDisposable
         Option("ytdl", "no"); // URLs are resolved by MoonMovie; never spawn youtube-dl
         Option("keep-open", "yes");
 
+        // Compiled shaders (Anime4K especially) are cached so they only build once.
+        var shaderCache = Path.Combine(AppPaths.Root, "cache", "shaders");
+        Directory.CreateDirectory(shaderCache);
+        Option("gpu-shader-cache-dir", shaderCache);
+
         // The page drives the Windows media flyout itself (SystemMediaControls), with artwork and episodes.
         Option("media-controls", "no");
         Option("audio-client-name", "MoonMovie");

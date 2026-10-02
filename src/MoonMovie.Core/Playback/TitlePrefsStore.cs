@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MoonMovie.Core.Configuration;
+using MoonMovie.Core.Settings;
 
 namespace MoonMovie.Core.Playback;
 
@@ -20,6 +21,10 @@ public sealed class TitlePrefs
     public bool SkipIntro { get; set; } = true;
 
     public bool SkipOutro { get; set; } = true;
+
+    /// <summary>Super-resolution chosen in the player for this title (null: the settings default).</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<UpscaleMode>))]
+    public UpscaleMode? Upscale { get; set; }
 }
 
 public sealed class TitlePrefsStore

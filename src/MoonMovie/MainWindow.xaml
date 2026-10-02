@@ -11,7 +11,14 @@
         <MicaBackdrop Kind="BaseAlt" />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="Root" Background="{StaticResource MoonCanvasBrush}">
+    <Grid
+        x:Name="Root"
+        AllowDrop="True"
+        Background="{StaticResource MoonCanvasBrush}"
+        DragLeave="OnDragLeave"
+        DragOver="OnDragOver"
+        Drop="OnDrop"
+        KeyboardAcceleratorPlacementMode="Hidden">
         <Grid.Resources>
             <DataTemplate x:Key="SuggestionTemplate" x:DataType="vm:SuggestionItem">
                 <Grid Padding="0,6" ColumnSpacing="12">
@@ -41,6 +48,7 @@
         </Grid.Resources>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="K" Invoked="OnSearchAccelerator" Modifiers="Control" />
+            <KeyboardAccelerator Key="O" Invoked="OnOpenFileAccelerator" Modifiers="Control" />
             <KeyboardAccelerator Key="Left" Invoked="OnBackAccelerator" Modifiers="Menu" />
             <KeyboardAccelerator Key="Escape" Invoked="OnBackAccelerator" />
         </Grid.KeyboardAccelerators>
@@ -166,6 +174,39 @@
                     <PersonPicture Width="28" Height="28" Initials="M" />
                 </Button>
             </StackPanel>
+        </Grid>
+
+        <!-- Shown while files are dragged over the window. -->
+        <Grid
+            x:Name="DropOverlay"
+            Background="#B30C0D10"
+            IsHitTestVisible="False"
+            Visibility="Collapsed">
+            <Border
+                Padding="48,36"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{StaticResource MoonGlassAcrylicBrush}"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1"
+                CornerRadius="16">
+                <StackPanel Spacing="10">
+                    <FontIcon FontSize="34" Foreground="{StaticResource MoonTextPrimaryBrush}" Glyph="&#xE768;" />
+                    <TextBlock
+                        x:Name="DropTitle"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Center"
+                        FontFamily="{StaticResource MoonFontBold}"
+                        FontSize="20"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        Text="松开即可播放" />
+                    <TextBlock
+                        x:Name="DropCaption"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource MoonMetaStyle}"
+                        Text="视频文件直接播放，文件夹会加入本地媒体库" />
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>

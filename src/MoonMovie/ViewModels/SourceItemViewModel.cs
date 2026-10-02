@@ -14,6 +14,8 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
 
     public string SiteName => Candidate.Site.Name;
 
+    public bool IsLocal => LocalPlayback.IsLocal(Candidate);
+
     /// <summary>"庆余年第二季 · 36 集 · HD国语"</summary>
     public string Detail
     {
@@ -41,6 +43,7 @@ public sealed partial class SourceItemViewModel(SourceCandidate candidate, Sourc
 
     public string LatencyText => Probe switch
     {
+        _ when IsLocal => "本地",
         null => "测速中",
         { Outcome: ProbeOutcome.Failed, Error: { } e } => e,
         { Outcome: ProbeOutcome.Failed } => "不可用",

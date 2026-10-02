@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MoonMovie.Core.Library;
+using MoonMovie.Core.Local;
 using MoonMovie.Core.Models;
 using MoonMovie.Core.Playback;
 using MoonMovie.Core.Sources;
@@ -18,17 +19,25 @@ public sealed partial class DetailViewModel : ObservableObject
     private readonly FavoritesStore _favorites;
     private readonly ImageLoader _images;
     private readonly WatchProgressStore _progress;
+    private readonly LocalLibrary _local;
     private MediaItem? _item;
     private int _seasonVersion;
 
     public DetailViewModel(TmdbClient tmdb, SourceSearchService sources, FavoritesStore favorites, ImageLoader images,
-        WatchProgressStore progress)
+        WatchProgressStore progress, LocalLibrary local)
     {
         _tmdb = tmdb;
         _favorites = favorites;
         _images = images;
         _progress = progress;
-        Sources = new SourcePanelViewModel(sources);
+        _local = local;
+        Sources = new SourcePanelViewModel(sources)
+        {
+            // Files on disk come first: "本地文件" is chosen whenever it has the title (and the season).
+            LocalProvider = target => _item is not null && _local.Find(_item.MediaKey) is { } title
+                ? LocalPlayback.Candidate(title, target.Season)
+                : null,
+        };
     }
 
     public SourcePanelViewModel Sources { get; }
@@ -210,7 +219,8 @@ public sealed partial class DetailViewModel : ObservableObject
             source,
             Math.Clamp(index, 0, line.Episodes.Count - 1),
             SelectedSeason?.Number,
-            Episodes.Select(e => e.Episode).ToArray()));
+            Episodes.Select(e => e.Episode).ToArray(),
+            IsAnimation: (Detail?.Item.GenreIds ?? Item.GenreIds).Contains(TmdbGenres.Animation)));
     }
 
     private SourceTarget BuildTarget(SeasonSummary? season)

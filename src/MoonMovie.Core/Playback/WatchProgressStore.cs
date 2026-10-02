@@ -35,13 +35,17 @@ public sealed class WatchProgress
 
     public string? SourceKey { get; set; }
 
+    /// <summary>The file played, for local titles that are not in the library (opened from Explorer).</summary>
+    public string? LocalPath { get; set; }
+
     public DateTimeOffset UpdatedAt { get; set; }
 
     [JsonIgnore]
     public double Fraction => DurationMs > 0 ? Math.Clamp((double)PositionMs / DurationMs, 0, 1) : 0;
 
+    /// <summary>Into the credits: the last 90 s, or the last 8 % of something short (clips, local shorts).</summary>
     [JsonIgnore]
-    public bool IsFinished => DurationMs > 0 && DurationMs - PositionMs < 90_000;
+    public bool IsFinished => DurationMs > 0 && DurationMs - PositionMs < Math.Min(90_000, DurationMs * 0.08);
 
     /// <summary>A finished episode with another one after it.</summary>
     [JsonIgnore]
@@ -52,7 +56,10 @@ public sealed class WatchProgress
     public bool IsContinuable => !IsFinished || HasNextEpisode;
 
     public MediaItem ToMediaItem() =>
-        new(TmdbId, Kind, Title, null, null, null, 0, 0, PosterPath, BackdropPath, [], null);
+        new(TmdbId, Kind, Title, null, null, null, 0, 0, PosterPath, BackdropPath, [], null)
+        {
+            LocalKey = MediaKey.StartsWith("local:", StringComparison.Ordinal) ? MediaKey : null,
+        };
 }
 
 /// <summary>Per-episode playback positions plus the "continue watching" list, persisted as JSON.</summary>

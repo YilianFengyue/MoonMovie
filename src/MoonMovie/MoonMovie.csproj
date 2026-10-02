@@ -24,6 +24,8 @@
   <ItemGroup>
     <Content Include="Assets\**\*.png" />
     <Content Include="Assets\Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Anime4K (MIT, bloc97) GLSL shaders for mpv super-resolution. -->
+    <Content Include="Assets\Shaders\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Local secrets (repo-root .env, gitignored) are copied next to the exe for development. -->

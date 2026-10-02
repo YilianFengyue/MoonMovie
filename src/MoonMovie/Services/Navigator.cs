@@ -7,13 +7,30 @@ namespace MoonMovie.Services;
 
 public static class Navigator
 {
-    public static void OpenMedia(MediaItem item, int? season = null) =>
+    /// <summary>Detail page; titles only known from local files (no TMDB match) play straight away instead.</summary>
+    public static void OpenMedia(MediaItem item, int? season = null)
+    {
+        if (item.IsLocalOnly)
+        {
+            LocalPlayback.Resume(item, season);
+            return;
+        }
+
         App.MainWindow.Navigate(typeof(DetailPage), new DetailArgs(item, season), new DrillInNavigationTransitionInfo());
+    }
 
     /// <summary>Detail page that starts playing (resuming) as soon as a source is found.</summary>
-    public static void Resume(MediaItem item, int? season) =>
+    public static void Resume(MediaItem item, int? season)
+    {
+        if (item.IsLocalOnly)
+        {
+            LocalPlayback.Resume(item, season);
+            return;
+        }
+
         App.MainWindow.Navigate(typeof(DetailPage), new DetailArgs(item, season, AutoPlay: true),
             new DrillInNavigationTransitionInfo());
+    }
 
     public static void OpenBrowse(Core.Browse.BrowseSection section) =>
         App.MainWindow.Navigate(typeof(BrowsePage), section, new EntranceNavigationTransitionInfo());
@@ -31,7 +48,10 @@ public static class Navigator
             return;
         }
 #endif
+        // Playing something else from the player (a dropped file) replaces it rather than stacking players.
+        var replacing = App.MainWindow.CurrentPage is PlayerPage;
         App.MainWindow.Navigate(typeof(PlayerPage), request, new SuppressNavigationTransitionInfo());
+        if (replacing) App.MainWindow.DropPreviousEntry();
     }
 }
 
@@ -42,7 +62,8 @@ public sealed record PlaybackRequest(
     SourceItemViewModel Source,
     int EpisodeIndex,
     int? Season,
-    IReadOnlyList<EpisodeInfo> Episodes);
+    IReadOnlyList<EpisodeInfo> Episodes,
+    bool IsAnimation = false);
 
 public sealed record PlaceholderArgs(string Title, string Caption);
 
@@ -55,4 +76,5 @@ public enum LibraryTab
     Continue,
     History,
     Favorites,
+    Local,
 }

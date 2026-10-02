@@ -30,6 +30,7 @@ public sealed class MpvEngine : IPlaybackEngine
         _view = new MpvVideoView { IsHitTestVisible = false };
         _player = new MpvPlayer(ui, initialPixels.Width, initialPixels.Height);
         _view.Attach(_player);
+        Upscaler = new Upscaler(_player);
 
         foreach (var (name, format) in new[]
                  {
@@ -63,6 +64,8 @@ public sealed class MpvEngine : IPlaybackEngine
     }
 
     public string Name => "mpv";
+
+    public Upscaler Upscaler { get; }
 
     public FrameworkElement View => _view;
 
@@ -133,6 +136,9 @@ public sealed class MpvEngine : IPlaybackEngine
         _position = position.TotalSeconds;
         _player.Seek(position.TotalSeconds, exact);
     }
+
+    /// <summary>The VIDEO_TS folder that "dvd://" reads from.</summary>
+    public void SetDvdDevice(string path) => _player.SetProperty("dvd-device", path);
 
     /// <summary>Shown as the title in the system media flyout.</summary>
     public void SetMediaTitle(string title) => _player.SetProperty("force-media-title", title);
@@ -239,6 +245,9 @@ public sealed class MpvEngine : IPlaybackEngine
 
     /// <summary>Saves a PNG (with or without subtitles) into the screenshot folder.</summary>
     public void Screenshot(bool withSubtitles) => _player.CommandAsync("screenshot", withSubtitles ? "subtitles" : "video");
+
+    /// <summary>Saves the current frame (no subtitles) to a file; the extension picks the format.</summary>
+    public void ScreenshotToFile(string path) => _player.CommandAsync("screenshot-to-file", path, "video");
 
     public void FrameStep(bool back) => _player.CommandAsync(back ? "frame-back-step" : "frame-step");
 
@@ -389,6 +398,7 @@ public sealed class MpvEngine : IPlaybackEngine
             ("音频", $"{_player.GetString("audio-codec-name") ?? "-"} · {_player.GetString("audio-params/channel-count") ?? "-"} 声道"),
             ("缓冲", $"{BufferedAhead:0} 秒"),
             ("丢帧", $"渲染 {_player.GetInt64("frame-drop-count") ?? 0} · 解码 {_player.GetInt64("decoder-frame-drop-count") ?? 0}"),
+            ("超分", Upscaler.Status(hwdec is not (null or "" or "no"))),
             ("画质档位", EffectiveQuality switch
             {
                 QualityPreset.Performance => "性能",

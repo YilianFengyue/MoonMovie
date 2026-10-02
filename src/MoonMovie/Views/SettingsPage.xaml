@@ -99,6 +99,28 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="动画超分辨率" />
+                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="Anime4K 让线条更清晰、色块更干净。片源小于窗口时才会启用，播放时可在「画面」里按片调整" />
+                            </StackPanel>
+                            <StackPanel x:Name="AnimeUpscaleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="影视超分辨率" />
+                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="真人影视用 NVIDIA RTX 视频超分（需要 RTX 显卡和硬件解码）" />
+                            </StackPanel>
+                            <StackPanel x:Name="UpscaleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
                                 <TextBlock Style="{StaticResource RowTitleStyle}" Text="运动平滑" />
                                 <TextBlock x:Name="InterpolationChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="把 24 帧电影重采样到屏幕刷新率，高刷屏上镜头平移不抖（略增显卡负担）" />
                             </StackPanel>

@@ -748,6 +748,18 @@
                             <TextBlock Style="{StaticResource PanelLabelStyle}" Text="增强" />
                             <StackPanel x:Name="EnhanceChips" Orientation="Horizontal" Spacing="4" />
                         </StackPanel>
+                        <StackPanel x:Name="UpscaleSection" Spacing="8">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="超分辨率（本季记住）" />
+                                <TextBlock x:Name="UpscaleNote" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <StackPanel x:Name="UpscaleChips" Orientation="Horizontal" Spacing="4" />
+                            <TextBlock
+                                FontSize="12"
+                                Style="{StaticResource MoonCardMetaStyle}"
+                                Text="Anime4K 适合动画；RTX 超分适合真人影视。片源小于窗口时才会启用，掉帧会自动降一档。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
                         <StackPanel Spacing="8">
                             <TextBlock Style="{StaticResource PanelLabelStyle}" Text="画面比例" />
                             <StackPanel x:Name="AspectChips" Orientation="Horizontal" Spacing="4" />

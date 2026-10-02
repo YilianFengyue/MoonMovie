@@ -21,6 +21,12 @@ public sealed partial class PlayerPage
     private static readonly (string Label, QualityPreset Value)[] QualityLevels =
         [("自动", QualityPreset.Auto), ("性能", QualityPreset.Performance), ("均衡", QualityPreset.Balanced), ("画质", QualityPreset.Quality)];
 
+    private static readonly (string Label, UpscaleMode Value)[] UpscaleLevels =
+    [
+        ("关", UpscaleMode.Off), ("流畅", UpscaleMode.Anime4KFast), ("高质量", UpscaleMode.Anime4KQuality),
+        ("低清增强", UpscaleMode.Anime4KRestore), ("RTX 超分", UpscaleMode.RtxVsr),
+    ];
+
     private static readonly (string Label, string Aspect, bool Fill)[] Aspects =
         [("原始", "-1", false), ("16:9", "16:9", false), ("4:3", "4:3", false), ("2.35:1", "2.35:1", false), ("铺满", "-1", true)];
 
@@ -30,6 +36,9 @@ public sealed partial class PlayerPage
     private readonly TitlePrefsStore _titlePrefs = App.Services.GetRequiredService<TitlePrefsStore>();
     private readonly List<(Button Chip, QualityPreset Value)> _qualityChips = [];
     private readonly List<(Button Chip, int Index)> _aspectChips = [];
+    private readonly List<(Button Chip, UpscaleMode Value)> _upscaleChips = [];
+    private bool _upscaleSet;
+    private int _upscaleTick;
     private readonly List<Slider> _adjustSliders = [];
     private Button? _interpolationChip;
     private Button? _hdrChip;
@@ -96,6 +105,23 @@ public sealed partial class PlayerPage
         });
         EnhanceChips.Children.Add(_interpolationChip);
         EnhanceChips.Children.Add(_hdrChip);
+
+        foreach (var (label, value) in UpscaleLevels)
+        {
+            var anime4K = value is UpscaleMode.Anime4KFast or UpscaleMode.Anime4KQuality or UpscaleMode.Anime4KRestore;
+            if ((anime4K && !Upscaler.ShadersAvailable) || (value == UpscaleMode.RtxVsr && !Upscaler.RtxAvailable)) continue;
+            var chip = Chips.Create(label, () => SetUpscale(value));
+            _upscaleChips.Add((chip, value));
+            UpscaleChips.Children.Add(chip);
+        }
+
+        Mpv!.Upscaler.SteppedDown += mode =>
+        {
+            _titlePrefs.Update(TitleKey, p => p.Upscale = mode);
+            ShowToast(mode == UpscaleMode.Off ? "画面掉帧，已关闭超分" : $"画面掉帧，超分已降为「{Upscaler.Label(mode)}」",
+                duration: TimeSpan.FromSeconds(5));
+            SyncPictureUi();
+        };
 
         for (var i = 0; i < Aspects.Length; i++)
         {
@@ -180,6 +206,12 @@ public sealed partial class PlayerPage
         var prefs = Prefs;
         mpv.SubtitleDelay = prefs.SubtitleDelay;
         mpv.AudioDelay = prefs.AudioDelay;
+        if (!_upscaleSet)
+        {
+            _upscaleSet = true;
+            mpv.Upscaler.SetMode(prefs.Upscale ?? DefaultUpscale);
+        }
+
         UpdateMarks();
         if (_sideOpen) RefreshPanelLists();
         SyncAudioUi();
@@ -239,7 +271,33 @@ public sealed partial class PlayerPage
         if (_interpolationChip is not null) Chips.Set(_interpolationChip, video.Interpolation);
         if (_hdrChip is not null) Chips.Set(_hdrChip, video.HdrPassthrough);
         foreach (var (chip, index) in _aspectChips) Chips.Set(chip, index == _aspectIndex);
+        foreach (var (chip, value) in _upscaleChips) Chips.Set(chip, mpv.Upscaler.Mode == value);
+        UpscaleNote.Text = mpv.Upscaler.Mode == UpscaleMode.Off ? string.Empty
+            : mpv.Upscaler.Engaged ? mpv.Upscaler.Scaling ?? string.Empty
+            : "待命";
         UpdateSkipTexts();
+    }
+
+    // ----- Super-resolution -----------------------------------------------------------------------------
+
+    /// <summary>Anime4K for animation by default, the general default (normally off) for everything else.</summary>
+    private UpscaleMode DefaultUpscale => _request.IsAnimation ? _settings.Current.Video.AnimeUpscale : _settings.Current.Video.Upscale;
+
+    private void SetUpscale(UpscaleMode mode)
+    {
+        if (Mpv is not { } mpv) return;
+        mpv.Upscaler.SetMode(mode);
+        _titlePrefs.Update(TitleKey, p => p.Upscale = mode);
+        SyncPictureUi();
+    }
+
+    /// <summary>Once a second from the tick: follow window size changes and watch for dropped frames.</summary>
+    private void TickUpscaler(EngineState state)
+    {
+        if (Mpv is not { } mpv || ++_upscaleTick % 4 != 0) return;
+        var engaged = mpv.Upscaler.Engaged;
+        mpv.Upscaler.Evaluate(state == EngineState.Playing);
+        if (engaged != mpv.Upscaler.Engaged && _sideOpen) SyncPictureUi();
     }
 
     private void SyncAudioUi()

@@ -20,11 +20,15 @@ public sealed partial class WatchedItemViewModel(WatchProgress progress, TmdbCli
 
     public string Title => Progress.Title;
 
-    public string? BackdropUrl => tmdb.ImageUrl(Progress.BackdropPath ?? Progress.PosterPath, "w780");
+    public string? BackdropUrl => Image(Progress.BackdropPath ?? Progress.PosterPath, "w780");
 
-    public string? ThumbUrl => tmdb.ImageUrl(Progress.BackdropPath ?? Progress.PosterPath, "w300");
+    public string? ThumbUrl => Image(Progress.BackdropPath ?? Progress.PosterPath, "w300");
 
-    public string? AmbientUrl => tmdb.ImageUrl(Progress.BackdropPath, "w1280");
+    public string? AmbientUrl => Image(Progress.BackdropPath, "w1280");
+
+    /// <summary>TMDB artwork, or a frame grabbed from a local file that has none.</summary>
+    private string? Image(string? path, string size) =>
+        path is not null && Path.IsPathFullyQualified(path) ? path : tmdb.ImageUrl(path, size);
 
     /// <summary>"第 2 季 · 第 5 集" for series, empty for films.</summary>
     public string EpisodeText

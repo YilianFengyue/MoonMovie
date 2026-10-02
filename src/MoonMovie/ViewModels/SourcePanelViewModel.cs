@@ -56,6 +56,23 @@ public sealed partial class SourcePanelViewModel : ObservableObject
 
     public double Progress => SitesTotal == 0 ? 0 : (double)SitesDone / SitesTotal;
 
+    /// <summary>Files on disk for the target, offered first (and chosen) ahead of the online search.</summary>
+    public Func<SourceTarget, SourceCandidate?>? LocalProvider { get; set; }
+
+    /// <summary>Only the given local source: no online search (files opened directly, unidentified titles).</summary>
+    public SourceItemViewModel UseLocal(SourceCandidate candidate)
+    {
+        _cts?.Cancel();
+        Items.Clear();
+        var item = Insert(candidate);
+        item.ApplyProbe(new ProbeResult(ProbeOutcome.Ok, 0));
+        SitesDone = SitesTotal;
+        _searchComplete = true;
+        SetSelected(item);
+        OnPropertyChanged(nameof(Progress));
+        return item;
+    }
+
     public void Start(SourceTarget target)
     {
         _cts?.Cancel();
@@ -72,6 +89,12 @@ public sealed partial class SourcePanelViewModel : ObservableObject
         Phase = SourcePhase.Searching;
         OnPropertyChanged(nameof(PlayableCount));
         OnPropertyChanged(nameof(Progress));
+
+        if (LocalProvider?.Invoke(target) is { } local)
+        {
+            Insert(local).ApplyProbe(new ProbeResult(ProbeOutcome.Ok, 0));
+            Reevaluate();
+        }
 
         if (SessionCache.TryGetValue(target.CacheKey, out var cached) && cached.Count > 0)
         {
@@ -235,7 +258,7 @@ public sealed partial class SourcePanelViewModel : ObservableObject
 
         if (_searchComplete && _pendingProbes == 0 && _target is not null && Items.Count > 0)
         {
-            SessionCache[_target.CacheKey] = Items.Select(i => (i.Candidate, i.Probe)).ToList();
+            SessionCache[_target.CacheKey] = Items.Where(i => !i.IsLocal).Select(i => (i.Candidate, i.Probe)).ToList();
         }
     }
 

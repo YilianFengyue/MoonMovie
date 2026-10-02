@@ -118,6 +118,21 @@ public sealed partial class SettingsPage : Page
             ? $"自动：按显卡选择 · {gpu} → {recommended}。性能档省电，画质档用更好的缩放与去色带"
             : "自动：按显卡选择。性能档省电，画质档用更好的缩放与去色带";
 
+        foreach (var (label, value) in new[]
+                 {
+                     ("关", UpscaleMode.Off), ("流畅", UpscaleMode.Anime4KFast), ("高质量", UpscaleMode.Anime4KQuality),
+                     ("低清增强", UpscaleMode.Anime4KRestore),
+                 })
+        {
+            Add(AnimeUpscaleChips, label, () => video.AnimeUpscale == value, () => video.AnimeUpscale = value);
+        }
+
+        Add(UpscaleChips, "关", () => video.Upscale == UpscaleMode.Off, () => video.Upscale = UpscaleMode.Off);
+        if (MoonMovie.Playback.Engines.Upscaler.RtxAvailable)
+        {
+            Add(UpscaleChips, "RTX 超分", () => video.Upscale == UpscaleMode.RtxVsr, () => video.Upscale = UpscaleMode.RtxVsr);
+        }
+
         Add(InterpolationChips, "运动平滑", () => video.Interpolation, () => video.Interpolation = !video.Interpolation);
         Add(SubtitleStyleChips, "背景板", () => subs.Background, () => subs.Background = !subs.Background);
         Add(SubtitleStyleChips, "统一样式", () => subs.OverrideAss, () => subs.OverrideAss = !subs.OverrideAss);

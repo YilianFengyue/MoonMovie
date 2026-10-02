@@ -7,12 +7,14 @@ using MoonMovie.Core.Danmaku;
 using MoonMovie.Core.Settings;
 using MoonMovie.Core.Home;
 using MoonMovie.Core.Library;
+using MoonMovie.Core.Local;
 using MoonMovie.Core.Playback;
 using MoonMovie.Core.Search;
 using MoonMovie.Core.Sources;
 using MoonMovie.Core.Tmdb;
 using MoonMovie.Imaging;
 using MoonMovie.Playback;
+using MoonMovie.Services;
 using MoonMovie.ViewModels;
 
 namespace MoonMovie;
@@ -49,6 +51,11 @@ public partial class App : Application
         MainWindow = new MainWindow();
         _window = MainWindow;
         _window.Activate();
+        Services.GetRequiredService<LocalLibrary>().Initialize();
+
+        // "Open with MoonMovie" / dropping a file on the exe: play it.
+        var files = Environment.GetCommandLineArgs().Skip(1).Where(a => File.Exists(a) || Directory.Exists(a)).ToArray();
+        if (files.Length > 0) MainWindow.DispatcherQueue.TryEnqueue(() => _ = LocalPlayback.OpenPathsAsync(files));
     }
 
     private static ServiceProvider ConfigureServices()
@@ -109,6 +116,7 @@ public partial class App : Application
             .AddSingleton<FavoritesStore>()
             .AddSingleton<WatchProgressStore>()
             .AddSingleton<TitlePrefsStore>()
+            .AddSingleton<LocalLibrary>()
             .AddSingleton(_ => new MediaProxy(direct))
             .AddSingleton<HomeFeedService>()
             .AddSingleton<SearchService>()
@@ -117,6 +125,7 @@ public partial class App : Application
             .AddTransient<DetailViewModel>()
             .AddTransient<SearchViewModel>()
             .AddTransient<LibraryViewModel>()
+            .AddTransient<LocalLibraryViewModel>()
             .AddSingleton<BrowseSections>()
             .BuildServiceProvider();
     }

@@ -5,6 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MoonMovie.Controls"
     xmlns:imaging="using:MoonMovie.Imaging"
+    xmlns:motion="using:MoonMovie.Animations"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     xmlns:vm="using:MoonMovie.ViewModels"
     Background="{StaticResource MoonCanvasBrush}"
     XYFocusKeyboardNavigation="Enabled">
@@ -86,6 +88,124 @@
                 </ItemsRepeater>
             </StackPanel>
         </DataTemplate>
+
+        <!-- 本地: TMDB poster when identified, otherwise a quiet placeholder carrying the file name. -->
+        <DataTemplate x:Key="LocalPosterTemplate" x:DataType="vm:LocalTitleViewModel">
+            <Button
+                AutomationProperties.Name="{x:Bind Title}"
+                Command="{x:Bind OpenCommand}"
+                Style="{StaticResource MoonCardButtonStyle}"
+                motion:CardMotion.AmbientUrl="{x:Bind AmbientUrl}"
+                motion:CardMotion.IsEnabled="True">
+                <Button.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Command="{x:Bind PlayCommand}" Text="播放">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE768;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Command="{x:Bind DetailsCommand}" Text="查看详情" Visibility="{x:Bind DetailsVisibility}">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE946;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Command="{x:Bind FixMatchCommand}" Text="修改匹配…">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE70F;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Command="{x:Bind RevealCommand}" Text="在文件夹中显示">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE838;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.ContextFlyout>
+                <StackPanel>
+                    <tk:ConstrainedBox AspectRatio="2:3">
+                        <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                            <Grid Visibility="{x:Bind PlaceholderVisibility}">
+                                <Grid.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Offset="0" Color="#22FFFFFF" />
+                                        <GradientStop Offset="1" Color="#06FFFFFF" />
+                                    </LinearGradientBrush>
+                                </Grid.Background>
+                                <TextBlock
+                                    Margin="18,16,0,0"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="56"
+                                    Foreground="{StaticResource MoonTextTertiaryBrush}"
+                                    Text="{x:Bind Initial}" />
+                                <TextBlock
+                                    Margin="18,0,18,16"
+                                    VerticalAlignment="Bottom"
+                                    FontSize="11"
+                                    Foreground="{StaticResource MoonTextTertiaryBrush}"
+                                    MaxLines="3"
+                                    Text="{x:Bind SourceName}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="Wrap" />
+                            </Grid>
+                            <Image imaging:ImageEx.DecodeWidth="260" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
+                            <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                        </Grid>
+                    </tk:ConstrainedBox>
+                    <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" />
+                    <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LocalFolderTemplate" x:DataType="vm:LocalFolderViewModel">
+            <Border
+                Height="34"
+                Padding="12,0,3,0"
+                Background="#14FFFFFF"
+                CornerRadius="17"
+                Opacity="{x:Bind ContentOpacity}"
+                ToolTipService.ToolTip="{x:Bind ToolTip}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextSecondaryBrush}"
+                        Glyph="&#xE8B7;" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        Text="{x:Bind Name}" />
+                    <Button
+                        Width="28"
+                        Height="28"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="移除这个文件夹"
+                        Command="{x:Bind RemoveCommand}"
+                        Style="{StaticResource MoonTitleBarButtonStyle}"
+                        ToolTipService.ToolTip="从媒体库移除（不会删除文件）">
+                        <FontIcon FontSize="10" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE711;" />
+                    </Button>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="MatchResultTemplate" x:DataType="vm:MediaCardViewModel">
+            <Grid Padding="0,6" ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid Width="44" Height="66" Background="{StaticResource MoonSurfaceRaisedBrush}" CornerRadius="4">
+                    <Image imaging:ImageEx.DecodeWidth="44" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
+                </Grid>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                    <TextBlock FontSize="14" Foreground="{StaticResource MoonTextPrimaryBrush}" Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
     </Page.Resources>
 
     <Grid>
@@ -101,7 +221,26 @@
                             <SelectorBarItem x:Name="ContinueTab" Tag="Continue" Text="继续观看" />
                             <SelectorBarItem x:Name="HistoryTab" Tag="History" Text="观看历史" />
                             <SelectorBarItem x:Name="FavoritesTab" Tag="Favorites" Text="收藏" />
+                            <SelectorBarItem x:Name="LocalTab" Tag="Local" Text="本地" />
                         </SelectorBar>
+
+                        <StackPanel
+                            x:Name="LocalTools"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="20"
+                            Visibility="Collapsed">
+                            <Button Click="OnOpenFile" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}" ToolTipService.ToolTip="Ctrl+O，也可以直接把视频拖进窗口">
+                                <TextBlock Text="打开文件" />
+                            </Button>
+                            <Button Click="OnAddFolder" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                                <TextBlock Text="添加文件夹" />
+                            </Button>
+                            <Button x:Name="RescanButton" Click="OnRescan" FontSize="13" Style="{StaticResource MoonLinkButtonStyle}">
+                                <TextBlock Text="重新扫描" />
+                            </Button>
+                        </StackPanel>
 
                         <!-- Per-tab tools on the right. -->
                         <Button
@@ -175,6 +314,37 @@
                         </ItemsRepeater.Layout>
                     </ItemsRepeater>
 
+                    <!-- 本地 -->
+                    <StackPanel x:Name="LocalHost" Margin="56,0,56,0" Spacing="26" Visibility="Collapsed">
+                        <Grid x:Name="LocalFolderRow" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ItemsRepeater ItemTemplate="{StaticResource LocalFolderTemplate}" ItemsSource="{x:Bind Local.Folders}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Orientation="Horizontal" Spacing="8" />
+                                </ItemsRepeater.Layout>
+                            </ItemsRepeater>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="10">
+                                <ProgressRing
+                                    Width="14"
+                                    Height="14"
+                                    IsActive="{x:Bind Local.IsScanning, Mode=OneWay}" />
+                                <TextBlock Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Local.StatusText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsRepeater
+                            x:Name="LocalRepeater"
+                            ItemTemplate="{StaticResource LocalPosterTemplate}"
+                            ItemsSource="{x:Bind Local.Titles}"
+                            XYFocusKeyboardNavigation="Enabled">
+                            <ItemsRepeater.Layout>
+                                <controls:MasonryLayout ColumnSpacing="20" MinColumnWidth="180" RowSpacing="26" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                    </StackPanel>
+
                     <!-- Empty state for whichever tab is showing. -->
                     <StackPanel
                         x:Name="EmptyState"
@@ -194,13 +364,51 @@
                         <TextBlock x:Name="EmptyCaption" Style="{StaticResource MoonMetaStyle}" />
                         <Button
                             Margin="0,14,0,0"
-                            Click="OnBrowseHome"
+                            Click="OnEmptyAction"
                             Style="{StaticResource MoonGlassButtonStyle}">
-                            <TextBlock Text="去首页逛逛" />
+                            <TextBlock x:Name="EmptyActionText" Text="去首页逛逛" />
                         </Button>
                     </StackPanel>
                 </Grid>
             </StackPanel>
         </ScrollViewer>
+
+        <ContentDialog
+            x:Name="MatchDialog"
+            Title="修改匹配"
+            CloseButtonText="取消"
+            DefaultButton="Primary"
+            PrimaryButtonText="使用这个"
+            SecondaryButtonText="设为未识别">
+            <StackPanel Width="480" Spacing="14">
+                <TextBlock x:Name="MatchFileText" Style="{StaticResource MoonCardMetaStyle}" TextTrimming="CharacterEllipsis" />
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="MatchQuery" KeyDown="OnMatchQueryKeyDown" PlaceholderText="片名，回车搜索" />
+                    <SelectorBar x:Name="MatchKind" Grid.Column="1" SelectionChanged="OnMatchKindChanged">
+                        <SelectorBarItem x:Name="MatchMovie" Tag="Movie" Text="电影" />
+                        <SelectorBarItem x:Name="MatchTv" Tag="Tv" Text="剧集" />
+                    </SelectorBar>
+                </Grid>
+                <Grid Height="340">
+                    <ListView
+                        x:Name="MatchResults"
+                        ItemTemplate="{StaticResource MatchResultTemplate}"
+                        SelectionChanged="OnMatchSelectionChanged"
+                        SelectionMode="Single" />
+                    <ProgressRing x:Name="MatchRing" Width="28" Height="28" IsActive="False" />
+                    <TextBlock
+                        x:Name="MatchEmpty"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource MoonMetaStyle}"
+                        Text="没有找到，换个名字或类型试试"
+                        Visibility="Collapsed" />
+                </Grid>
+            </StackPanel>
+        </ContentDialog>
     </Grid>
 </Page>

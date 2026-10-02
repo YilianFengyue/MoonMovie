@@ -89,6 +89,9 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
     /// <summary>Returns the local cache path, downloading once even under concurrent requests.</summary>
     public Task<string?> GetFileAsync(string url, CancellationToken ct = default, bool highPriority = false)
     {
+        // Local images (frames grabbed from local videos) are used in place.
+        if (Path.IsPathFullyQualified(url)) return Task.FromResult(File.Exists(url) ? url : null);
+
         var (_, suffix) = SplitMirror(url);
         var path = CachePath(url);
         if (File.Exists(path))

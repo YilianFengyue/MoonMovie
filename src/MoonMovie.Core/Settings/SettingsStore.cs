@@ -74,6 +74,24 @@ public enum QualityPreset
     Quality,
 }
 
+/// <summary>Super-resolution: Anime4K GLSL shaders for animation, NVIDIA RTX Video Super Resolution for the rest.</summary>
+public enum UpscaleMode
+{
+    Off,
+
+    /// <summary>Anime4K mode A (fast): mid-range GPUs.</summary>
+    Anime4KFast,
+
+    /// <summary>Anime4K mode A (HQ): high-end GPUs.</summary>
+    Anime4KQuality,
+
+    /// <summary>Anime4K mode A+A (fast): extra restoration for 480p / 720p sources.</summary>
+    Anime4KRestore,
+
+    /// <summary>RTX Video Super Resolution through d3d11vpp (NVIDIA RTX, hardware decoding).</summary>
+    RtxVsr,
+}
+
 public sealed class VideoSettings
 {
     public PlayerEngineKind Engine { get; set; } = PlayerEngineKind.Mpv;
@@ -85,6 +103,12 @@ public sealed class VideoSettings
 
     /// <summary>Pass HDR through when the display is in HDR mode; otherwise always tone-map to SDR.</summary>
     public bool HdrPassthrough { get; set; } = true;
+
+    /// <summary>Default for animation; only applied while the picture is upscaled (source below the window).</summary>
+    public UpscaleMode AnimeUpscale { get; set; } = UpscaleMode.Anime4KFast;
+
+    /// <summary>Default for everything else.</summary>
+    public UpscaleMode Upscale { get; set; } = UpscaleMode.Off;
 
     /// <summary>Null: Pictures\MoonMovie.</summary>
     public string? ScreenshotFolder { get; set; }

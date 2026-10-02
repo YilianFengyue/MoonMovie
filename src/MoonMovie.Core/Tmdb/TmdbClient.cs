@@ -110,6 +110,15 @@ public sealed class TmdbClient
         return (media, people);
     }
 
+    /// <summary>/search/movie or /search/tv, optionally narrowed to a year (local file matching).</summary>
+    public Task<IReadOnlyList<MediaItem>> SearchAsync(MediaKind kind, string query, int? year = null,
+        CancellationToken ct = default)
+    {
+        var filters = new Dictionary<string, string> { ["query"] = query, ["include_adult"] = "false" };
+        if (year is { } y) filters[kind == MediaKind.Movie ? "primary_release_year" : "first_air_date_year"] = y.ToString();
+        return ListAsync($"search/{Segment(kind)}", filters, 1, kind, CacheMode.Default, ct);
+    }
+
     /// <summary>Full detail with credits, recommendations and logos in a single request.</summary>
     public async Task<MediaDetail?> DetailAsync(MediaKind kind, int id, CancellationToken ct = default)
     {

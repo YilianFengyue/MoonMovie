@@ -61,6 +61,8 @@ public sealed partial class PlayerPage : Page
     private bool _nextShown;
     private bool _nextCancelled;
     private bool _pausedInfoShown;
+    private bool _thumbTaken;
+    private string? _thumbPath;
     private Action? _toastAction;
     private Windows.Foundation.Point _lastPointer = new(-100, -100);
 
@@ -68,6 +70,8 @@ public sealed partial class PlayerPage : Page
     {
         InitializeComponent();
         IsTabStop = true; // keyboard shortcuts need focus inside the page
+        // Focusing in OnNavigatedTo fails while the page is not in the tree yet (e.g. opened from a card click).
+        Loaded += (_, _) => Focus(FocusState.Programmatic);
 
         _tick = CreateTimer(TimeSpan.FromMilliseconds(250), repeating: true, OnTick);
         _chromeTimer = CreateTimer(ChromeTimeout, repeating: false, HideChromeIfIdle);
@@ -177,9 +181,10 @@ public sealed partial class PlayerPage : Page
 
         ErrorPanel.Visibility = Visibility.Collapsed;
         ResetSkips();
+        _thumbTaken = false;
         HideNextCard(resetCancel: true);
         HidePausedInfo();
-        ShowLoading($"正在连接 {_source.SiteName}…");
+        ShowLoading(LocalPlayback.IsLocal(_source.Candidate) ? "正在打开…" : $"正在连接 {_source.SiteName}…");
         _duration = TimeSpan.Zero;
         _stallSince = DateTimeOffset.Now;
         UpdateTitles();
@@ -193,6 +198,12 @@ public sealed partial class PlayerPage : Page
 
         try
         {
+            if (LocalPlayback.IsLocal(_source.Candidate))
+            {
+                await OpenLocalAsync(episode.Url);
+                return;
+            }
+
             var isHls = episode.Url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
             var uri = isHls ? await _proxy.PlaylistUriAsync(episode.Url) : await _proxy.FileUriAsync(episode.Url);
             if (version != _openVersion || _engine is null) return;
@@ -207,6 +218,44 @@ public sealed partial class PlayerPage : Page
         {
             if (version == _openVersion) OnMediaFailed(ex.Message);
         }
+    }
+
+    /// <summary>Files go to the engine as they are: no proxy, no ad stripping.</summary>
+    private async Task OpenLocalAsync(string path)
+    {
+        if (_engine is null) return;
+        if (path.Length == 0)
+        {
+            OnMediaFailed("本地没有这一集");
+            return;
+        }
+
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            OnMediaFailed("文件不存在，或所在的磁盘没有连接");
+            return;
+        }
+
+        var (target, dvdDevice) = LocalPlayback.Resolve(path);
+        if (dvdDevice is not null) Mpv?.SetDvdDevice(dvdDevice);
+        _awaitingFirstFrame = true;
+        var speed = _speed;
+        await _engine.OpenAsync(target, _pendingSeek, isHls: false);
+        _engine.Rate = speed;
+        UpdateSystemMediaInfo();
+    }
+
+    /// <summary>Subtitle files dropped on the window while playing.</summary>
+    public void LoadSubtitles(IReadOnlyList<string> paths)
+    {
+        if (Mpv is not { } mpv)
+        {
+            ShowToast("系统内核不支持外挂字幕");
+            return;
+        }
+
+        foreach (var path in paths) mpv.AddSubtitle(path);
+        ShowToast(paths.Count == 1 ? $"已加载字幕 {Path.GetFileName(paths[0])}" : $"已加载 {paths.Count} 个字幕");
     }
 
     private void OnMediaOpened()
@@ -250,7 +299,8 @@ public sealed partial class PlayerPage : Page
 
         HideLoading();
         BufferRing.Visibility = Visibility.Collapsed;
-        ErrorText.Text = $"所有可用片源都无法播放这一集。{(string.IsNullOrWhiteSpace(reason) ? string.Empty : "\n" + reason)}";
+        var lead = _request.Sources.Items.All(i => i.IsLocal) ? "这个文件无法播放。" : "所有可用片源都无法播放这一集。";
+        ErrorText.Text = $"{lead}{(string.IsNullOrWhiteSpace(reason) ? string.Empty : "\n" + reason)}";
         ErrorPanel.Visibility = Visibility.Visible;
         ShowChrome(pin: true);
     }
@@ -294,6 +344,16 @@ public sealed partial class PlayerPage : Page
         if (index == _episodeIndex || index < 0 || index >= Line.Episodes.Count) return;
         SaveProgress(flush: true);
         _episodeIndex = index;
+
+        // Back to the files on disk whenever they have this episode (an online source only filled a gap).
+        if (_request.Sources.Items.FirstOrDefault(i => i.IsLocal) is { } local && local != _source
+            && local.Candidate.PrimaryLine.Episodes.ElementAtOrDefault(index)?.Url is { Length: > 0 })
+        {
+            _failedSources.Remove(local.Candidate.Identity);
+            _source = local;
+            BuildEpisodeList();
+        }
+
         _ = OpenAsync(resume: true);
     }
 
@@ -393,6 +453,8 @@ public sealed partial class PlayerPage : Page
 
         UpdateNextCard(position);
         UpdateSkips(position);
+        GrabThumbnail(position, state);
+        TickUpscaler(state);
         SyncDanmaku(position);
         if (InfoPanel.Visibility == Visibility.Visible) UpdateInfoPanel();
 
@@ -438,6 +500,23 @@ public sealed partial class PlayerPage : Page
         TimeLabel.Text = $"{shown} / {TimeText.Format(_duration)}";
     }
 
+    /// <summary>Local titles TMDB does not know have no artwork: a frame from the file stands in on 继续观看.</summary>
+    private void GrabThumbnail(TimeSpan position, EngineState state)
+    {
+        if (_thumbTaken || state != EngineState.Playing || position < TimeSpan.FromSeconds(8)
+            || _request.Item.BackdropPath is not null || Mpv is not { } mpv || !LocalPlayback.IsLocal(_source.Candidate))
+        {
+            return;
+        }
+
+        _thumbTaken = true;
+        var folder = Path.Combine(Core.Configuration.AppPaths.Root, "cache", "thumbs");
+        Directory.CreateDirectory(folder);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(_request.Item.MediaKey)));
+        _thumbPath = Path.Combine(folder, hash[..16] + ".jpg");
+        mpv.ScreenshotToFile(_thumbPath);
+    }
+
     private void SaveProgress(bool flush)
     {
         if (_engine is null || _duration <= TimeSpan.Zero) return;
@@ -452,7 +531,7 @@ public sealed partial class PlayerPage : Page
             Kind = item.Kind,
             Title = item.Title,
             PosterPath = item.PosterPath,
-            BackdropPath = item.BackdropPath,
+            BackdropPath = item.BackdropPath ?? _thumbPath,
             Season = _request.Season,
             EpisodeIndex = _episodeIndex,
             EpisodeLabel = item.Kind == MediaKind.Tv ? EpisodeLabel(_episodeIndex) : null,
@@ -460,6 +539,7 @@ public sealed partial class PlayerPage : Page
             PositionMs = (long)position.TotalMilliseconds,
             DurationMs = (long)_duration.TotalMilliseconds,
             SourceKey = _source.Candidate.Identity,
+            LocalPath = LocalPlayback.IsLocalPath(Line.Episodes[_episodeIndex].Url) ? Line.Episodes[_episodeIndex].Url : null,
         }, flush);
         _lastSave = DateTimeOffset.Now;
     }
@@ -735,6 +815,7 @@ public sealed partial class PlayerPage : Page
 
     private void OnSurfaceTapped(object sender, TappedRoutedEventArgs e)
     {
+        Focus(FocusState.Pointer);
         if (_sideOpen)
         {
             CloseSidePanel();
@@ -980,6 +1061,7 @@ public sealed partial class PlayerPage : Page
         _sideOpen = false;
         SideLayer.Visibility = Visibility.Collapsed;
         ShowChrome();
+        Focus(FocusState.Programmatic); // the focused panel control just disappeared
     }
 
     private void OnSideDismiss(object sender, RoutedEventArgs e) => CloseSidePanel();

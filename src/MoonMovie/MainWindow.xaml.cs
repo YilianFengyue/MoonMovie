@@ -41,6 +41,14 @@ public sealed partial class MainWindow : Window
     public void Navigate(Type page, object? parameter, NavigationTransitionInfo? transition = null) =>
         ContentFrame.Navigate(page, parameter, transition ?? new EntranceNavigationTransitionInfo());
 
+    public object? CurrentPage => ContentFrame.Content;
+
+    /// <summary>Forgets the page before the current one (used when a page replaces itself).</summary>
+    public void DropPreviousEntry()
+    {
+        if (ContentFrame.BackStack.Count > 0) ContentFrame.BackStack.RemoveAt(ContentFrame.BackStack.Count - 1);
+    }
+
     public bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 
     public void SetFullScreen(bool fullScreen)
@@ -251,6 +259,55 @@ public sealed partial class MainWindow : Window
         }
 
         DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
+    }
+
+    // ----- Local files: drag and drop, Ctrl+O --------------------------------------------------------------
+
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) return;
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Link;
+        e.DragUIOverride.IsCaptionVisible = false;
+        e.DragUIOverride.IsGlyphVisible = false;
+
+        var inPlayer = ContentFrame.Content is PlayerPage;
+        DropTitle.Text = inPlayer ? "松开即可播放或加载字幕" : "松开即可播放";
+        DropCaption.Text = inPlayer ? "字幕文件加到当前视频，视频文件换成新的播放" : "视频文件直接播放，文件夹会加入本地媒体库";
+        DropOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void OnDragLeave(object sender, DragEventArgs e) => DropOverlay.Visibility = Visibility.Collapsed;
+
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        DropOverlay.Visibility = Visibility.Collapsed;
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) return;
+
+        var deferral = e.GetDeferral();
+        IReadOnlyList<string> paths;
+        try
+        {
+            paths = (await e.DataView.GetStorageItemsAsync()).Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToArray();
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+
+        var subtitles = paths.Where(Core.Local.LocalNameParser.IsSubtitle).ToArray();
+        if (subtitles.Length > 0 && ContentFrame.Content is PlayerPage player)
+        {
+            player.LoadSubtitles(subtitles);
+            paths = paths.Except(subtitles).ToArray();
+        }
+
+        if (paths.Count > 0) await LocalPlayback.OpenPathsAsync(paths);
+    }
+
+    private async void OnOpenFileAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await LocalPlayback.PickAndOpenAsync();
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)

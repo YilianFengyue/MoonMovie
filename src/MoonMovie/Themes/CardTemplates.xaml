@@ -442,4 +442,181 @@
             </StackPanel>
         </Button>
     </DataTemplate>
+
+    <!-- Chip: quiet text that lights up as a solid pill when chosen. -->
+    <DataTemplate x:Key="ChipTemplate" x:DataType="vm:FilterOptionViewModel">
+        <Button
+            AutomationProperties.Name="{x:Bind Label}"
+            Command="{x:Bind SelectCommand}"
+            Style="{StaticResource MoonChipButtonStyle}">
+            <Grid>
+                <Border
+                    Background="{StaticResource MoonPrimaryBrush}"
+                    CornerRadius="16"
+                    Visibility="{x:Bind SelectedVisibility, Mode=OneWay}" />
+                <TextBlock
+                    Margin="14,6,14,7"
+                    FontSize="13"
+                    Foreground="{x:Bind TextBrush, Mode=OneWay}"
+                    Text="{x:Bind Label}" />
+            </Grid>
+        </Button>
+    </DataTemplate>
+
+    <DataTemplate x:Key="FilterGroupTemplate" x:DataType="vm:FilterGroupViewModel">
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="48" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                Margin="0,7,0,0"
+                VerticalAlignment="Top"
+                FontSize="13"
+                Style="{StaticResource MoonCardMetaStyle}"
+                Text="{x:Bind Label}" />
+            <ItemsControl
+                Grid.Column="1"
+                IsTabStop="False"
+                ItemTemplate="{StaticResource ChipTemplate}"
+                ItemsSource="{x:Bind Options}">
+                <ItemsControl.ItemContainerTransitions>
+                    <TransitionCollection />
+                </ItemsControl.ItemContainerTransitions>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <tk:WrapPanel HorizontalSpacing="2" VerticalSpacing="4" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </Grid>
+    </DataTemplate>
+
+    <!-- Chips alone, without the label column: 放送日, 热门 / 排行榜, 收藏夹. -->
+    <DataTemplate x:Key="ChipRowTemplate" x:DataType="vm:FilterGroupViewModel">
+        <ItemsControl
+            IsTabStop="False"
+            ItemTemplate="{StaticResource ChipTemplate}"
+            ItemsSource="{x:Bind Options}">
+            <ItemsControl.ItemContainerTransitions>
+                <TransitionCollection />
+            </ItemsControl.ItemContainerTransitions>
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <tk:WrapPanel HorizontalSpacing="2" VerticalSpacing="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+    </DataTemplate>
+
+    <!-- B站正版 season in a grid: 3:4 cover with B站's badge (会员 / 独家), title, "全12话 · 9.7分". -->
+    <DataTemplate x:Key="BiliSeasonTileTemplate" x:DataType="vm:BiliSeasonViewModel">
+        <Button
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            ToolTipService.ToolTip="{x:Bind Title}"
+            motion:CardMotion.IsEnabled="True">
+            <Button.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Command="{x:Bind OpenInBrowserCommand}" Text="在 B站打开">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE774;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Button.ContextFlyout>
+            <StackPanel>
+                <tk:ConstrainedBox AspectRatio="3:4">
+                    <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                        <Image imaging:ImageEx.DecodeWidth="300" imaging:ImageEx.Url="{x:Bind CoverUrl}" Stretch="UniformToFill" />
+                        <Border
+                            Margin="8"
+                            Padding="6,1,6,2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="#E6FB7299"
+                            CornerRadius="4"
+                            Visibility="{x:Bind BadgeVisibility}">
+                            <TextBlock FontSize="11" Foreground="White" Text="{x:Bind Badge}" />
+                        </Border>
+                        <Grid Background="#99000000" CornerRadius="{StaticResource MoonCardRadius}" Visibility="{x:Bind OpeningVisibility, Mode=OneWay}">
+                            <ProgressRing Width="28" Height="28" Foreground="White" IsActive="{x:Bind IsOpening, Mode=OneWay}" />
+                        </Grid>
+                        <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                    </Grid>
+                </tk:ConstrainedBox>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <!-- The same season in a row (fixed width). -->
+    <DataTemplate x:Key="BiliSeasonCardTemplate" x:DataType="vm:BiliSeasonViewModel">
+        <Button
+            Width="172"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            ToolTipService.ToolTip="{x:Bind Title}"
+            motion:CardMotion.IsEnabled="True">
+            <StackPanel>
+                <Grid Height="229" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="172" imaging:ImageEx.Url="{x:Bind CoverUrl}" Stretch="UniformToFill" />
+                    <Border
+                        Margin="8"
+                        Padding="6,1,6,2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Background="#E6FB7299"
+                        CornerRadius="4"
+                        Visibility="{x:Bind BadgeVisibility}">
+                        <TextBlock FontSize="11" Foreground="White" Text="{x:Bind Badge}" />
+                    </Border>
+                    <Grid Background="#99000000" CornerRadius="{StaticResource MoonCardRadius}" Visibility="{x:Bind OpeningVisibility, Mode=OneWay}">
+                        <ProgressRing Width="28" Height="28" Foreground="White" IsActive="{x:Bind IsOpening, Mode=OneWay}" />
+                    </Grid>
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <!-- 新番时间表: square cover with the air time, title, "第11话 · 已更新". -->
+    <DataTemplate x:Key="BiliTimelineCardTemplate" x:DataType="vm:BiliSeasonViewModel">
+        <Button
+            Width="156"
+            AutomationProperties.Name="{x:Bind Title}"
+            Command="{x:Bind OpenCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            ToolTipService.ToolTip="{x:Bind Title}"
+            motion:CardMotion.IsEnabled="True">
+            <StackPanel>
+                <Grid Height="156" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                    <Image imaging:ImageEx.DecodeWidth="156" imaging:ImageEx.Url="{x:Bind CoverUrl}" Stretch="UniformToFill" />
+                    <Border
+                        Margin="8"
+                        Padding="6,1,6,2"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        Background="#B3000000"
+                        CornerRadius="4"
+                        Visibility="{x:Bind CornerVisibility}">
+                        <TextBlock FontSize="11" Foreground="#F2FFFFFF" Text="{x:Bind Corner}" />
+                    </Border>
+                    <Grid Background="#99000000" CornerRadius="{StaticResource MoonCardRadius}" Visibility="{x:Bind OpeningVisibility, Mode=OneWay}">
+                        <ProgressRing Width="26" Height="26" Foreground="White" IsActive="{x:Bind IsOpening, Mode=OneWay}" />
+                    </Grid>
+                    <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                </Grid>
+                <TextBlock Margin="2,10,2,0" Style="{StaticResource MoonCardTitleStyle}" Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Margin="2,3,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Subtitle}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
 </ResourceDictionary>

@@ -124,6 +124,13 @@ public sealed partial class BiliPgcSource(BiliClient client)
             .FirstOrDefault();
     }
 
+    /// <summary>"间谍过家家 第二季 中配版" → "间谍过家家": the name to look the series up by elsewhere (TMDB).</summary>
+    public static string SeriesName(string title) => Suffixes().Replace(title, " ").Trim();
+
+    /// <summary>A season as a playable source on its own (a B站 title TMDB does not know).</summary>
+    public static SourceCandidate? CandidateFor(BiliSeason season) =>
+        Candidate(season, null, new SourceTarget(season.Title, null, season.Year, season.SeasonType == 2 ? MediaKind.Movie : MediaKind.Tv, null, null, []));
+
     private static SourceCandidate? Candidate(BiliSeason season, string? dub, SourceTarget target)
     {
         var main = season.Episodes.Where(e => e.Cid > 0 && e.Badge != "预告").ToArray();
@@ -149,7 +156,7 @@ public sealed partial class BiliPgcSource(BiliClient client)
     }
 
     /// <summary>"第二季" → 2, "TV" / "正片" → none (the first), "第一季(中配)" → 1 + 中配, "剧场版…" / OVA → special.</summary>
-    internal static (int? Number, string? Dub, bool Special) ParseLabel(string text)
+    public static (int? Number, string? Dub, bool Special) ParseLabel(string text)
     {
         string? dub = null;
         var d = Dub().Match(text);
@@ -164,7 +171,7 @@ public sealed partial class BiliPgcSource(BiliClient client)
     }
 
     /// <summary>"第二季", "TV", "正片", "第一季(中配)", "Season 2": a season label rather than a title of its own.</summary>
-    internal static bool IsGenericLabel(string text)
+    public static bool IsGenericLabel(string text)
     {
         var rest = Suffixes().Replace(text, "").Trim();
         return rest.Length == 0 || rest.Equals("TV", StringComparison.OrdinalIgnoreCase) || rest is "正片" or "TV版" or "原版";
@@ -174,7 +181,7 @@ public sealed partial class BiliPgcSource(BiliClient client)
     /// The series name without B站's season and dub suffixes, normalised for comparison. A sequel number stays:
     /// "罗小黑战记 2" and "罗小黑战记2" are the same film, "罗小黑战记" is another.
     /// </summary>
-    internal static string BaseName(string? title)
+    public static string BaseName(string? title)
     {
         if (string.IsNullOrWhiteSpace(title)) return string.Empty;
         var t = Suffixes().Replace(title, " ");

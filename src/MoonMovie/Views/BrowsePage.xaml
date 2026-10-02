@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="MoonMovie.Views.BrowsePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -8,57 +8,6 @@
     xmlns:vm="using:MoonMovie.ViewModels"
     Background="{StaticResource MoonCanvasBrush}"
     XYFocusKeyboardNavigation="Enabled">
-
-    <Page.Resources>
-        <!-- Chip: quiet text that lights up as a solid pill when chosen. -->
-        <DataTemplate x:Key="ChipTemplate" x:DataType="vm:FilterOptionViewModel">
-            <Button
-                AutomationProperties.Name="{x:Bind Label}"
-                Command="{x:Bind SelectCommand}"
-                Style="{StaticResource MoonChipButtonStyle}">
-                <Grid>
-                    <Border
-                        Background="{StaticResource MoonPrimaryBrush}"
-                        CornerRadius="16"
-                        Visibility="{x:Bind SelectedVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Margin="14,6,14,7"
-                        FontSize="13"
-                        Foreground="{x:Bind TextBrush, Mode=OneWay}"
-                        Text="{x:Bind Label}" />
-                </Grid>
-            </Button>
-        </DataTemplate>
-
-        <DataTemplate x:Key="FilterGroupTemplate" x:DataType="vm:FilterGroupViewModel">
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="48" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <TextBlock
-                    Margin="0,7,0,0"
-                    VerticalAlignment="Top"
-                    FontSize="13"
-                    Style="{StaticResource MoonCardMetaStyle}"
-                    Text="{x:Bind Label}" />
-                <ItemsControl
-                    Grid.Column="1"
-                    IsTabStop="False"
-                    ItemTemplate="{StaticResource ChipTemplate}"
-                    ItemsSource="{x:Bind Options}">
-                    <ItemsControl.ItemContainerTransitions>
-                        <TransitionCollection />
-                    </ItemsControl.ItemContainerTransitions>
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <tk:WrapPanel HorizontalSpacing="2" VerticalSpacing="4" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </Grid>
-        </DataTemplate>
-    </Page.Resources>
 
     <Grid>
         <controls:AmbientBackdrop x:Name="Ambient" Opacity="0.55" />

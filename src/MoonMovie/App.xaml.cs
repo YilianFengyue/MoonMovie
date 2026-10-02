@@ -143,6 +143,7 @@ public partial class App : Application
             .AddSingleton<BiliAccountService>()
             .AddSingleton<ProfileStore>()
             .AddTransient<ProfileViewModel>()
+            .AddSingleton<BiliHubViewModel>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()

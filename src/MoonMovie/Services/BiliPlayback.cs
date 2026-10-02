@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MoonMovie.Core.Bilibili;
 using MoonMovie.Core.Models;
 using MoonMovie.Core.Sources;
+using MoonMovie.Core.Tmdb;
 using MoonMovie.ViewModels;
 
 namespace MoonMovie.Services;
@@ -56,5 +57,52 @@ public static class BiliPlayback
             detail.Video.Cover, detail.Video.Cover, [], null) { LocalKey = "bili:" + video.Bvid };
 
         Navigator.OpenPlayback(new PlaybackRequest(item, panel, source, 0, null, [], Bili: detail));
+    }
+
+    /// <summary>
+    /// A B站正版 season (from the 「B站」 page): the same title's detail page when TMDB knows it — 「B站正版」 then
+    /// appears among its sources — or, for B站-only titles, played straight from B站's episode list.
+    /// </summary>
+    public static async Task OpenSeasonAsync(long seasonId)
+    {
+        BiliSeason season;
+        try
+        {
+            season = await App.Services.GetRequiredService<BiliClient>().SeasonAsync(seasonId);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+        {
+            return;
+        }
+
+        var kind = season.SeasonType == 2 ? MediaKind.Movie : MediaKind.Tv;
+        var name = BiliPgcSource.SeriesName(season.Title);
+        var key = BiliPgcSource.BaseName(name);
+        try
+        {
+            var found = await App.Services.GetRequiredService<TmdbClient>().SearchAsync(kind, name, kind == MediaKind.Movie ? season.Year : null);
+            var match = found.FirstOrDefault(m =>
+                (BiliPgcSource.BaseName(m.Title) == key || BiliPgcSource.BaseName(m.OriginalTitle) == key)
+                && (kind == MediaKind.Tv || m.Year is null || season.Year is null || Math.Abs(m.Year.Value - season.Year.Value) <= 1));
+            if (match is not null)
+            {
+                var number = BiliPgcSource.ParseLabel(season.Title).Number ?? BiliPgcSource.ParseLabel(season.SeasonTitle).Number;
+                Navigator.OpenMedia(match, kind == MediaKind.Tv && number > 1 ? number : null);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            // TMDB unreachable: B站 can still play it.
+        }
+
+        if (BiliPgcSource.CandidateFor(season) is not { } candidate) return;
+        var panel = new SourcePanelViewModel(App.Services.GetRequiredService<SourceSearchService>());
+        var source = panel.UseLocal(candidate);
+        var item = new MediaItem(0, kind, season.Title, null, null, season.Year, 0, 0, season.Cover, season.Cover, [], null)
+        {
+            LocalKey = "bilipgc:" + season.SeasonId, // not a catalogue title: kept out of 继续观看 like B站 videos
+        };
+        Navigator.OpenPlayback(new PlaybackRequest(item, panel, source, 0, null, []));
     }
 }

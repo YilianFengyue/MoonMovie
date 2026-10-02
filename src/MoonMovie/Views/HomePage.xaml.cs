@@ -108,6 +108,9 @@ public sealed partial class HomePage : Page
             case "profile":
                 App.MainWindow.Navigate(typeof(ProfilePage), null);
                 return;
+            case "bili":
+                App.MainWindow.Navigate(typeof(BiliPage), null);
+                return;
             case "movie": Navigator.OpenBrowse(Core.Browse.BrowseSection.Movie); break;
             case "tv": Navigator.OpenBrowse(Core.Browse.BrowseSection.Tv); break;
             case "anime": Navigator.OpenBrowse(Core.Browse.BrowseSection.Anime); break;

@@ -423,7 +423,9 @@ public sealed partial class PlayerPage : Page
     private EpisodeInfo? TmdbEpisode(int index) =>
         _request.Item.Kind == MediaKind.Tv ? _request.Episodes.FirstOrDefault(e => e.Number == index + 1) : null;
 
-    private string? EpisodeName(int index) => TmdbEpisode(index)?.Name is { } name && !name.Contains('集') ? name : null;
+    private string? EpisodeName(int index) => TmdbEpisode(index)?.Name is { } name && !name.Contains('集')
+        ? name
+        : _request.Episodes.Count == 0 && Core.Bilibili.BiliPgcSource.IsPgcUrl(Line.Episodes[index].Url) ? Line.Episodes[index].Name : null;
 
     private string? StillUrl(int index) => _tmdb.ImageUrl(TmdbEpisode(index)?.StillPath, "w300");
 
@@ -567,7 +569,8 @@ public sealed partial class PlayerPage : Page
     {
         if (flush) ReportBiliProgress(force: true);
         // B站 clips are companions to a title, not something to continue: they stay out of history.
-        if (_engine is null || _duration <= TimeSpan.Zero || _request.Bili is not null) return;
+        if (_engine is null || _duration <= TimeSpan.Zero || _request.Bili is not null
+            || _request.Item.LocalKey?.StartsWith("bili", StringComparison.Ordinal) == true) return;
         var position = _engine.Position;
         if (position < TimeSpan.FromSeconds(5)) return;
 

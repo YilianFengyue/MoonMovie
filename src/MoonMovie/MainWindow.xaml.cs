@@ -274,6 +274,9 @@ public sealed partial class MainWindow : Window
             case "library":
                 Navigator.OpenLibrary();
                 break;
+            case "bili":
+                Navigate(typeof(BiliPage), null);
+                break;
             default:
                 Navigate(typeof(PlaceholderPage), new PlaceholderArgs(item.Text, "这一页正在路上"));
                 break;
@@ -293,7 +296,7 @@ public sealed partial class MainWindow : Window
             BrowseSection.Anime => "anime",
             _ => "movie",
         },
-        _ when page == typeof(PlaceholderPage) && parameter is PlaceholderArgs { Title: "B站" } => "bili",
+        _ when page == typeof(BiliPage) => "bili",
         _ => null,
     };
 

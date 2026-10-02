@@ -127,7 +127,7 @@ public sealed partial class DownloadsViewModel : ObservableObject
         _tmdb = tmdb;
         _tick = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _tick.Interval = TimeSpan.FromMilliseconds(500);
-        _tick.Tick += (_, _) => Update();
+        _tick.Tick += (_, _) => SafeDispatch.Run(Update);
     }
 
     public ObservableCollection<DownloadItemViewModel> Items { get; } = [];

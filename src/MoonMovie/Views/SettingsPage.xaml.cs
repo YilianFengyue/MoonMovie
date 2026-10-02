@@ -39,7 +39,7 @@ public sealed partial class SettingsPage : Page
         _saveTimer = DispatcherQueue.CreateTimer();
         _saveTimer.Interval = TimeSpan.FromMilliseconds(400);
         _saveTimer.IsRepeating = false;
-        _saveTimer.Tick += (_, _) => _settings.Save();
+        _saveTimer.Tick += (_, _) => SafeDispatch.Run(_settings.Save);
 
         _autoNextChip = Chips.Create("已开启", () => { Playback.AutoNext = !Playback.AutoNext; Changed(); });
         _danmakuOnChip = Chips.Create("已开启", () => { Danmaku.Enabled = !Danmaku.Enabled; Changed(); });
@@ -231,7 +231,7 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         if (e.Parameter is not "tmdb") return;
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             TmdbKeyBox.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = false });
             TmdbKeyBox.Focus(FocusState.Programmatic);

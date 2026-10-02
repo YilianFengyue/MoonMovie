@@ -68,7 +68,7 @@ public static class ImageEx
         visual.StopAnimation("Opacity");
         visual.Opacity = 0;
 
-        image.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = LoadAsync(image, cts.Token));
+        image.DispatcherQueue.Enqueue(DispatcherQueuePriority.Low, () => _ = LoadAsync(image, cts.Token));
     }
 
     private static async Task LoadAsync(Image image, CancellationToken ct)

@@ -34,7 +34,7 @@ public sealed partial class MpvLabPage : Page
         InitializeComponent();
         _statsTimer = DispatcherQueue.CreateTimer();
         _statsTimer.Interval = TimeSpan.FromMilliseconds(500);
-        _statsTimer.Tick += (_, _) => UpdateStats();
+        _statsTimer.Tick += (_, _) => SafeDispatch.Run(UpdateStats);
 
         // The slider handles pointer input itself; listen to handled events too.
         Seek.AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => _dragging = true), true);

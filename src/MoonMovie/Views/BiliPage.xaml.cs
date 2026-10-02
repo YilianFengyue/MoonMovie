@@ -49,7 +49,7 @@ public sealed partial class BiliPage : Page
         _account.Changed -= OnAccountChanged;
     }
 
-    private void OnAccountChanged() => DispatcherQueue.TryEnqueue(() =>
+    private void OnAccountChanged() => DispatcherQueue.Enqueue(() =>
     {
         ViewModel.AccountChanged();
         SyncPanels();

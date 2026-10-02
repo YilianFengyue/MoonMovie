@@ -19,7 +19,7 @@ public static class ActivationRouter
 
     /// <summary>A second launch handed over to this instance (raised on a background thread).</summary>
     public static void OnRedirected(AppActivationArguments args) =>
-        App.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+        App.MainWindow?.DispatcherQueue.Enqueue(() =>
         {
             App.MainWindow.BringToFront();
             Handle(args, null);

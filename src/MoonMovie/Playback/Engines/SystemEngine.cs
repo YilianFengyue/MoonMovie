@@ -22,10 +22,10 @@ public sealed class SystemEngine : IPlaybackEngine
         _ui = ui;
         _player = new MediaPlayer { AutoPlay = true };
         _player.CommandManager.IsEnabled = false; // the page drives the system media controls itself
-        _player.MediaOpened += (_, _) => _ui.TryEnqueue(OnOpened);
-        _player.MediaFailed += (_, e) => _ui.TryEnqueue(() => Failed?.Invoke(e.ErrorMessage));
-        _player.MediaEnded += (_, _) => _ui.TryEnqueue(() => Ended?.Invoke());
-        _player.PlaybackSession.PlaybackStateChanged += (_, _) => _ui.TryEnqueue(() => StateChanged?.Invoke());
+        _player.MediaOpened += (_, _) => _ui.Enqueue(OnOpened);
+        _player.MediaFailed += (_, e) => _ui.Enqueue(() => Failed?.Invoke(e.ErrorMessage));
+        _player.MediaEnded += (_, _) => _ui.Enqueue(() => Ended?.Invoke());
+        _player.PlaybackSession.PlaybackStateChanged += (_, _) => _ui.Enqueue(() => StateChanged?.Invoke());
         _view = new MediaPlayerElement
         {
             AreTransportControlsEnabled = false,

@@ -84,7 +84,7 @@ public sealed unsafe class SystemMediaControls : IDisposable
             SystemMediaTransportControlsButton.Previous => PreviousPressed,
             _ => null,
         };
-        if (handler is not null) _ui.TryEnqueue(() => handler());
+        if (handler is not null) _ui.Enqueue(() => handler());
     }
 
     private static SystemMediaTransportControls? ForWindow(nint hwnd)

@@ -165,7 +165,7 @@ public sealed partial class LocalLibraryViewModel : ObservableObject
     {
         if (_refreshQueued) return;
         _refreshQueued = true;
-        _dispatcher.TryEnqueue(() =>
+        _dispatcher.Enqueue(() =>
         {
             _refreshQueued = false;
             Refresh();

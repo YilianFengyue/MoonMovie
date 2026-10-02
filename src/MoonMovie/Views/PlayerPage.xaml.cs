@@ -108,7 +108,7 @@ public sealed partial class PlayerPage : Page
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = interval;
         timer.IsRepeating = repeating;
-        timer.Tick += (_, _) => tick();
+        timer.Tick += (_, _) => SafeDispatch.Run(tick);
         return timer;
     }
 
@@ -146,13 +146,13 @@ public sealed partial class PlayerPage : Page
         // QA hook: MOONMOVIE_DEBUG_PLAYER_CHROME=1 keeps the controls up (for screenshots).
         if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAYER_CHROME") == "1")
         {
-            _ = Task.Delay(6000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => ShowChrome(pin: true)));
+            _ = Task.Delay(6000).ContinueWith(_ => DispatcherQueue.Enqueue(() => ShowChrome(pin: true)));
         }
 
         // QA hook: MOONMOVIE_DEBUG_PLAYER_PANEL=comments|danmaku|info opens that after a few seconds.
         if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAYER_PANEL") is { Length: > 0 } debugPanel)
         {
-            _ = Task.Delay(5000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+            _ = Task.Delay(5000).ContinueWith(_ => DispatcherQueue.Enqueue(() =>
             {
                 if (debugPanel == "info") ToggleInfoPanel();
                 else OpenSidePanel(debugPanel switch { "danmaku" => DanmakuTab, "picture" => PictureTab, _ => CommentsTab });
@@ -1111,7 +1111,7 @@ public sealed partial class PlayerPage : Page
     }
 
     private void OnAdsRemoved(int segments, double seconds) =>
-        DispatcherQueue.TryEnqueue(() => ShowToast($"已跳过片源插播广告 {Math.Round(seconds)} 秒"));
+        DispatcherQueue.Enqueue(() => ShowToast($"已跳过片源插播广告 {Math.Round(seconds)} 秒"));
 
     // ----- Side panel -----------------------------------------------------------------------------------
 

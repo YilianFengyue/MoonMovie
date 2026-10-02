@@ -191,14 +191,14 @@ public sealed unsafe class MpvPlayer : IDisposable
                     OnPropertyChange((MpvEventProperty*)ev->Data);
                     break;
                 case MpvEventId.FileLoaded:
-                    _ui.TryEnqueue(() => FileLoaded?.Invoke());
+                    _ui.Enqueue(() => FileLoaded?.Invoke());
                     break;
                 case MpvEventId.PlaybackRestart:
-                    _ui.TryEnqueue(() => PlaybackRestart?.Invoke());
+                    _ui.Enqueue(() => PlaybackRestart?.Invoke());
                     break;
                 case MpvEventId.EndFile:
                     var end = *(MpvEventEndFile*)ev->Data;
-                    _ui.TryEnqueue(() => EndFile?.Invoke(end.Reason, end.Error));
+                    _ui.Enqueue(() => EndFile?.Invoke(end.Reason, end.Error));
                     break;
                 case MpvEventId.LogMessage:
                     var log = (MpvEventLogMessage*)ev->Data;
@@ -223,14 +223,14 @@ public sealed unsafe class MpvPlayer : IDisposable
         if (name == "display-swapchain")
         {
             var swapChain = value is long p ? (nint)p : 0;
-            _ui.TryEnqueue(() => SwapChainChanged?.Invoke(swapChain));
+            _ui.Enqueue(() => SwapChainChanged?.Invoke(swapChain));
             return;
         }
 
-        _ui.TryEnqueue(() => PropertyChanged?.Invoke(name, value));
+        _ui.Enqueue(() => PropertyChanged?.Invoke(name, value));
     }
 
-    private void RaiseLog(string line) => _ui.TryEnqueue(() => Log?.Invoke(line));
+    private void RaiseLog(string line) => _ui.Enqueue(() => Log?.Invoke(line));
 
     private void Option(string name, string value)
     {

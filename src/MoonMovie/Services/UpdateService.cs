@@ -40,7 +40,7 @@ public sealed class UpdateService(UpdateChecker checker, SettingsStore settings)
         if (!updates.AutoCheck) return;
         if (updates.LastCheck is { } last && DateTimeOffset.Now - last < CheckEvery) return;
         var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-        _ = Task.Delay(TimeSpan.FromSeconds(20)).ContinueWith(_ => queue.TryEnqueue(() => _ = CheckAsync(manual: false)));
+        _ = Task.Delay(TimeSpan.FromSeconds(20)).ContinueWith(_ => queue.Enqueue(() => _ = CheckAsync(manual: false)));
     }
 
     /// <summary>Asks GitHub; a manual check also offers a version the user skipped before.</summary>

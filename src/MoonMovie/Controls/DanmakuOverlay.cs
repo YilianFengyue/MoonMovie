@@ -214,7 +214,7 @@ public sealed partial class DanmakuOverlay : Grid
     }
 
     /// <summary>GPU reset (driver update, sleep, adapter change): continue on a fresh device.</summary>
-    private void OnDeviceLost(CanvasDevice sender, object args) => DispatcherQueue.TryEnqueue(() =>
+    private void OnDeviceLost(CanvasDevice sender, object args) => DispatcherQueue.Enqueue(() =>
     {
         if (_graphics is null) return;
         sender.DeviceLost -= OnDeviceLost;

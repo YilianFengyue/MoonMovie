@@ -40,7 +40,7 @@ public static class Program
         Services.Lifecycle.Log("start");
         Application.Start(_1 =>
         {
-            SynchronizationContext.SetSynchronizationContext(new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
+            SynchronizationContext.SetSynchronizationContext(new SafeSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
             _ = new App();
         });
         Services.Lifecycle.Log("exit");

@@ -28,7 +28,7 @@ public static class JumpListUpdater
         progress.Changed += (_, _) =>
         {
             _debounce?.Dispose();
-            _debounce = new Timer(_ => App.MainWindow.DispatcherQueue.TryEnqueue(() => _ = UpdateAsync()), null,
+            _debounce = new Timer(_ => App.MainWindow.DispatcherQueue.Enqueue(() => _ = UpdateAsync()), null,
                 TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
         };
         _ = UpdateAsync();

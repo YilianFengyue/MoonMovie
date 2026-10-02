@@ -184,7 +184,7 @@ public sealed partial class LibraryPage : Page
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromSeconds(4);
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => Disarm();
+        timer.Tick += (_, _) => SafeDispatch.Run(Disarm);
         return timer;
     }
 

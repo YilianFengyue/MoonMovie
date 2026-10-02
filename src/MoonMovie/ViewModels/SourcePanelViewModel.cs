@@ -336,7 +336,7 @@ public sealed partial class SourcePanelViewModel : ObservableObject
     private void Post(Action action)
     {
         if (_dispatcher.HasThreadAccess) action();
-        else _dispatcher.TryEnqueue(() => action());
+        else _dispatcher.Enqueue(() => action());
     }
 
 }

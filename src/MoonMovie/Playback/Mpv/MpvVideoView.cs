@@ -21,7 +21,7 @@ public sealed partial class MpvVideoView : SwapChainPanel
     {
         _resizeWatch = DispatcherQueue.CreateTimer();
         _resizeWatch.Interval = TimeSpan.FromMilliseconds(16);
-        _resizeWatch.Tick += (_, _) => UpdateMatrix();
+        _resizeWatch.Tick += (_, _) => SafeDispatch.Run(UpdateMatrix);
 
         SizeChanged += (_, _) => PushSize();
         Loaded += (_, _) =>

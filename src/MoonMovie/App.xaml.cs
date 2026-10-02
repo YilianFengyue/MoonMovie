@@ -28,15 +28,26 @@ public partial class App : Application
     {
         InitializeComponent();
         Services = ConfigureServices();
-        UnhandledException += (_, e) => WriteCrashLog(e.Exception);
+        // A failing handler is logged and survived rather than taking the whole player down.
+        UnhandledException += (_, e) =>
+        {
+            WriteCrashLog(e.Exception);
+            e.Handled = true;
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashLog(e.Exception, "unobserved task");
+            e.SetObserved();
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrashLog(e.ExceptionObject as Exception ?? new Exception("unknown"), "fatal");
     }
 
-    private static void WriteCrashLog(Exception ex)
+    public static void WriteCrashLog(Exception ex, string? where = null)
     {
         try
         {
             File.AppendAllText(Path.Combine(AppPaths.Root, "crash.log"),
-                $"[{DateTimeOffset.Now:O}] {ex}{Environment.NewLine}{Environment.NewLine}");
+                $"[{DateTimeOffset.Now:O}] {(where is null ? string.Empty : $"({where}) ")}{ex}{Environment.NewLine}{Environment.NewLine}");
         }
         catch (IOException)
         {
@@ -58,12 +69,12 @@ public partial class App : Application
         Services.GetRequiredService<DownloadManager>().Start();
 
         // Files from the command line or a file association, a jump-list "继续观看" entry.
-        MainWindow.DispatcherQueue.TryEnqueue(ActivationRouter.OnLaunched);
+        MainWindow.DispatcherQueue.Enqueue(ActivationRouter.OnLaunched);
 
         // A build without keys (public release): ask for the TMDB key first, nothing works without it.
         if (!Services.GetRequiredService<TmdbOptions>().IsConfigured)
         {
-            MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.Navigate(typeof(Views.SettingsPage), "tmdb"));
+            MainWindow.DispatcherQueue.Enqueue(() => MainWindow.Navigate(typeof(Views.SettingsPage), "tmdb"));
         }
         JumpListUpdater.Start();
         Services.GetRequiredService<UpdateService>().Start();

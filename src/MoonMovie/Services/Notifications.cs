@@ -86,7 +86,7 @@ public static partial class Notifications
             {
                 if (args is ToastActivatedEventArgs activated)
                 {
-                    App.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+                    App.MainWindow?.DispatcherQueue.Enqueue(() =>
                     {
                         App.MainWindow.BringToFront();
                         Handle(activated.Arguments);

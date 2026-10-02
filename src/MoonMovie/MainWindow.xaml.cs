@@ -52,11 +52,11 @@ public sealed partial class MainWindow : Window
         Closed += OnWindowClosed;
 
         var downloads = App.Services.GetRequiredService<Core.Downloads.DownloadManager>();
-        downloads.Changed += _ => DispatcherQueue.TryEnqueue(UpdateDownloadBadge);
+        downloads.Changed += _ => DispatcherQueue.Enqueue(UpdateDownloadBadge);
         UpdateDownloadBadge();
 
         App.Services.GetRequiredService<Core.Library.ProfileStore>().Changed += (_, _) => UpdateProfilePicture();
-        App.Services.GetRequiredService<BiliAccountService>().Changed += () => DispatcherQueue.TryEnqueue(UpdateProfilePicture);
+        App.Services.GetRequiredService<BiliAccountService>().Changed += () => DispatcherQueue.Enqueue(UpdateProfilePicture);
         UpdateProfilePicture();
     }
 
@@ -180,7 +180,7 @@ public sealed partial class MainWindow : Window
         SearchBox.Visibility = chrome;
         Actions.Visibility = chrome;
         TitleScrim.Visibility = chrome;
-        DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
+        DispatcherQueue.Enqueue(UpdateTitleBarRegions);
     }
 
     /// <summary>Title bar overlay visibility for the player's auto-hiding controls (caption buttons included).</summary>
@@ -259,6 +259,7 @@ public sealed partial class MainWindow : Window
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
         Lifecycle.Log("window closed");
+        SafeDispatch.ShuttingDown = true; // queued UI work must not run against the torn-down window
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(5));
@@ -407,7 +408,7 @@ public sealed partial class MainWindow : Window
             _syncingNav = false;
         }
 
-        DispatcherQueue.TryEnqueue(UpdateTitleBarRegions);
+        DispatcherQueue.Enqueue(UpdateTitleBarRegions);
     }
 
     // ----- Local files: drag and drop, Ctrl+O --------------------------------------------------------------
@@ -519,7 +520,7 @@ public sealed partial class MainWindow : Window
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMilliseconds(220);
         timer.IsRepeating = false;
-        timer.Tick += async (_, _) => await UpdateSuggestionsAsync();
+        timer.Tick += (_, _) => SafeDispatch.Run(() => _ = UpdateSuggestionsAsync());
         return timer;
     }
 

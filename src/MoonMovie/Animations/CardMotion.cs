@@ -137,13 +137,13 @@ public static class CardMotion
             var timer = control.DispatcherQueue.CreateTimer();
             timer.Interval = AmbientDwell;
             timer.IsRepeating = false;
-            timer.Tick += (_, _) =>
+            timer.Tick += (_, _) => SafeDispatch.Run(() =>
             {
                 if (_lifted && GetAmbientUrl(control) is { } url)
                 {
                     WeakReferenceMessenger.Default.Send(new AmbientRequest(url));
                 }
-            };
+            });
             return timer;
         }
     }

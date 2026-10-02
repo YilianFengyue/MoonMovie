@@ -40,7 +40,7 @@ public sealed partial class HomePage : Page
 
         _rotateTimer = DispatcherQueue.CreateTimer();
         _rotateTimer.Interval = RotateInterval;
-        _rotateTimer.Tick += (_, _) => OnRotateTick();
+        _rotateTimer.Tick += (_, _) => SafeDispatch.Run(OnRotateTick);
 
         HeroParallax.RenderTransform = _heroParallax;
 

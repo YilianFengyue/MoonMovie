@@ -445,7 +445,7 @@ public sealed partial class DetailPage : Page
         _panelOpen = true;
         SourceLayer.Visibility = Visibility.Visible;
         AnimatePanel(open: true);
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (SourceRepeater.TryGetElement(0) is Control first) first.Focus(FocusState.Programmatic);
         });

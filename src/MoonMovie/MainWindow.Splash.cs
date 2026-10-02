@@ -28,7 +28,7 @@ public sealed partial class MainWindow
 
         // The window's first frames come a moment after it is created: start (and time) the entrance once the
         // logo is actually on screen, or a quick first page would whisk it away before it was ever seen.
-        SplashLogo.Loaded += (_, _) => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnterSplash(logo));
+        SplashLogo.Loaded += (_, _) => DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnterSplash(logo));
     }
 
     private void EnterSplash(Visual logo)
@@ -49,18 +49,18 @@ public sealed partial class MainWindow
         var ring = DispatcherQueue.CreateTimer();
         ring.Interval = TimeSpan.FromMilliseconds(1200);
         ring.IsRepeating = false;
-        ring.Tick += (_, _) =>
+        ring.Tick += (_, _) => SafeDispatch.Run(() =>
         {
             if (_splashReleased) return;
             SplashRing.IsActive = true;
             Motion.FadeTo(SplashRing, 1, TimeSpan.FromMilliseconds(300));
-        };
+        });
         ring.Start();
 
         var limit = DispatcherQueue.CreateTimer();
         limit.Interval = SplashMaximum;
         limit.IsRepeating = false;
-        limit.Tick += (_, _) => ReleaseSplash();
+        limit.Tick += (_, _) => SafeDispatch.Run(ReleaseSplash);
         limit.Start();
     }
 

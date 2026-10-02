@@ -77,15 +77,35 @@ public static class BiliLoginDialog
                 while (!cts.IsCancellationRequested)
                 {
                     var (url, key) = await client.CreateLoginQrAsync(cts.Token);
+                    BiliAccountService.Log("qr created");
                     qr.Source = await RenderAsync(url);
+                    qr.Opacity = 1;
                     ring.IsActive = false;
                     status.Text = "打开哔哩哔哩 App，扫一扫";
 
                     var expired = false;
+                    var failures = 0;
+                    var last = BiliLoginState.Waiting;
                     while (!expired && !cts.IsCancellationRequested)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
-                        var poll = await client.PollLoginAsync(key, cts.Token);
+                        await Task.Delay(TimeSpan.FromSeconds(1.5), cts.Token);
+                        BiliLoginPoll poll;
+                        try
+                        {
+                            poll = await client.PollLoginAsync(key, cts.Token);
+                            failures = 0;
+                        }
+                        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or BiliException or System.Text.Json.JsonException
+                                                       || (ex is TaskCanceledException && !cts.IsCancellationRequested))
+                        {
+                            // A dropped request or a brief risk-control answer: keep polling, the code stays valid.
+                            BiliAccountService.Log($"poll failed ({failures + 1}): {BiliAccountService.Describe(ex)}");
+                            if (++failures >= 4) throw;
+                            continue;
+                        }
+
+                        if (poll.State != last) BiliAccountService.Log($"poll {poll.State} ({poll.Code} {poll.Message})");
+                        last = poll.State;
                         switch (poll.State)
                         {
                             case BiliLoginState.Scanned:
@@ -94,27 +114,37 @@ public static class BiliLoginDialog
                                 break;
                             case BiliLoginState.Expired:
                                 expired = true;
-                                qr.Opacity = 1;
                                 ring.IsActive = true;
                                 status.Text = "二维码已过期，正在刷新…";
                                 break;
                             case BiliLoginState.Done when poll.Credentials is { } credentials:
-                                status.Text = "登录成功";
-                                await accounts.CompleteLoginAsync(credentials);
-                                signedIn = true;
-                                dialog.Hide();
-                                return;
+                                status.Text = "正在确认账号…";
+                                ring.IsActive = true;
+                                if (await accounts.CompleteLoginAsync(credentials))
+                                {
+                                    signedIn = true;
+                                    dialog.Hide();
+                                    return;
+                                }
+
+                                // B站 confirmed the scan but then did not accept the session: start over with a new code.
+                                status.Text = "B站没有确认这次登录，请重新扫码";
+                                expired = true;
+                                await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+                                break;
                         }
                     }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
             {
             }
-            catch (Exception ex) when (ex is HttpRequestException or BiliException or System.Text.Json.JsonException)
+            catch (Exception ex) when (ex is HttpRequestException or TimeoutException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
             {
+                BiliAccountService.Log($"login failed: {BiliAccountService.Describe(ex)}");
                 ring.IsActive = false;
-                status.Text = "连接 B站失败，请稍后再试";
+                qr.Opacity = 0.25;
+                status.Text = ex is BiliException b ? $"连接 B站失败：{b.Message}" : "连接 B站失败，请检查网络后重新打开";
             }
         };
 

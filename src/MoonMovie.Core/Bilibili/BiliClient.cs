@@ -249,27 +249,59 @@ public sealed partial class BiliClient
         return (Str(d, "url") ?? throw new BiliException(-1, "二维码生成失败"), Str(d, "qrcode_key") ?? "");
     }
 
-    /// <summary>Waiting / scanned / expired, or done with the account's cookies (read from the redirect URL).</summary>
+    /// <summary>
+    /// Waiting / scanned / expired, or done with the account's cookies: from the Set-Cookie headers of the final
+    /// poll, and from the cross-domain URL it returns (whichever carries them).
+    /// </summary>
     public async Task<BiliLoginPoll> PollLoginAsync(string key, CancellationToken ct = default)
     {
-        var d = await GetAsync("https://passport.bilibili.com/x/passport-login/web/qrcode/poll", new() { ["qrcode_key"] = key },
-            signed: false, ct).ConfigureAwait(false);
-        switch (Long(d, "code"))
+        await EnsureIdentityAsync(refresh: false, ct).ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            "https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=" + Uri.EscapeDataString(key));
+        Decorate(request);
+        request.Headers.Add("Cookie", $"buvid3={_state.Buvid3}; buvid4={_state.Buvid4}");
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode) throw new BiliException((int)response.StatusCode, $"HTTP {(int)response.StatusCode}");
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+        var root = doc.RootElement;
+        if (Long(root, "code") is var top and not 0) throw new BiliException((int)top, Str(root, "message") ?? $"错误 {top}");
+        var d = root.GetProperty("data");
+
+        var code = Long(d, "code");
+        switch (code)
         {
-            case 86101: return new BiliLoginPoll(BiliLoginState.Waiting, null);
-            case 86090: return new BiliLoginPoll(BiliLoginState.Scanned, null);
-            case 86038: return new BiliLoginPoll(BiliLoginState.Expired, null);
+            case 86101: return new BiliLoginPoll(BiliLoginState.Waiting, null, code, Str(d, "message"));
+            case 86090: return new BiliLoginPoll(BiliLoginState.Scanned, null, code, Str(d, "message"));
+            case 86038: return new BiliLoginPoll(BiliLoginState.Expired, null, code, Str(d, "message"));
             case 0:
-                var query = new Uri(Str(d, "url") ?? throw new BiliException(-1, "登录结果不完整")).Query.TrimStart('?')
-                    .Split('&', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(p => p.Split('=', 2))
-                    .Where(p => p.Length == 2)
-                    .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
-                if (!query.TryGetValue("SESSDATA", out var sess) || !query.TryGetValue("bili_jct", out var jct)) throw new BiliException(-1, "登录结果不完整");
+                var cookies = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
+                {
+                    foreach (var line in setCookies)
+                    {
+                        var pair = line.Split(';', 2)[0].Split('=', 2);
+                        if (pair.Length == 2 && pair[1].Length > 0) cookies[pair[0].Trim()] = Uri.UnescapeDataString(pair[1].Trim());
+                    }
+                }
+
+                if (Str(d, "url") is { Length: > 0 } url && Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                {
+                    foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Split('=', 2)))
+                    {
+                        if (pair.Length == 2 && pair[1].Length > 0) cookies.TryAdd(pair[0], Uri.UnescapeDataString(pair[1]));
+                    }
+                }
+
+                if (!cookies.TryGetValue("SESSDATA", out var sess) || !cookies.TryGetValue("bili_jct", out var jct))
+                {
+                    throw new BiliException(-1, "B站返回的登录结果缺少 Cookie");
+                }
+
                 return new BiliLoginPoll(BiliLoginState.Done, new BiliCredentials(sess, jct,
-                    query.GetValueOrDefault("DedeUserID", ""), query.GetValueOrDefault("DedeUserID__ckMd5", ""), Str(d, "refresh_token")));
+                    cookies.GetValueOrDefault("DedeUserID", ""), cookies.GetValueOrDefault("DedeUserID__ckMd5", ""), Str(d, "refresh_token")),
+                    code, null);
             default:
-                throw new BiliException((int)Long(d, "code"), Str(d, "message") ?? "登录失败");
+                throw new BiliException((int)code, Str(d, "message") is { Length: > 0 } m ? m : $"登录失败（{code}）");
         }
     }
 

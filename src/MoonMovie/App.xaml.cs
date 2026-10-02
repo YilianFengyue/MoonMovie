@@ -99,6 +99,21 @@ public partial class App : Application
             Timeout = TimeSpan.FromSeconds(20),
         };
 
+        // B站 gets its own client without a cookie jar: the account's cookies are sent explicitly, so a login's
+        // Set-Cookie must not linger (and leak to other sites' requests) after unlinking.
+        var bili = new HttpClient(new SocketsHttpHandler
+        {
+            UseProxy = false,
+            UseCookies = false,
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            MaxConnectionsPerServer = 8,
+            ConnectTimeout = TimeSpan.FromSeconds(5),
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(20),
+        };
+
         var settings = new SettingsStore();
         var tmdbOptions = TmdbOptions.FromEnv(env, settings.Current.Services.TmdbApiKey);
 
@@ -122,7 +137,7 @@ public partial class App : Application
             .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
             .AddSingleton(settings)
             .AddSingleton<SourceMatchCache>()
-            .AddSingleton(_ => new Core.Bilibili.BiliClient(direct))
+            .AddSingleton(_ => new Core.Bilibili.BiliClient(bili))
             .AddSingleton(_ => new Core.Douban.DoubanClient(direct))
             .AddSingleton<BiliAccountService>()
             .AddSingleton<ProfileStore>()

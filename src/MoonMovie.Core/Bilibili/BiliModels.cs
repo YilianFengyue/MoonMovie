@@ -69,7 +69,7 @@ public enum BiliLoginState
     Done,
 }
 
-public sealed record BiliLoginPoll(BiliLoginState State, BiliCredentials? Credentials);
+public sealed record BiliLoginPoll(BiliLoginState State, BiliCredentials? Credentials, long Code = 0, string? Message = null);
 
 public sealed record BiliComment(
     long Id,

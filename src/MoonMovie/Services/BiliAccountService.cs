@@ -48,6 +48,7 @@ public sealed class BiliAccountService(BiliClient client)
             Account = await client.AccountAsync();
             if (Account is null && client.Credentials is not null)
             {
+                Log("account check: B站 says not signed in, forgetting the cookies");
                 client.Credentials = null;
                 Forget();
             }
@@ -55,13 +56,16 @@ public sealed class BiliAccountService(BiliClient client)
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or JsonException)
         {
             // Offline: keep the cookies and try again later.
+            Log($"account check failed: {Describe(ex)}");
         }
 
         Changed?.Invoke();
     }
 
-    public async Task CompleteLoginAsync(BiliCredentials credentials)
+    /// <summary>Keeps the cookies from a confirmed QR login; false when B站 then does not recognise them.</summary>
+    public async Task<bool> CompleteLoginAsync(BiliCredentials credentials)
     {
+        Log($"login confirmed (uid {(credentials.UserId.Length > 0 ? "present" : "missing")}, SESSDATA {credentials.SessData.Length} chars)");
         client.Credentials = credentials;
         try
         {
@@ -69,12 +73,15 @@ public sealed class BiliAccountService(BiliClient client)
             new PasswordVault().Add(new PasswordCredential(Resource, credentials.UserId.Length > 0 ? credentials.UserId : "account",
                 JsonSerializer.Serialize(credentials, BiliAccountJsonContext.Default.BiliCredentials)));
         }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or UnauthorizedAccessException or ArgumentException)
         {
             // Could not persist: the session still works until MoonMovie closes.
+            Log($"credential vault: {Describe(ex)}");
         }
 
         await RefreshAsync();
+        if (Account is { } account) Log($"signed in as mid {account.Mid}, vip {account.IsVip}, Lv{account.Level}");
+        return client.Credentials is not null;
     }
 
     public async Task LogoutAsync()
@@ -84,6 +91,20 @@ public sealed class BiliAccountService(BiliClient client)
         Account = null;
         Changed?.Invoke();
     }
+
+    /// <summary>B站 account diagnostics (never the cookies themselves) in %LOCALAPPDATA%\MoonMovieili.log.</summary>
+    public static void Log(string line)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "bili.log"), $"[{DateTime.Now:MM-dd HH:mm:ss.fff}] {line}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    public static string Describe(Exception ex) => ex is BiliException b ? $"B站 {b.Code}: {b.Message}" : $"{ex.GetType().Name}: {ex.Message}";
 
     private static void Forget()
     {

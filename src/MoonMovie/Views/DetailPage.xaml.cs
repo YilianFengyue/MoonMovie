@@ -202,10 +202,18 @@ public sealed partial class DetailPage : Page
         OfficialBadge.Visibility = Visible(official is not null);
         if (official is null) return;
         var remarks = official.Candidate.Remarks;
-        OfficialText.Text = remarks is "免费" or "大会员" ? $"B站正版 · {remarks}" : "B站正版 · 部分大会员";
+        var vip = App.Services.GetRequiredService<Services.BiliAccountService>().Account?.IsVip == true;
+        OfficialText.Text = remarks switch
+        {
+            "免费" => "B站正版 · 免费",
+            _ when vip => "B站正版 · 大会员可看",
+            "大会员" => "B站正版 · 大会员",
+            _ => "B站正版 · 部分大会员",
+        };
         var tip = remarks switch
         {
             "免费" => "哔哩哔哩正版，全部免费观看",
+            _ when vip => "哔哩哔哩正版，你的大会员可以看全部集数",
             "大会员" => "哔哩哔哩正版，需要大会员",
             _ => $"哔哩哔哩正版，{remarks}；没有大会员时这些集会自动换用其他片源",
         };

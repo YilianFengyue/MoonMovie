@@ -142,6 +142,12 @@ public sealed partial class PlayerPage : Page
         ShowChrome();
         Focus(FocusState.Programmatic);
 #if DEBUG
+        // QA hook: MOONMOVIE_DEBUG_PLAYER_CHROME=1 keeps the controls up (for screenshots).
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAYER_CHROME") == "1")
+        {
+            _ = Task.Delay(6000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => ShowChrome(pin: true)));
+        }
+
         // QA hook: MOONMOVIE_DEBUG_PLAYER_PANEL=comments|danmaku|info opens that after a few seconds.
         if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_PLAYER_PANEL") is { Length: > 0 } debugPanel)
         {
@@ -1016,6 +1022,8 @@ public sealed partial class PlayerPage : Page
             App.MainWindow.SetTitleBarVisible(true);
         }
 
+        // Bottom-pinned danmaku step up above the controls instead of sitting among them.
+        Danmaku.BottomInset = BottomBar.ActualHeight + 32;
         _chromeTimer.Stop();
         if (!pin) _chromeTimer.Start();
     }
@@ -1027,6 +1035,7 @@ public sealed partial class PlayerPage : Page
 
         _chromeVisible = false;
         Chrome.IsHitTestVisible = false;
+        Danmaku.BottomInset = 24;
         Motion.FadeTo(Chrome, 0, TimeSpan.FromMilliseconds(420));
         App.MainWindow.SetTitleBarVisible(false);
         SetCursorHidden(true);

@@ -90,6 +90,14 @@ public sealed partial class DanmakuOverlay : Grid
         }
     }
 
+    /// <summary>
+    /// Space kept free under bottom-pinned comments: lifted above the player's controls while they show. The
+    /// comments glide to it rather than jump.
+    /// </summary>
+    public double BottomInset { get; set; } = 24;
+
+    private double _bottomInsetNow = 24;
+
     /// <summary>Seconds added to every comment's time; positive shows them later.</summary>
     public double Offset
     {
@@ -261,6 +269,7 @@ public sealed partial class DanmakuOverlay : Grid
         var height = ActualHeight;
         var scale = XamlRoot?.RasterizationScale ?? 1.0;
         if (width < 1 || height < 1) return;
+        _bottomInsetNow = Math.Abs(BottomInset - _bottomInsetNow) < 0.5 ? BottomInset : _bottomInsetNow + (BottomInset - _bottomInsetNow) * 0.16;
 
         try
         {
@@ -375,7 +384,7 @@ public sealed partial class DanmakuOverlay : Grid
                 x = (width - item.Width) / 2;
                 y = item.Mode == DanmakuMode.Top
                     ? TopInset + item.Lane * lineHeight
-                    : height - 24 - (item.Lane + 1) * lineHeight;
+                    : height - _bottomInsetNow - (item.Lane + 1) * lineHeight;
             }
 
             ds.DrawImage(item.Bitmap, (float)(x - item.Pad), (float)(y - item.Pad), item.Bitmap.Bounds, (float)look.Opacity);

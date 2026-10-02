@@ -151,6 +151,10 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
+        // Taskbar, Alt+Tab and thumbnails (the packaged app also has its tile assets; unpackaged needs this).
+        var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+        if (File.Exists(icon)) AppWindow.SetIcon(icon);
+
         var titleBar = AppWindow.TitleBar;
         titleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         titleBar.ButtonBackgroundColor = Colors.Transparent;

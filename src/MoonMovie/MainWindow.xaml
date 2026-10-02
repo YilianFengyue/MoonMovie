@@ -98,12 +98,11 @@
                 IsHitTestVisible="False"
                 Orientation="Horizontal"
                 Spacing="10">
-                <Path
-                    Width="18"
-                    Height="18"
+                <Image
+                    Width="24"
+                    Height="24"
                     VerticalAlignment="Center"
-                    Data="M 11,1 A 9,9 0 1 0 20,12.2 A 7.2,7.2 0 1 1 11,1 Z"
-                    Fill="{StaticResource MoonTextPrimaryBrush}"
+                    Source="ms-appx:///Assets/AppLogo.png"
                     Stretch="Uniform" />
                 <TextBlock
                     VerticalAlignment="Center"

@@ -11,7 +11,7 @@
   <Identity
     Name="Ylfmoonn.MoonMovie"
     Publisher="CN=Ylfmoonn"
-    Version="1.0.0.0" />
+    Version="1.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="4e2346e3-072c-42b7-9491-442b383542a3" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

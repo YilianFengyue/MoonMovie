@@ -232,6 +232,10 @@ public sealed class DownloadManager
             await Task.Delay(500).ConfigureAwait(false); // let a cancelled worker let go of its files
             TryDeleteDirectory(PartsFolder(item));
             if (deleteFile && item.OutputPath is { } output) TryDeleteFile(output);
+
+            // Unfinished: the title folder made for it, and the parts root, if nothing else is in them.
+            DeleteIfEmpty(Path.GetDirectoryName(OutputPathFor(item)));
+            DeleteIfEmpty(Path.Combine(Folder, ".moonmovie-parts"));
         });
         Changed?.Invoke(null);
         Pump();
@@ -385,6 +389,7 @@ public sealed class DownloadManager
 
         File.Move(temp, output, overwrite: true);
         TryDeleteDirectory(parts);
+        DeleteIfEmpty(Path.GetDirectoryName(parts));
         return output;
     }
 
@@ -547,6 +552,17 @@ public sealed class DownloadManager
         try
         {
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void DeleteIfEmpty(string? folder)
+    {
+        try
+        {
+            if (folder is not null && Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

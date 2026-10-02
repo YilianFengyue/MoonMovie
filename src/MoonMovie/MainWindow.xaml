@@ -99,13 +99,17 @@
                 Orientation="Horizontal"
                 Spacing="10">
                 <Image
+                    x:Name="WordmarkLogo"
                     Width="24"
                     Height="24"
                     VerticalAlignment="Center"
+                    Opacity="0"
                     Source="ms-appx:///Assets/AppLogo.png"
                     Stretch="Uniform" />
                 <TextBlock
+                    x:Name="WordmarkText"
                     VerticalAlignment="Center"
+                    Opacity="0"
                     CharacterSpacing="20"
                     FontFamily="{StaticResource MoonFontBold}"
                     FontSize="16"
@@ -234,6 +238,32 @@
                         Text="视频文件直接播放，文件夹会加入本地媒体库" />
                 </StackPanel>
             </Border>
+        </Grid>
+        <!--
+            Startup: the logo on the canvas colour while the first page loads, then it flies into the title-bar
+            wordmark as the cover fades. Composition only on the logo image (it hosts nothing); the cover and the
+            ring use storyboards.
+        -->
+        <Grid x:Name="Splash">
+            <Rectangle x:Name="SplashCover" Fill="{StaticResource MoonCanvasBrush}" />
+            <Image
+                x:Name="SplashLogo"
+                Width="132"
+                Height="132"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Source="ms-appx:///Assets/AppLogoLarge.png"
+                Stretch="Uniform" />
+            <ProgressRing
+                x:Name="SplashRing"
+                Width="22"
+                Height="22"
+                Margin="0,236,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="#8CFFFFFF"
+                IsActive="False"
+                Opacity="0" />
         </Grid>
     </Grid>
 </Window>

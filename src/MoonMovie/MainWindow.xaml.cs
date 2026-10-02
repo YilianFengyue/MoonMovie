@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         ConfigureWindow();
+        StartSplash();
 
         AppTitleBar.Loaded += (_, _) => UpdateTitleBarRegions();
         foreach (var item in Nav.Items) item.Tapped += OnNavItemTapped;
@@ -298,6 +299,9 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigated(object sender, NavigationEventArgs e)
     {
+        // The home page releases the splash once its spotlight is up; any other first page shows at once.
+        if (e.SourcePageType != typeof(Views.HomePage)) ReleaseSplash();
+
         NavLog($"navigated {e.SourcePageType.Name} mode={e.NavigationMode}");
         _currentParameter = e.Parameter;
         BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;

@@ -79,6 +79,8 @@ public sealed partial class HomePage : Page
             await ShowSpotlightAsync(0, animate: false);
         }
 
+        App.MainWindow?.ReleaseSplash(); // the first screen is ready (or failed to load: show it anyway)
+
 #if DEBUG
         // Visual QA hook: MOONMOVIE_DEBUG_SCROLL=<offset> opens the page pre-scrolled.
         if (double.TryParse(Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_SCROLL"), out var debugOffset))

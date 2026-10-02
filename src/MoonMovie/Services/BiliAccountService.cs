@@ -44,12 +44,24 @@ public sealed class BiliAccountService(BiliClient client)
         _ = RefreshAsync();
     }
 
-    /// <summary>Re-reads the account; cookies B站 no longer accepts are forgotten.</summary>
-    public async Task RefreshAsync()
+    /// <summary>
+    /// Re-reads the account and renews its cookies when B站 asks (they last about half a year). Cookies B站 no
+    /// longer accepts get one renewal attempt before they are forgotten.
+    /// </summary>
+    public async Task RefreshAsync(bool renew = true)
     {
         try
         {
             Account = await client.AccountAsync();
+            if (Account is null && client.Credentials is not null && renew && await TryRenewAsync(force: true))
+            {
+                Account = await client.AccountAsync();
+            }
+            else if (Account is not null && renew)
+            {
+                await TryRenewAsync(force: false);
+            }
+
             if (Account is null && client.Credentials is not null)
             {
                 Log("account check: B站 says not signed in, forgetting the cookies");
@@ -71,6 +83,32 @@ public sealed class BiliAccountService(BiliClient client)
     {
         Log($"login confirmed (uid {(credentials.UserId.Length > 0 ? "present" : "missing")}, SESSDATA {credentials.SessData.Length} chars)");
         client.Credentials = credentials;
+        Save(credentials);
+        await RefreshAsync(renew: false);
+        if (Account is { } account) Log($"signed in as mid {account.Mid}, vip {account.IsVip}, Lv{account.Level}");
+        return client.Credentials is not null;
+    }
+
+    /// <summary>New cookies for the linked account, kept in place of the old ones.</summary>
+    private async Task<bool> TryRenewAsync(bool force)
+    {
+        try
+        {
+            if (await client.RenewAsync(force) is not { } renewed) return false;
+            Save(renewed);
+            Log(force ? "expired cookies renewed" : "cookies renewed ahead of expiry");
+            return true;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or JsonException
+                                       or System.Security.Cryptography.CryptographicException)
+        {
+            Log($"renew failed: {Describe(ex)}");
+            return false;
+        }
+    }
+
+    private void Save(BiliCredentials credentials)
+    {
         try
         {
             Forget();
@@ -82,10 +120,6 @@ public sealed class BiliAccountService(BiliClient client)
             // Could not persist: the session still works until MoonMovie closes.
             Log($"credential vault: {Describe(ex)}");
         }
-
-        await RefreshAsync();
-        if (Account is { } account) Log($"signed in as mid {account.Mid}, vip {account.IsVip}, Lv{account.Level}");
-        return client.Credentials is not null;
     }
 
     public async Task LogoutAsync()
@@ -96,7 +130,7 @@ public sealed class BiliAccountService(BiliClient client)
         Changed?.Invoke();
     }
 
-    /// <summary>B站 account diagnostics (never the cookies themselves) in %LOCALAPPDATA%\MoonMovieili.log.</summary>
+    /// <summary>B站 account diagnostics (never the cookies themselves) in %LOCALAPPDATA%\MoonMovie\bili.log.</summary>
     public static void Log(string line)
     {
         try

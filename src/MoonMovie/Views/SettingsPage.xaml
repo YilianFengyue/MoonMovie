@@ -136,6 +136,18 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="弹幕密度" />
+                                <TextBlock Style="{StaticResource RowCaptionStyle}" Text="智能：按显示区域控制每秒数量，密集时优先保留大家都在刷的和读得通的，过滤打卡、日期、纯数字" />
+                            </StackPanel>
+                            <StackPanel x:Name="DensityChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
                                 <TextBlock Style="{StaticResource RowTitleStyle}" Text="显示内容" />
                                 <TextBlock Style="{StaticResource RowCaptionStyle}" Text="顶部、底部固定弹幕；把几秒内重复刷屏的同一句合并成一条" />
                             </StackPanel>

@@ -16,7 +16,8 @@ public enum DanmakuMode
     Top = 5,
 }
 
-public readonly record struct DanmakuComment(double Time, DanmakuMode Mode, uint Color, string Text);
+/// <param name="Weight">Likes or repeat count the server reported for this line (0 when unknown).</param>
+public readonly record struct DanmakuComment(double Time, DanmakuMode Mode, uint Color, string Text, int Weight = 0);
 
 public sealed record DanmakuAnime(long AnimeId, string Title, string? TypeDescription, int EpisodeCount, string? StartDate, string? Source);
 

@@ -131,6 +131,7 @@ public sealed partial class PlayerPage : Page
         _player.MediaEnded += (_, _) => DispatcherQueue.TryEnqueue(OnMediaEnded);
         _player.PlaybackSession.PlaybackStateChanged += (_, _) => DispatcherQueue.TryEnqueue(UpdatePlaybackState);
         Video.SetMediaPlayer(_player);
+        InitSystemMedia();
         VolumeBar.Value = _volume * 100;
 
         BuildEpisodeList();
@@ -151,6 +152,7 @@ public sealed partial class PlayerPage : Page
         _request.Sources.Chosen -= OnSourceChosen;
         SetCursorHidden(false);
         StopDanmaku();
+        KeepAwake(false);
 
         if (_player is not null)
         {
@@ -222,7 +224,9 @@ public sealed partial class PlayerPage : Page
 
             if (version != _openVersion) return;
             _awaitingFirstFrame = true;
-            _player.Source = new MediaPlaybackItem(source);
+            var playbackItem = new MediaPlaybackItem(source);
+            ApplyDisplayProperties(playbackItem);
+            _player.Source = playbackItem;
             _player.PlaybackSession.PlaybackRate = CurrentSpeed;
         }
         catch (Exception ex)
@@ -238,6 +242,7 @@ public sealed partial class PlayerPage : Page
         _duration = _player.PlaybackSession.NaturalDuration;
         _stallSince = DateTimeOffset.MaxValue;
         _failedSources.Clear();
+        LogVideoTracks("opened");
         LoadingText.Text = "正在缓冲…";
 
         if (_pendingSeek > TimeSpan.Zero && (_duration == TimeSpan.Zero || _pendingSeek < _duration - TimeSpan.FromSeconds(30)))
@@ -414,10 +419,49 @@ public sealed partial class PlayerPage : Page
 
         UpdateNextCard(position);
         SyncDanmaku(position);
+#if DEBUG
+        if (DateTimeOffset.Now - _lastDiag > TimeSpan.FromSeconds(5))
+        {
+            _lastDiag = DateTimeOffset.Now;
+            PlayerLog($"tick pos={(int)position.TotalSeconds}s state={session.PlaybackState} video={session.NaturalVideoWidth}x{session.NaturalVideoHeight} " +
+                      $"cover={LoadingCover.Visibility}/{LoadingCover.Opacity:0.00} awaiting={_awaitingFirstFrame} " +
+                      $"backdrop={LoadingBackdrop.Opacity:0.00} videoEl={Video.ActualWidth:0}x{Video.ActualHeight:0}");
+        }
+#endif
 
         if (session.PlaybackState == MediaPlaybackState.Playing && DateTimeOffset.Now - _lastSave > TimeSpan.FromSeconds(5))
         {
             SaveProgress(flush: false);
+        }
+    }
+
+#if DEBUG
+    private DateTimeOffset _lastDiag;
+#endif
+
+    /// <summary>Codec and picture size of what just opened — the first thing to check on "sound but no picture".</summary>
+    private void LogVideoTracks(string when)
+    {
+        if (_player?.Source is not MediaPlaybackItem item) return;
+        var tracks = string.Join(", ", item.VideoTracks.Select(t =>
+        {
+            var p = t.GetEncodingProperties();
+            return $"{p.Subtype} {p.Width}x{p.Height}";
+        }));
+        var session = _player.PlaybackSession;
+        PlayerLog($"{when} source={_source.SiteName} ep={_episodeIndex + 1} tracks=[{tracks}] audio={item.AudioTracks.Count} " +
+                  $"natural={session.NaturalVideoWidth}x{session.NaturalVideoHeight}");
+    }
+
+    private static void PlayerLog(string line)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "player.log"),
+                $"[{DateTimeOffset.Now:HH:mm:ss}] {line}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
         }
     }
 
@@ -478,6 +522,7 @@ public sealed partial class PlayerPage : Page
         if (_player is null) return;
         var state = _player.PlaybackSession.PlaybackState;
         PlayPauseGlyph.Glyph = state == MediaPlaybackState.Playing ? "" : "";
+        KeepAwake(state is MediaPlaybackState.Playing or MediaPlaybackState.Buffering or MediaPlaybackState.Opening);
         SyncDanmaku();
 
         if (state == MediaPlaybackState.Playing && _awaitingFirstFrame)

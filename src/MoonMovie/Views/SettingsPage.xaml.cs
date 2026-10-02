@@ -20,6 +20,7 @@ public sealed partial class SettingsPage : Page
     private readonly SettingsStore _settings = App.Services.GetRequiredService<SettingsStore>();
     private readonly DanmakuClient _danmaku = App.Services.GetRequiredService<DanmakuClient>();
     private readonly List<(Button Chip, double Value)> _areaChips = [];
+    private readonly List<(Button Chip, DanmakuDensity Value)> _densityChips = [];
     private readonly Button _autoNextChip;
     private readonly Button _danmakuOnChip;
     private readonly Button _topChip;
@@ -47,6 +48,13 @@ public sealed partial class SettingsPage : Page
             var chip = Chips.Create(label, () => { Danmaku.Area = value; Changed(); });
             _areaChips.Add((chip, value));
             AreaChips.Children.Add(chip);
+        }
+
+        foreach (var (label, value) in PlayerPage.DensityLevels)
+        {
+            var chip = Chips.Create(label, () => { Danmaku.Density = value; Changed(); });
+            _densityChips.Add((chip, value));
+            DensityChips.Children.Add(chip);
         }
 
         _topChip = Chips.Create("顶部", () => { Danmaku.ShowTop = !Danmaku.ShowTop; Changed(); });
@@ -89,6 +97,7 @@ public sealed partial class SettingsPage : Page
         Chips.Set(_danmakuOnChip, Danmaku.Enabled);
         Chips.SetLabel(_danmakuOnChip, Danmaku.Enabled ? "已开启" : "已关闭");
         foreach (var (chip, value) in _areaChips) Chips.Set(chip, Math.Abs(Danmaku.Area - value) < 0.01);
+        foreach (var (chip, value) in _densityChips) Chips.Set(chip, Danmaku.Density == value);
         Chips.Set(_topChip, Danmaku.ShowTop);
         Chips.Set(_bottomChip, Danmaku.ShowBottom);
         Chips.Set(_mergeChip, Danmaku.MergeDuplicates);

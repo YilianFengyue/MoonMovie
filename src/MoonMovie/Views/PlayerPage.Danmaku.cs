@@ -16,11 +16,18 @@ namespace MoonMovie.Views;
 /// <summary>Player: bullet comments — loading per episode, the 弹幕 panel, and keeping the overlay on the clock.</summary>
 public sealed partial class PlayerPage
 {
+    internal static readonly (string Label, DanmakuDensity Value)[] DensityLevels =
+    [
+        ("智能", DanmakuDensity.Smart), ("稀疏", DanmakuDensity.Low), ("适中", DanmakuDensity.Medium),
+        ("密集", DanmakuDensity.High), ("全部", DanmakuDensity.All),
+    ];
+
     private static readonly (string Label, double Value)[] Areas = [("1/4", 0.25), ("半屏", 0.5), ("3/4", 0.75), ("满屏", 1.0)];
 
     private readonly DanmakuLibrary _danmaku = App.Services.GetRequiredService<DanmakuLibrary>();
     private readonly SettingsStore _settings = App.Services.GetRequiredService<SettingsStore>();
     private readonly List<(Button Chip, double Value)> _areaChips = [];
+    private readonly List<(Button Chip, DanmakuDensity Value)> _densityChips = [];
     private Button _topChip = null!;
     private Button _bottomChip = null!;
     private Button _mergeChip = null!;
@@ -42,9 +49,22 @@ public sealed partial class PlayerPage
             {
                 DanmakuPrefs.Area = value;
                 OnDanmakuPrefsChanged();
+                if (DanmakuPrefs.Density == DanmakuDensity.Smart) RefilterDanmaku();
             });
             _areaChips.Add((chip, value));
             AreaChips.Children.Add(chip);
+        }
+
+        foreach (var (label, value) in DensityLevels)
+        {
+            var chip = Chips.Create(label, () =>
+            {
+                DanmakuPrefs.Density = value;
+                OnDanmakuPrefsChanged();
+                RefilterDanmaku();
+            });
+            _densityChips.Add((chip, value));
+            DensityChips.Children.Add(chip);
         }
 
         _topChip = Chips.Create("顶部", () => { DanmakuPrefs.ShowTop = !DanmakuPrefs.ShowTop; OnDanmakuPrefsChanged(); });
@@ -232,6 +252,7 @@ public sealed partial class PlayerPage
         FontValue.Text = $"{Math.Round(p.FontScale * 100)}%";
         SpeedValue.Text = $"{p.Speed:0.0#}x";
         foreach (var (chip, value) in _areaChips) Chips.Set(chip, Math.Abs(p.Area - value) < 0.01);
+        foreach (var (chip, value) in _densityChips) Chips.Set(chip, p.Density == value);
         Chips.Set(_topChip, p.ShowTop);
         Chips.Set(_bottomChip, p.ShowBottom);
         Chips.Set(_mergeChip, p.MergeDuplicates);

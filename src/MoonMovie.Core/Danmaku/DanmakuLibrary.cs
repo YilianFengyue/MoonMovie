@@ -64,9 +64,18 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
         foreach (var original in raw)
         {
             // Platform emoticon codes ("[喜欢]", "[6周年]") have no meaning outside their own player.
-            var text = Emoticon.Replace(original.Text, string.Empty).Trim();
+            var text = Emoticon.Replace(Invisible.Replace(original.Text, string.Empty), string.Empty).Trim();
+
+            // The server appends likes ("♡14") and merged repeats ("x3"): keep them as weight, not as text.
+            var weight = original.Weight;
+            for (var m = Annotation.Match(text); m.Success; m = Annotation.Match(text))
+            {
+                weight += int.TryParse(m.Groups[1].Value, out var n) ? n : 0;
+                text = text[..m.Index].TrimEnd();
+            }
+
             if (text.Length == 0) continue;
-            var c = text.Length == original.Text.Length ? original : original with { Text = text };
+            var c = text == original.Text && weight == original.Weight ? original : original with { Text = text, Weight = weight };
 
             if (blockers.Any(b => b(c.Text))) continue;
             if (lastSeen is not null)
@@ -76,11 +85,68 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
                 lastSeen[key] = c.Time;
             }
 
+            if (s.Density == DanmakuDensity.Smart && IsLowValue(c.Text)) continue;
             result.Add(c);
+        }
+
+        return Thin(result, s);
+    }
+
+    /// <summary>
+    /// Caps comments per second of video. When a second is over the cap, the ones kept are the most "worth
+    /// reading": readable length, and phrases many viewers typed (the crowd reacting) over one-off noise.
+    /// </summary>
+    private static IReadOnlyList<DanmakuComment> Thin(List<DanmakuComment> comments, DanmakuSettings s)
+    {
+        var cap = s.Density switch
+        {
+            DanmakuDensity.Low => 3,
+            DanmakuDensity.Medium => 6,
+            DanmakuDensity.High => 12,
+            DanmakuDensity.All => int.MaxValue,
+            // Smart: roughly what the chosen display area can show without lanes overflowing.
+            _ => (int)Math.Round(4 + 8 * Math.Clamp(s.Area, 0.25, 1)),
+        };
+        if (cap == int.MaxValue) return comments;
+
+        var popularity = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var c in comments)
+        {
+            var key = Normalize(c.Text);
+            popularity[key] = popularity.GetValueOrDefault(key) + 1;
+        }
+
+        double Score(DanmakuComment c)
+        {
+            var length = c.Text.Length;
+            var readable = length is >= 4 and <= 24 ? 2.0 : length is >= 2 and <= 36 ? 1.0 : 0.0;
+            var crowd = Math.Log2(popularity.GetValueOrDefault(Normalize(c.Text), 1));
+            var liked = Math.Log2(1 + c.Weight) * 0.8;
+            var pinned = c.Mode == DanmakuMode.Scroll ? 0 : 0.5; // pinned comments are rarer and usually deliberate
+            return readable + crowd + liked + pinned;
+        }
+
+        var result = new List<DanmakuComment>(comments.Count);
+        foreach (var second in comments.GroupBy(c => (long)Math.Floor(c.Time)))
+        {
+            if (second.Count() <= cap)
+            {
+                result.AddRange(second);
+                continue;
+            }
+
+            result.AddRange(second.OrderByDescending(Score).Take(cap).OrderBy(c => c.Time));
         }
 
         return result;
     }
+
+    private static readonly Regex LowValue = new(
+        @"^(\d+|([A-Za-z0-9])\2{2,}|[\p{P}\p{S}\s]+|\d{4}[.\-/年]\d{1,2}([.\-/月]\d{1,2}日?)?.{0,6}|\d{1,2}:\d{2}(:\d{2})?|.{0,4}(打卡|签到|前排|报道|报到|留念|到此一游|[一二三四五六七八九十\d]+刷).{0,4}|(第一|沙发|来了+|来啦|我来了|空降))$",
+        RegexOptions.Compiled);
+
+    /// <summary>Check-ins, bare dates and timestamps, lone digits or symbols: noise in a dense second.</summary>
+    private static bool IsLowValue(string text) => text.Length <= 1 || LowValue.IsMatch(text);
 
     private async Task<DanmakuTrack> LoadTrackAsync(DanmakuMatch match, CancellationToken ct)
     {
@@ -172,6 +238,11 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
 
         return list;
     }
+
+    // Zero-width spaces/joiners and emoji variation selectors: invisible, but they defeat every text rule.
+    private static readonly Regex Invisible = new(@"[​-‏⁠︎️]", RegexOptions.Compiled);
+
+    private static readonly Regex Annotation = new(@"\s*(?:[♡❤♥]\s*|[x×X]\s?)(\d{1,6})$", RegexOptions.Compiled);
 
     private static readonly Regex Emoticon = new(@"\[[^\[\]\s]{1,8}\]", RegexOptions.Compiled);
 

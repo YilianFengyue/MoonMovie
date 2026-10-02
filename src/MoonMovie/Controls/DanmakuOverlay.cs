@@ -2,21 +2,31 @@ using System.Diagnostics;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
-using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.Graphics.Canvas.UI.Composition;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
+using Microsoft.UI.Xaml.Media;
 using MoonMovie.Core.Danmaku;
 using MoonMovie.Core.Settings;
+using Microsoft.Graphics.DirectX;
 using Windows.UI;
 using Colors = Microsoft.UI.Colors;
 
 namespace MoonMovie.Controls;
 
 /// <summary>
-/// Bullet-comment layer drawn with Win2D on its own render loop, slaved to the media clock: positions are a pure
-/// function of media time, so pausing freezes the comments, seeking re-flows them and playback speed carries over.
-/// Each comment is rasterised once (outlined text) and then only blitted, which keeps dense moments cheap.
+/// Bullet-comment layer slaved to the media clock: positions are a pure function of media time, so pausing freezes
+/// the comments, seeking re-flows them and playback speed carries over. Each comment is rasterised once (outlined
+/// text) and then only blitted, which keeps dense moments cheap.
 /// </summary>
+/// <remarks>
+/// Drawn with Win2D into a composition drawing surface (premultiplied alpha, composed by the system with the rest
+/// of the window) rather than a CanvasAnimatedControl: that control is its own swap chain stacked over the video's,
+/// and until it has presented a frame (or after it is recreated) it shows as an opaque black sheet — picture gone,
+/// sound still playing.
+/// </remarks>
 public sealed partial class DanmakuOverlay : Grid
 {
     // A system face: Win2D resolves ms-appx font URIs through package APIs, which an unpackaged app does not have.
@@ -30,7 +40,7 @@ public sealed partial class DanmakuOverlay : Grid
 
     private readonly object _gate = new();
 
-    // ---- Written on the UI thread, read on the render thread (under _gate) ----
+    // ---- Shared state (kept behind a lock so the clock can be fed from anywhere) ----
     private IReadOnlyList<DanmakuComment> _comments = [];
     private int _commentsVersion;
     private double _clockPosition;
@@ -41,7 +51,7 @@ public sealed partial class DanmakuOverlay : Grid
     private Look _look = Look.From(new DanmakuSettings());
     private int _lookVersion;
 
-    // ---- Render thread only ----
+    // ---- Renderer state ----
     private readonly List<Item> _active = [];
     private Item?[] _scrollLanes = [];
     private Item?[] _topLanes = [];
@@ -54,15 +64,21 @@ public sealed partial class DanmakuOverlay : Grid
     private int _next;
     private double _lastNow = double.NaN;
 
-    private CanvasAnimatedControl? _canvas;
+    // ---- Composition ----
+    private CanvasDevice? _device;
+    private CompositionGraphicsDevice? _graphics;
+    private CompositionDrawingSurface? _surface;
+    private SpriteVisual? _sprite;
+    private bool _rendering;
     private bool _on = true;
-    private volatile bool _faulted;
+    private bool _faulted;
 
     public DanmakuOverlay()
     {
         IsHitTestVisible = false;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        SizeChanged += (_, _) => Kick();
     }
 
     /// <summary>How many comments are loaded (after filtering).</summary>
@@ -94,8 +110,7 @@ public sealed partial class DanmakuOverlay : Grid
         set
         {
             _on = value;
-            if (_canvas is not null) _canvas.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
-            UpdatePaused();
+            Kick();
         }
     }
 
@@ -142,83 +157,150 @@ public sealed partial class DanmakuOverlay : Grid
             _clockRate = rate;
         }
 
-        UpdatePaused();
-        if (!playing) Kick();
+        Kick();
     }
 
     // ----- Lifecycle ------------------------------------------------------------------------------------
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_canvas is not null) return;
-        _canvas = new CanvasAnimatedControl
+        if (_sprite is not null) return;
+#if DEBUG
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_NOCANVAS") == "1") return;
+#endif
+        try
         {
-            ClearColor = Colors.Transparent,
-            IsFixedTimeStep = false,
-            IsHitTestVisible = false,
-            Visibility = _on ? Visibility.Visible : Visibility.Collapsed,
-        };
-        _canvas.Draw += OnDraw;
-        _canvas.CreateResources += (_, _) => ResetRenderState();
-        Children.Add(_canvas);
-        UpdatePaused();
+            var compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+            _device = CanvasDevice.GetSharedDevice();
+            _device.DeviceLost += OnDeviceLost;
+            _graphics = CanvasComposition.CreateCompositionGraphicsDevice(compositor, _device);
+            _surface = _graphics.CreateDrawingSurface(new Windows.Foundation.Size(1, 1),
+                DirectXPixelFormat.B8G8R8A8UIntNormalized, DirectXAlphaMode.Premultiplied);
+            _sprite = compositor.CreateSpriteVisual();
+            _sprite.Brush = compositor.CreateSurfaceBrush(_surface);
+            _sprite.RelativeSizeAdjustment = System.Numerics.Vector2.One;
+            ElementCompositionPreview.SetElementChildVisual(this, _sprite);
+        }
+        catch (Exception ex)
+        {
+            Fault(ex);
+            return;
+        }
+
+        Kick();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        if (_canvas is null) return;
-        _canvas.Draw -= OnDraw;
-        _canvas.RemoveFromVisualTree(); // Win2D: stops the render loop and releases the device
-        Children.Clear();
-        _canvas = null;
+        StopRendering();
+        ElementCompositionPreview.SetElementChildVisual(this, null);
+        foreach (var item in _active) item.Bitmap.Dispose();
+        _active.Clear();
+        _surface?.Dispose();
+        _graphics?.Dispose();
+        if (_device is not null) _device.DeviceLost -= OnDeviceLost;
+        _sprite = null;
+        _surface = null;
+        _graphics = null;
+        _device = null;
     }
 
-    private void UpdatePaused()
+    /// <summary>GPU reset (driver update, sleep, adapter change): continue on a fresh device.</summary>
+    private void OnDeviceLost(CanvasDevice sender, object args) => DispatcherQueue.TryEnqueue(() =>
     {
-        if (_canvas is null) return;
-        bool playing;
-        lock (_gate) playing = _clockPlaying && _comments.Count > 0;
-        _canvas.Paused = !(_on && playing);
-    }
+        if (_graphics is null) return;
+        sender.DeviceLost -= OnDeviceLost;
+        _device = CanvasDevice.GetSharedDevice();
+        _device.DeviceLost += OnDeviceLost;
+        CanvasComposition.SetCanvasDevice(_graphics, _device);
+        ResetRenderState();
+        Kick();
+    });
 
-    /// <summary>One redraw while the loop is paused (seek or setting change during pause).</summary>
+    /// <summary>
+    /// Animate every frame only while there is something moving; otherwise draw a single frame (a seek or a
+    /// setting change while paused, or clearing the layer) and go idle.
+    /// </summary>
     private void Kick()
     {
-        UpdatePaused();
-        _canvas?.Invalidate();
+        bool animate;
+        lock (_gate) animate = _on && _clockPlaying && _comments.Count > 0;
+
+        if (animate && !_faulted)
+        {
+            if (!_rendering)
+            {
+                _rendering = true;
+                CompositionTarget.Rendering += OnRendering;
+            }
+        }
+        else
+        {
+            StopRendering();
+            RenderFrame();
+        }
     }
 
-    // ----- Render thread ----------------------------------------------------------------------------------
+    private void StopRendering()
+    {
+        if (!_rendering) return;
+        _rendering = false;
+        CompositionTarget.Rendering -= OnRendering;
+    }
+
+    private void OnRendering(object? sender, object e) => RenderFrame();
 
     private double Predict(long now) =>
         _clockPosition + (_clockPlaying ? (now - _clockStamp) / (double)Stopwatch.Frequency * _clockRate : 0);
 
-    /// <summary>
-    /// Win2D re-throws render-thread exceptions on the UI thread, where they would take the whole app down;
-    /// comments are not worth that, so a failure switches the layer off and is logged instead.
-    /// </summary>
-    private void OnDraw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
+    private void RenderFrame()
     {
-        if (_faulted) return;
+        if (_surface is null || _faulted) return;
+
+        var width = ActualWidth;
+        var height = ActualHeight;
+        var scale = XamlRoot?.RasterizationScale ?? 1.0;
+        if (width < 1 || height < 1) return;
+
         try
         {
-            Draw(sender, args);
+            var pixels = new Windows.Graphics.SizeInt32((int)Math.Ceiling(width * scale), (int)Math.Ceiling(height * scale));
+            if (_surface.SizeInt32.Width != pixels.Width || _surface.SizeInt32.Height != pixels.Height)
+            {
+                CanvasComposition.Resize(_surface, new Windows.Foundation.Size(pixels.Width, pixels.Height));
+            }
+
+            using var ds = CanvasComposition.CreateDrawingSession(_surface,
+                new Windows.Foundation.Rect(0, 0, pixels.Width, pixels.Height), (float)(96 * scale));
+            ds.Clear(Colors.Transparent);
+            if (_on) Draw(ds, width, height);
+        }
+        catch (Exception ex) when (_device?.IsDeviceLost(ex.HResult) == true)
+        {
+            _device.RaiseDeviceLost();
         }
         catch (Exception ex)
         {
-            _faulted = true;
-            try
-            {
-                File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "danmaku.log"),
-                    $"[{DateTimeOffset.Now:O}] {ex}{Environment.NewLine}");
-            }
-            catch (IOException)
-            {
-            }
+            Fault(ex);
         }
     }
 
-    private void Draw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
+    /// <summary>Comments are not worth taking the player down: a failure switches the layer off and is logged.</summary>
+    private void Fault(Exception ex)
+    {
+        _faulted = true;
+        StopRendering();
+        try
+        {
+            File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "danmaku.log"),
+                $"[{DateTimeOffset.Now:O}] {ex}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    private void Draw(CanvasDrawingSession ds, double width, double height)
     {
         IReadOnlyList<DanmakuComment> comments;
         int commentsVersion, lookVersion;
@@ -233,9 +315,6 @@ public sealed partial class DanmakuOverlay : Grid
             now = Predict(Stopwatch.GetTimestamp()) - _offset;
         }
 
-        var ds = args.DrawingSession;
-        var width = sender.Size.Width;
-        var height = sender.Size.Height;
         if (width < 50 || height < 50) return;
 
         var fontSize = Math.Round(25 * look.FontScale * Math.Clamp(height / 900, 0.72, 1.45));
@@ -439,6 +518,9 @@ public sealed partial class DanmakuOverlay : Grid
         _formatSize = 0;
         _seenComments = -1;
         _active.Clear();
+        Array.Clear(_scrollLanes);
+        Array.Clear(_topLanes);
+        Array.Clear(_bottomLanes);
     }
 
     private void Retire(int index)

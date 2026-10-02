@@ -24,6 +24,9 @@ public sealed class DanmakuSettings
 
     public bool ShowBottom { get; set; } = true;
 
+    /// <summary>How many comments per second of video get through.</summary>
+    public DanmakuDensity Density { get; set; } = DanmakuDensity.Smart;
+
     /// <summary>Drop comments that repeat the same text within a few seconds ("哈哈哈" floods).</summary>
     public bool MergeDuplicates { get; set; } = true;
 
@@ -35,6 +38,16 @@ public sealed class DanmakuSettings
 
     /// <summary>Overrides LOGVAR_TOKEN from .env when set.</summary>
     public string? Token { get; set; }
+}
+
+public enum DanmakuDensity
+{
+    /// <summary>Caps by display area and drops check-in / timestamp noise in dense moments.</summary>
+    Smart,
+    Low,
+    Medium,
+    High,
+    All,
 }
 
 public sealed class PlaybackSettings
@@ -93,6 +106,6 @@ public sealed class SettingsStore
     }
 }
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(WriteIndented = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(AppSettings))]
 internal sealed partial class SettingsJsonContext : JsonSerializerContext;

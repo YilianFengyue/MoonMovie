@@ -231,9 +231,11 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid Padding="{TemplateBinding Padding}" Background="Transparent" CornerRadius="{TemplateBinding CornerRadius}">
+                    <!-- Padding goes on the content, not the root: the hover wash must cover the whole button. -->
+                    <Grid Background="Transparent" CornerRadius="{TemplateBinding CornerRadius}">
                         <Border x:Name="Wash" Background="#FFFFFF" Opacity="0" />
                         <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             AutomationProperties.AccessibilityView="Raw"

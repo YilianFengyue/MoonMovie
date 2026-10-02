@@ -9,7 +9,7 @@ public sealed class DanmakuSettings
     public bool Enabled { get; set; } = true;
 
     /// <summary>0.2 – 1.</summary>
-    public double Opacity { get; set; } = 0.9;
+    public double Opacity { get; set; } = 0.85;
 
     /// <summary>Text size multiplier, 0.6 – 1.6.</summary>
     public double FontScale { get; set; } = 1.0;

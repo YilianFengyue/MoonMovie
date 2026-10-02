@@ -94,6 +94,12 @@ public sealed class MpvEngine : IPlaybackEngine
 
     public double BufferedAhead => _player.GetDouble("demuxer-cache-duration") ?? 0;
 
+    /// <summary>How full the cache is before playback resumes (0–100), while buffering.</summary>
+    public long? BufferingPercent => _player.GetInt64("cache-buffering-state");
+
+    /// <summary>Network read speed into the cache, bytes per second.</summary>
+    public long? CacheSpeed => _player.GetInt64("cache-speed");
+
     public double Rate
     {
         get => _player.GetDouble("speed") ?? 1;

@@ -24,7 +24,7 @@
                 x:Name="Preview"
                 Canvas.Top="-30"
                 Padding="8,3,8,4"
-                Background="#E6141519"
+                Background="{StaticResource MoonChromeAcrylicBrush}"
                 BorderBrush="#26FFFFFF"
                 BorderThickness="1"
                 CornerRadius="6"
@@ -44,6 +44,23 @@
             </Grid.RenderTransform>
             <Border Background="#33FFFFFF" />
             <Border x:Name="BufferedFill" HorizontalAlignment="Left" Background="#59FFFFFF" />
+            <!-- Buffering: a soft light sweeping along, the rhythm of Windows' indeterminate progress. -->
+            <Border
+                x:Name="Sweep"
+                Width="160"
+                HorizontalAlignment="Left"
+                Opacity="0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#00FFFFFF" />
+                        <GradientStop Offset="0.5" Color="#A6FFFFFF" />
+                        <GradientStop Offset="1" Color="#00FFFFFF" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="SweepOffset" X="-160" />
+                </Border.RenderTransform>
+            </Border>
             <Border x:Name="HoverFill" HorizontalAlignment="Left" Background="#33FFFFFF" Opacity="0" />
             <Border x:Name="PlayedFill" HorizontalAlignment="Left" Background="White" />
             <!-- Chapter / intro / outro marks: small gaps cut into the track. -->
@@ -58,9 +75,14 @@
             VerticalAlignment="Center"
             Fill="White"
             IsHitTestVisible="False"
-            Opacity="0">
+            Opacity="0"
+            Stroke="#40000000"
+            StrokeThickness="1">
             <Ellipse.RenderTransform>
-                <TranslateTransform x:Name="ThumbOffset" />
+                <TransformGroup>
+                    <ScaleTransform x:Name="ThumbScale" CenterX="7" CenterY="7" ScaleX="0.4" ScaleY="0.4" />
+                    <TranslateTransform x:Name="ThumbOffset" />
+                </TransformGroup>
             </Ellipse.RenderTransform>
         </Ellipse>
     </Grid>

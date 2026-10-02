@@ -345,7 +345,8 @@ public sealed partial class PlayerPage : Page
         }
 
         HideLoading();
-        BufferRing.Visibility = Visibility.Collapsed;
+        _bufferingSince = null;
+        UpdateBuffering(EngineState.Idle);
         var lead = _request.Sources.Items.All(i => i.IsLocal) ? "这个文件无法播放。" : "所有可用片源都无法播放这一集。";
         ErrorText.Text = $"{lead}{(string.IsNullOrWhiteSpace(reason) ? string.Empty : "\n" + reason)}";
         ErrorPanel.Visibility = Visibility.Visible;
@@ -485,6 +486,8 @@ public sealed partial class PlayerPage : Page
 
         var buffered = _duration > TimeSpan.Zero ? (position.TotalSeconds + _engine.BufferedAhead) / _duration.TotalSeconds : 0;
         SeekBar.Update(position, _duration, buffered);
+        UpdateMiniProgress(position, buffered);
+        UpdateBuffering(state);
         if (!SeekBar.IsDragging) UpdateTimeText(position);
 
         // A source that stops delivering data is as bad as one that fails outright.
@@ -631,9 +634,7 @@ public sealed partial class PlayerPage : Page
             HideLoading();
         }
 
-        BufferRing.Visibility = !_awaitingFirstFrame && state is EngineState.Buffering
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        UpdateBuffering(state);
 
         if (state == EngineState.Paused && !_awaitingFirstFrame)
         {
@@ -1028,6 +1029,7 @@ public sealed partial class PlayerPage : Page
             _chromeVisible = true;
             Chrome.IsHitTestVisible = true;
             Motion.FadeTo(Chrome, 1, TimeSpan.FromMilliseconds(160));
+            Motion.FadeTo(MiniProgress, 0, TimeSpan.FromMilliseconds(160));
             App.MainWindow.SetTitleBarVisible(true);
         }
 
@@ -1046,6 +1048,7 @@ public sealed partial class PlayerPage : Page
         Chrome.IsHitTestVisible = false;
         Danmaku.BottomInset = 24;
         Motion.FadeTo(Chrome, 0, TimeSpan.FromMilliseconds(420));
+        Motion.FadeTo(MiniProgress, 1, TimeSpan.FromMilliseconds(420));
         App.MainWindow.SetTitleBarVisible(false);
         SetCursorHidden(true);
     }
@@ -1068,26 +1071,89 @@ public sealed partial class PlayerPage : Page
     [DllImport("user32.dll")]
     private static extern int ShowCursor(bool show);
 
-    /// <summary>Big glyph that pops and fades in the centre (pure visual element: composition is safe here).</summary>
+    /// <summary>
+    /// The play / pause glyph: springs in with a slight overshoot, holds a beat, then drifts larger as it fades
+    /// (pure visual element: composition is safe here).
+    /// </summary>
     private void FlashCenter(string glyph)
     {
         CenterGlyph.Glyph = glyph;
         var visual = ElementCompositionPreview.GetElementVisual(CenterGlyphHost);
         visual.CenterPoint = new Vector3(48, 48, 0);
         var compositor = visual.Compositor;
+        var settle = compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f));
+        var leave = compositor.CreateCubicBezierEasingFunction(new Vector2(0.55f, 0f), new Vector2(0.9f, 0.6f));
 
         var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(0f, 0.95f);
-        fade.InsertKeyFrame(1f, 0f, compositor.CreateCubicBezierEasingFunction(new Vector2(0.4f, 0f), new Vector2(0.6f, 1f)));
-        fade.Duration = TimeSpan.FromMilliseconds(560);
+        fade.InsertKeyFrame(0f, 0f);
+        fade.InsertKeyFrame(0.14f, 1f, settle);
+        fade.InsertKeyFrame(0.55f, 1f);
+        fade.InsertKeyFrame(1f, 0f, leave);
+        fade.Duration = TimeSpan.FromMilliseconds(720);
 
         var scale = compositor.CreateVector3KeyFrameAnimation();
-        scale.InsertKeyFrame(0f, new Vector3(0.8f, 0.8f, 1f));
-        scale.InsertKeyFrame(1f, new Vector3(1.15f, 1.15f, 1f));
-        scale.Duration = TimeSpan.FromMilliseconds(560);
+        scale.InsertKeyFrame(0f, new Vector3(0.7f, 0.7f, 1f));
+        scale.InsertKeyFrame(0.3f, new Vector3(1.04f, 1.04f, 1f), settle);
+        scale.InsertKeyFrame(0.55f, new Vector3(1f, 1f, 1f));
+        scale.InsertKeyFrame(1f, new Vector3(1.12f, 1.12f, 1f), leave);
+        scale.Duration = TimeSpan.FromMilliseconds(720);
 
         visual.StartAnimation("Opacity", fade);
         visual.StartAnimation("Scale", scale);
+    }
+
+    // ----- Buffering and the hairline ---------------------------------------------------------------------
+
+    private DateTimeOffset? _bufferingSince;
+    private bool _bufferShown;
+
+    /// <summary>
+    /// The capsule appears only when buffering lasts (a short stall stays quiet), says how far along it is, and
+    /// the seek bar sweeps a soft light meanwhile.
+    /// </summary>
+    private void UpdateBuffering(EngineState state)
+    {
+        var buffering = !_awaitingFirstFrame && state is EngineState.Buffering && ErrorPanel.Visibility != Visibility.Visible;
+        if (!buffering)
+        {
+            _bufferingSince = null;
+            SeekBar.IsBuffering = false;
+            if (_bufferShown)
+            {
+                _bufferShown = false;
+                Motion.FadeTo(BufferRing, 0, TimeSpan.FromMilliseconds(180));
+            }
+
+            if (BufferRing.Opacity <= 0.01) BufferRing.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _bufferingSince ??= DateTimeOffset.Now;
+        SeekBar.IsBuffering = true;
+        if (DateTimeOffset.Now - _bufferingSince < TimeSpan.FromMilliseconds(300)) return;
+
+        var parts = new List<string>(3) { "正在缓冲" };
+        if (Mpv is { } mpv)
+        {
+            if (mpv.BufferingPercent is > 0 and < 100 and var percent) parts.Add($"{percent}%");
+            if (mpv.CacheSpeed is > 1024 and var speed) parts.Add(speed >= 1 << 20 ? $"{speed / (double)(1 << 20):0.0} MB/s" : $"{speed / 1024} KB/s");
+        }
+
+        BufferText.Text = string.Join(" · ", parts);
+        if (!_bufferShown)
+        {
+            _bufferShown = true;
+            BufferRing.Visibility = Visibility.Visible;
+            Motion.FadeTo(BufferRing, 1, TimeSpan.FromMilliseconds(220));
+        }
+    }
+
+    private void UpdateMiniProgress(TimeSpan position, double buffered)
+    {
+        var width = MiniProgress.ActualWidth;
+        if (width <= 0 || _duration <= TimeSpan.Zero) return;
+        MiniPlayed.Width = width * Math.Clamp(position / _duration, 0, 1);
+        MiniBuffered.Width = width * Math.Clamp(buffered, 0, 1);
     }
 
     // ----- Toast ----------------------------------------------------------------------------------------
@@ -1125,7 +1191,7 @@ public sealed partial class PlayerPage : Page
         HidePausedInfo();
         SideLayer.Visibility = Visibility.Visible;
         PanelTabs.SelectedItem = PanelTabs.Items.Contains(tab) ? tab : PanelTabs.Items.FirstOrDefault();
-        _ = Motion.SlideFadeAsync(SidePanel, 40, 0, 0, 0, 0, 1, TimeSpan.FromMilliseconds(320));
+        _ = Motion.SlideFadeAsync(SidePanel, 56, 0, 0, 0, 0, 1, TimeSpan.FromMilliseconds(360));
         ShowChrome(pin: true);
     }
 

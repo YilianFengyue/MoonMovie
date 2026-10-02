@@ -457,7 +457,7 @@ public sealed partial class DanmakuOverlay : Grid
     private Item Rasterise(CanvasDrawingSession ds, CanvasTextLayout layout, DanmakuComment comment, double textWidth,
         double lineHeight)
     {
-        var pad = Math.Ceiling(_formatSize * 0.12) + 1;
+        var pad = Math.Ceiling(_formatSize * 0.16) + 2; // room for the outline and the soft shadow
         var bitmap = new CanvasRenderTarget(ds, (float)(textWidth + pad * 2), (float)(lineHeight + pad * 2));
         using (var geometry = CanvasGeometry.CreateText(layout))
         using (var rds = bitmap.CreateDrawingSession())
@@ -467,11 +467,25 @@ public sealed partial class DanmakuOverlay : Grid
             var g = (byte)(comment.Color >> 8);
             var b = (byte)comment.Color;
 
-            // Dark text gets a light outline, everything else a dark one.
+            // A light touch, like B站's own: a soft shadow for legibility on bright frames, a thin translucent
+            // outline (light for dark text), then the colour itself — so red and yellow stay clean, not muddy.
             var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            var outline = luminance < 60 ? Color.FromArgb(200, 255, 255, 255) : Color.FromArgb(190, 0, 0, 0);
+            var dark = luminance < 60;
+            using (var silhouette = new CanvasCommandList(rds))
+            {
+                using (var cds = silhouette.CreateDrawingSession()) cds.FillGeometry(geometry, Colors.Black);
+                using var shadow = new Microsoft.Graphics.Canvas.Effects.ShadowEffect
+                {
+                    Source = silhouette,
+                    BlurAmount = (float)Math.Max(1.2, _formatSize * 0.07),
+                    ShadowColor = dark ? Color.FromArgb(150, 255, 255, 255) : Color.FromArgb(150, 0, 0, 0),
+                };
+                rds.DrawImage(shadow, (float)pad, (float)pad + 1);
+            }
+
             rds.Transform = System.Numerics.Matrix3x2.CreateTranslation((float)pad, (float)pad);
-            rds.DrawGeometry(geometry, outline, (float)(_formatSize * 0.11), _stroke);
+            var outline = dark ? Color.FromArgb(150, 255, 255, 255) : Color.FromArgb(140, 0, 0, 0);
+            rds.DrawGeometry(geometry, outline, (float)(_formatSize * 0.06), _stroke);
             rds.FillGeometry(geometry, Color.FromArgb(255, r, g, b));
         }
 
@@ -485,7 +499,7 @@ public sealed partial class DanmakuOverlay : Grid
         _format = new CanvasTextFormat
         {
             FontFamily = FontFamily,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             FontSize = (float)fontSize,
             WordWrapping = CanvasWordWrapping.NoWrap,
             VerticalAlignment = CanvasVerticalAlignment.Center,

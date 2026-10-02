@@ -15,6 +15,21 @@
         TintLuminosityOpacity="0.28"
         TintOpacity="0.30" />
 
+    <!-- Panels floating over the picture: more glass than chrome, the frame still reads through. -->
+    <AcrylicBrush
+        x:Key="MoonPanelAcrylicBrush"
+        FallbackColor="#F2141519"
+        TintColor="#15161B"
+        TintLuminosityOpacity="0.62"
+        TintOpacity="0.42" />
+
+    <!-- Fluent card edge: a brighter top rim fading down the sides. -->
+    <LinearGradientBrush x:Key="MoonPanelStrokeBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#33FFFFFF" />
+        <GradientStop Offset="0.25" Color="#1AFFFFFF" />
+        <GradientStop Offset="1" Color="#0FFFFFFF" />
+    </LinearGradientBrush>
+
     <AcrylicBrush
         x:Key="MoonChromeAcrylicBrush"
         FallbackColor="#F0141519"

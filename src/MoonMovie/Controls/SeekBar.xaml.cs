@@ -19,6 +19,8 @@ public sealed partial class SeekBar : UserControl
     private double _buffered;
     private bool _hover;
     private bool _dragging;
+    private bool _buffering;
+    private Storyboard? _sweep;
 
     public SeekBar()
     {
@@ -33,6 +35,46 @@ public sealed partial class SeekBar : UserControl
     public event EventHandler<TimeSpan?>? Scrubbing;
 
     public bool IsDragging => _dragging;
+
+    /// <summary>While the player waits for data a soft light sweeps the track.</summary>
+    public bool IsBuffering
+    {
+        get => _buffering;
+        set
+        {
+            if (value == _buffering) return;
+            _buffering = value;
+            if (value)
+            {
+                StartSweep();
+            }
+            else
+            {
+                Motion.FadeTo(Sweep, 0, TimeSpan.FromMilliseconds(260));
+            }
+        }
+    }
+
+    private void StartSweep()
+    {
+        var width = Math.Max(1, Track.ActualWidth);
+        Sweep.Width = Math.Clamp(width * 0.16, 80, 240);
+        _sweep?.Stop();
+        var travel = new DoubleAnimation
+        {
+            From = -Sweep.Width,
+            To = width,
+            Duration = TimeSpan.FromMilliseconds(Math.Clamp(width * 1.6, 1100, 2200)),
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        Storyboard.SetTarget(travel, SweepOffset);
+        Storyboard.SetTargetProperty(travel, "X");
+        _sweep = new Storyboard();
+        _sweep.Children.Add(travel);
+        _sweep.Begin();
+        Motion.FadeTo(Sweep, 1, TimeSpan.FromMilliseconds(200));
+    }
 
     public void Update(TimeSpan position, TimeSpan duration, double bufferedFraction)
     {
@@ -56,6 +98,8 @@ public sealed partial class SeekBar : UserControl
     {
         var width = Track.ActualWidth;
         if (width <= 0) return;
+        // The sweep travels beyond the ends: keep it inside the rounded track.
+        if (Track.Clip?.Rect.Width != width) Track.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, width, Track.ActualHeight) };
         PlayedFill.Width = width * Fraction;
         BufferedFill.Width = width * Math.Max(_buffered, Fraction);
         ThumbOffset.X = width * Fraction - Thumb.Width / 2;
@@ -102,12 +146,26 @@ public sealed partial class SeekBar : UserControl
 
     private void SetEmphasis(bool on)
     {
-        var duration = TimeSpan.FromMilliseconds(on ? 120 : 220);
-        var scale = new DoubleAnimation { To = on ? 1.6 : 1, Duration = duration, EnableDependentAnimation = false };
+        // Fluent motion: the track grows quickly and settles (4 → 8 px), the thumb springs in from small.
+        var duration = TimeSpan.FromMilliseconds(on ? 167 : 250);
+        var ease = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 };
+        var scale = new DoubleAnimation { To = on ? 2 : 1, Duration = duration, EasingFunction = ease };
         Storyboard.SetTarget(scale, TrackScale);
         Storyboard.SetTargetProperty(scale, "ScaleY");
         var storyboard = new Storyboard();
         storyboard.Children.Add(scale);
+        foreach (var axis in new[] { "ScaleX", "ScaleY" })
+        {
+            var thumb = new DoubleAnimation
+            {
+                To = on ? 1 : 0.4,
+                Duration = TimeSpan.FromMilliseconds(on ? 260 : 180),
+                EasingFunction = on ? new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.45 } : ease,
+            };
+            Storyboard.SetTarget(thumb, ThumbScale);
+            Storyboard.SetTargetProperty(thumb, axis);
+            storyboard.Children.Add(thumb);
+        }
         storyboard.Begin();
 
         Motion.FadeTo(Thumb, on ? 1 : 0, duration);

@@ -143,7 +143,8 @@ public sealed partial class MainWindow : Window
     {
         if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
         {
-            Root.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            // Dark Mica: a deep veil of the canvas colour keeps the cinema mood with a hint of the wallpaper.
+            Root.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB3, 0x0C, 0x0D, 0x10));
         }
     }
 

@@ -254,13 +254,8 @@
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
-                <ProgressRing
-                    Width="40"
-                    Height="40"
-                    HorizontalAlignment="Center"
-                    Foreground="White"
-                    IsActive="True" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <controls:DotsSpinner Width="46" Height="46" HorizontalAlignment="Center" />
                 <TextBlock
                     x:Name="LoadingTitle"
                     HorizontalAlignment="Center"
@@ -276,17 +271,29 @@
             </StackPanel>
         </Grid>
 
-        <!-- Mid-playback buffering -->
-        <ProgressRing
+        <!-- Mid-playback buffering: the Windows dots in a small glass capsule, with how far along it is. -->
+        <Border
             x:Name="BufferRing"
-            Width="48"
-            Height="48"
+            Padding="16,11,20,11"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
-            Foreground="White"
-            IsActive="True"
+            Background="{StaticResource MoonChromeAcrylicBrush}"
+            BorderBrush="#1FFFFFFF"
+            BorderThickness="1"
+            CornerRadius="24"
             IsHitTestVisible="False"
-            Visibility="Collapsed" />
+            Opacity="0"
+            Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <controls:DotsSpinner Width="26" Height="26" VerticalAlignment="Center" />
+                <TextBlock
+                    x:Name="BufferText"
+                    VerticalAlignment="Center"
+                    FontSize="13"
+                    Foreground="#F2FFFFFF"
+                    Text="正在缓冲" />
+            </StackPanel>
+        </Border>
 
         <!-- ===== Paused: what you are watching ===== -->
         <StackPanel
@@ -358,7 +365,9 @@
             Height="96"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
-            Background="#73000000"
+            Background="#66000000"
+            BorderBrush="#26FFFFFF"
+            BorderThickness="1"
             CornerRadius="48"
             IsHitTestVisible="False">
             <FontIcon x:Name="CenterGlyph" FontSize="36" Foreground="White" Glyph="&#xE768;" />
@@ -390,6 +399,18 @@
                     Foreground="White" />
             </StackPanel>
         </Border>
+
+        <!-- With the controls hidden, a hairline at the very bottom still tells how far along it is. -->
+        <Grid
+            x:Name="MiniProgress"
+            Height="2"
+            VerticalAlignment="Bottom"
+            Background="#1FFFFFFF"
+            IsHitTestVisible="False"
+            Opacity="0">
+            <Border x:Name="MiniBuffered" HorizontalAlignment="Left" Background="#33FFFFFF" />
+            <Border x:Name="MiniPlayed" HorizontalAlignment="Left" Background="#B3FFFFFF" />
+        </Grid>
 
         <!-- ===== Chrome (auto-hides with the cursor and caption buttons) ===== -->
         <Grid x:Name="Chrome">
@@ -691,16 +712,16 @@
 
         <!-- ===== Side panel: episodes & sources ===== -->
         <Grid x:Name="SideLayer" Visibility="Collapsed">
-            <Rectangle Fill="#4D000000" Tapped="OnSideDismissTapped" />
+            <Rectangle Fill="#1F000000" Tapped="OnSideDismissTapped" />
             <Grid
                 x:Name="SidePanel"
                 Width="470"
                 Margin="0,60,12,12"
                 HorizontalAlignment="Right"
-                Background="{StaticResource MoonChromeAcrylicBrush}"
-                BorderBrush="{StaticResource MoonHairlineBrush}"
+                Background="{StaticResource MoonPanelAcrylicBrush}"
+                BorderBrush="{StaticResource MoonPanelStrokeBrush}"
                 BorderThickness="1"
-                CornerRadius="10">
+                CornerRadius="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />

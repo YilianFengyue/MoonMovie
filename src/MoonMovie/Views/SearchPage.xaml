@@ -25,6 +25,8 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Grid Height="144" Background="{StaticResource MoonSurfaceBrush}" CornerRadius="6">
+                        <!-- No artwork: a quiet film glyph instead of an empty box. -->
+                        <FontIcon FontSize="22" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE714;" />
                         <Image imaging:ImageEx.DecodeWidth="96" imaging:ImageEx.Url="{x:Bind PosterUrl}" Stretch="UniformToFill" />
                         <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="6" />
                     </Grid>
@@ -58,13 +60,17 @@
                             </StackPanel>
                             <TextBlock VerticalAlignment="Center" Style="{StaticResource MoonCardMetaStyle}" FontSize="13" Text="{x:Bind Meta}" />
                         </StackPanel>
+                        <!-- One measure for every row: a long synopsis must not set its own line length. -->
                         <TextBlock
+                            MaxWidth="760"
                             Margin="0,2,0,0"
+                            HorizontalAlignment="Left"
                             FontSize="13"
                             LineHeight="21"
                             MaxLines="2"
                             Style="{StaticResource MoonBodyStyle}"
-                            Text="{x:Bind Overview}" />
+                            Text="{x:Bind Overview}"
+                            Visibility="{x:Bind OverviewVisibility}" />
                     </StackPanel>
                 </Grid>
             </Button>
@@ -100,18 +106,22 @@
                     </SelectorBar>
                 </StackPanel>
 
-                <ItemsRepeater
-                    x:Name="ResultsRepeater"
-                    MaxWidth="1120"
-                    Margin="44,20,44,0"
-                    HorizontalAlignment="Left"
-                    ItemTemplate="{StaticResource ResultRowTemplate}"
-                    ItemsSource="{x:Bind ViewModel.Results}"
-                    XYFocusKeyboardNavigation="Enabled">
-                    <ItemsRepeater.Layout>
-                        <StackLayout Spacing="4" />
-                    </ItemsRepeater.Layout>
-                </ItemsRepeater>
+                <!-- Rows share one width (the hover wash lines up), capped for readability. -->
+                <Grid Margin="44,20,44,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="1040" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ItemsRepeater
+                        x:Name="ResultsRepeater"
+                        ItemTemplate="{StaticResource ResultRowTemplate}"
+                        ItemsSource="{x:Bind ViewModel.Results}"
+                        XYFocusKeyboardNavigation="Enabled">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </Grid>
 
                 <controls:MediaRow
                     x:Name="PeopleRow"

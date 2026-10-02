@@ -83,7 +83,9 @@ public sealed partial class SearchResultViewModel(MediaItem item, TmdbClient tmd
 
     public Visibility RatingVisibility => RatingText is null ? Visibility.Collapsed : Visibility.Visible;
 
-    public string Overview => Item.Overview ?? "暂无简介";
+    public string Overview => Item.Overview ?? string.Empty;
+
+    public Visibility OverviewVisibility => Item.Overview is null ? Visibility.Collapsed : Visibility.Visible;
 
     public string? PosterUrl => tmdb.ImageUrl(Item.PosterPath, "w185");
 

@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
         ConfigureWindow();
 
         AppTitleBar.Loaded += (_, _) => UpdateTitleBarRegions();
+        foreach (var item in Nav.Items) item.Tapped += OnNavItemTapped;
         AppTitleBar.SizeChanged += (_, _) => UpdateTitleBarRegions();
 
         ContentFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
@@ -165,12 +166,27 @@ public sealed partial class MainWindow : Window
 
     private void OnNavSelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
+        NavLog($"nav selection {(sender.SelectedItem as SelectorBarItem)?.Tag} syncing={_syncingNav}");
         if (_syncingNav || sender.SelectedItem is not { } item)
         {
             return;
         }
 
-        // Re-selecting the tab of the page already on screen does nothing.
+        NavigateToTab(item);
+    }
+
+    /// <summary>
+    /// The highlighted tab clicked again from an inner page (detail, search, player) raises no SelectionChanged,
+    /// so taps are handled too: they go back to that tab's own page.
+    /// </summary>
+    private void OnNavItemTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is SelectorBarItem item && item == Nav.SelectedItem) NavigateToTab(item);
+    }
+
+    private void NavigateToTab(SelectorBarItem item)
+    {
+        // The tab of the page already on screen does nothing.
         if (NavTag(ContentFrame.CurrentSourcePageType, _currentParameter) == (string)item.Tag)
         {
             return;
@@ -218,14 +234,16 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigated(object sender, NavigationEventArgs e)
     {
+        NavLog($"navigated {e.SourcePageType.Name} mode={e.NavigationMode}");
         _currentParameter = e.Parameter;
         BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
 
-        // Keep the highlighted tab in step with back/forward and in-page links. Inner pages (detail, search,
-        // player) clear it, so clicking any tab — including the one they were opened from — navigates.
+        // Keep the highlighted tab in step with back/forward and in-page links. Inner pages keep the tab they
+        // were opened from: clearing the selection makes SelectorBar re-select its first item a moment later,
+        // which would navigate home.
         var tag = NavTag(e.SourcePageType, e.Parameter);
         var navItem = tag is null ? null : Nav.Items.FirstOrDefault(i => (string)i.Tag == tag);
-        if (Nav.SelectedItem != navItem)
+        if (navItem is not null && Nav.SelectedItem != navItem)
         {
             _syncingNav = true;
             Nav.SelectedItem = navItem;
@@ -249,6 +267,7 @@ public sealed partial class MainWindow : Window
 
     public bool GoBack()
     {
+        NavLog("GoBack " + Environment.StackTrace);
         if (!ContentFrame.CanGoBack)
         {
             return false;
@@ -343,6 +362,18 @@ public sealed partial class MainWindow : Window
     {
         SearchBox.Focus(FocusState.Keyboard);
         args.Handled = true;
+    }
+
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void NavLog(string line)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "nav.log"), $"[{DateTime.Now:HH:mm:ss.fff}] {line}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]

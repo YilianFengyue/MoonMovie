@@ -112,7 +112,7 @@
                 VerticalAlignment="Center"
                 FontFamily="{StaticResource MoonFontRegular}"
                 SelectionChanged="OnNavSelectionChanged">
-                <SelectorBarItem Tag="home" Text="首页" IsSelected="True" />
+                <SelectorBarItem Tag="home" Text="首页" />
                 <SelectorBarItem Tag="movie" Text="电影" />
                 <SelectorBarItem Tag="tv" Text="剧集" />
                 <SelectorBarItem Tag="anime" Text="动漫" />

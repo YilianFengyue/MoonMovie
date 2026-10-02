@@ -15,6 +15,7 @@
         x:Name="Root"
         AllowDrop="True"
         Background="{StaticResource MoonCanvasBrush}"
+        Loaded="OnRootLoaded"
         DragLeave="OnDragLeave"
         DragOver="OnDragOver"
         Drop="OnDrop"
@@ -180,33 +181,24 @@
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
                 Spacing="4">
-                <Button
-                    AutomationProperties.Name="下载"
-                    Click="OnDownloadsClick"
-                    Style="{StaticResource MoonTitleBarButtonStyle}"
-                    ToolTipService.ToolTip="下载">
-                    <Grid>
+                <!-- The count sits over the button (not inside it, where the button's rounded clip cut it). -->
+                <Grid>
+                    <Button
+                        x:Name="DownloadsButton"
+                        AutomationProperties.Name="下载"
+                        Click="OnDownloadsClick"
+                        Style="{StaticResource MoonTitleBarButtonStyle}"
+                        ToolTipService.ToolTip="下载">
                         <FontIcon FontSize="15" Glyph="&#xE896;" />
-                        <Border
-                            x:Name="DownloadBadge"
-                            MinWidth="15"
-                            Height="15"
-                            Margin="0,-9,-11,0"
-                            Padding="4,0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Top"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                            CornerRadius="7.5"
-                            Visibility="Collapsed">
-                            <TextBlock
-                                x:Name="DownloadBadgeText"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="10"
-                                Foreground="Black" />
-                        </Border>
-                    </Grid>
-                </Button>
+                    </Button>
+                    <InfoBadge
+                        x:Name="DownloadBadge"
+                        Margin="0,2,1,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed" />
+                </Grid>
                 <Button
                     AutomationProperties.Name="观看历史"
                     Click="OnHistoryClick"

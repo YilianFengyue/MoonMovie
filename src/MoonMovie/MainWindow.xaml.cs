@@ -48,7 +48,8 @@ public sealed partial class MainWindow : Window
         ContentFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
 
         Taskbar = new Playback.TaskbarControls(WinRT.Interop.WindowNative.GetWindowHandle(this));
-        Closed += (_, _) => Taskbar.Dispose();
+        AppWindow.Closing += (_, _) => Lifecycle.Log("close requested");
+        Closed += OnWindowClosed;
 
         var downloads = App.Services.GetRequiredService<Core.Downloads.DownloadManager>();
         downloads.Changed += _ => DispatcherQueue.TryEnqueue(UpdateDownloadBadge);
@@ -69,7 +70,8 @@ public sealed partial class MainWindow : Window
     {
         var active = App.Services.GetRequiredService<Core.Downloads.DownloadManager>().ActiveCount;
         DownloadBadge.Visibility = active > 0 ? Visibility.Visible : Visibility.Collapsed;
-        DownloadBadgeText.Text = active > 9 ? "9+" : active.ToString();
+        DownloadBadge.Value = Math.Min(active, 99);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DownloadsButton, active > 0 ? $"下载，{active} 个进行中" : "下载");
 
         // Outside the player the icon shows overall download progress.
         if (PlayerOwnsTaskbar) return;
@@ -134,6 +136,15 @@ public sealed partial class MainWindow : Window
     {
         _updateDismissed = false;
         SyncUpdateBar();
+    }
+
+    /// <summary>With Mica available the canvas steps aside: pages without artwork sit on the window's Mica.</summary>
+    private void OnRootLoaded(object sender, RoutedEventArgs e)
+    {
+        if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+        {
+            Root.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
     }
 
     public void BringToFront()
@@ -241,6 +252,31 @@ public sealed partial class MainWindow : Window
         return GetDpiForWindow(hwnd) / 96.0;
     }
 
+    /// <summary>
+    /// Closing: the player saves its place and lets go of mpv now (its page is not navigated away from), and a
+    /// watchdog makes sure the process ends even if some native teardown hangs.
+    /// </summary>
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        Lifecycle.Log("window closed");
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            Lifecycle.Log("still running 5 s after closing: forcing exit");
+            Environment.Exit(0);
+        });
+
+        try
+        {
+            if (ContentFrame.Content is PlayerPage player) player.Shutdown();
+            Taskbar.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Lifecycle.Log("teardown failed: " + ex.GetType().Name);
+        }
+    }
+
     /// <summary>Interactive title bar elements must be carved out of the drag region.</summary>
     private void UpdateTitleBarRegions()
     {
@@ -263,11 +299,11 @@ public sealed partial class MainWindow : Window
 
             var bounds = element.TransformToVisual(null).TransformBounds(
                 new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
-            rects.Add(new RectInt32(
-                (int)Math.Round(bounds.X * scale),
-                (int)Math.Round(bounds.Y * scale),
-                (int)Math.Round(bounds.Width * scale),
-                (int)Math.Round(bounds.Height * scale)));
+            // Never over the caption buttons: a click-through rectangle there would swallow 关闭.
+            var left = (int)Math.Round(bounds.X * scale);
+            var right = Math.Min((int)Math.Round(bounds.Right * scale), AppWindow.ClientSize.Width - AppWindow.TitleBar.RightInset);
+            if (right <= left) continue;
+            rects.Add(new RectInt32(left, (int)Math.Round(bounds.Y * scale), right - left, (int)Math.Round(bounds.Height * scale)));
         }
 
         InputNonClientPointerSource.GetForWindowId(AppWindow.Id)

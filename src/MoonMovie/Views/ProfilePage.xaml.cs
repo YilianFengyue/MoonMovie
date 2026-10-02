@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -78,7 +79,52 @@ public sealed partial class ProfilePage : Page
         var picker = new Windows.Storage.Pickers.FileOpenPicker { SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary };
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
         foreach (var ext in new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif" }) picker.FileTypeFilter.Add(ext);
-        if (await picker.PickSingleFileAsync() is { } file) ViewModel.SetAvatar(file.Path);
+        if (await picker.PickSingleFileAsync() is not { } file) return;
+
+        // Frame the face: a round crop like the avatar itself; images the cropper cannot read are used whole.
+        var cropper = new CommunityToolkit.WinUI.Controls.ImageCropper
+        {
+            CropShape = CommunityToolkit.WinUI.Controls.CropShape.Circular,
+            AspectRatio = 1,
+            Width = 440,
+            Height = 440,
+        };
+        try
+        {
+            await cropper.LoadImageFromFile(file);
+        }
+        catch (Exception ex) when (ex is ArgumentException or System.Runtime.InteropServices.COMException or IOException)
+        {
+            ViewModel.SetAvatar(file.Path);
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "裁剪头像",
+            Content = cropper,
+            PrimaryButtonText = "使用",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            RequestedTheme = ElementTheme.Dark,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        var cropped = Path.Combine(Path.GetTempPath(), $"moonmovie-avatar-{Guid.NewGuid():N}.png");
+        try
+        {
+            await using (var stream = File.Create(cropped))
+            {
+                await cropper.SaveAsync(stream.AsRandomAccessStream(), CommunityToolkit.WinUI.Controls.BitmapFileFormat.Png);
+            }
+
+            ViewModel.SetAvatar(cropped); // copied into the data folder
+        }
+        finally
+        {
+            File.Delete(cropped);
+        }
     }
 
     private void OnUseBiliAvatar(object sender, RoutedEventArgs e) => ViewModel.UseBiliAvatar();

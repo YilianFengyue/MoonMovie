@@ -6,7 +6,7 @@
     xmlns:controls="using:MoonMovie.Controls"
     xmlns:imaging="using:MoonMovie.Imaging"
     xmlns:vm="using:MoonMovie.ViewModels"
-    Background="{StaticResource MoonCanvasBrush}"
+    Background="Transparent"
     XYFocusKeyboardNavigation="Enabled">
 
     <Page.Resources>

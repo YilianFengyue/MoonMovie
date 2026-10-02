@@ -8,7 +8,7 @@
     xmlns:themes="using:MoonMovie.Themes"
     xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     xmlns:vm="using:MoonMovie.ViewModels"
-    Background="{StaticResource MoonCanvasBrush}"
+    Background="Transparent"
     NavigationCacheMode="Required"
     XYFocusKeyboardNavigation="Enabled">
 

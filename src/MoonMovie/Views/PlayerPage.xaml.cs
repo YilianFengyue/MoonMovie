@@ -46,6 +46,7 @@ public sealed partial class PlayerPage : Page
 
     private IPlaybackEngine? _engine;
     private PlaybackRequest _request = null!;
+    private bool _shutDown;
     private SourceItemViewModel _source = null!;
     private int _episodeIndex;
     private int _openVersion;
@@ -163,6 +164,14 @@ public sealed partial class PlayerPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        Shutdown();
+    }
+
+    /// <summary>Leaving the player, or the window closing while it plays: save the place, release mpv.</summary>
+    public void Shutdown()
+    {
+        if (_request is null || _shutDown) return;
+        _shutDown = true;
         SaveProgress(flush: true);
 
         foreach (var timer in new[] { _tick, _chromeTimer, _toastTimer, _pausedTimer, _hudTimer }) timer.Stop();

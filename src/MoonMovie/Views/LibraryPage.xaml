@@ -8,7 +8,7 @@
     xmlns:motion="using:MoonMovie.Animations"
     xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     xmlns:vm="using:MoonMovie.ViewModels"
-    Background="{StaticResource MoonCanvasBrush}"
+    Background="Transparent"
     XYFocusKeyboardNavigation="Enabled">
 
     <Page.Resources>

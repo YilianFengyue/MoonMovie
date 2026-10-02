@@ -114,8 +114,16 @@ public sealed partial class AmbientBackdrop : UserControl
         }
     }
 
+    private bool _sceneShown;
+
     private void Present(Microsoft.UI.Xaml.Media.ImageSource bitmap, int version)
     {
+        if (!_sceneShown)
+        {
+            _sceneShown = true;
+            Animations.Motion.FadeTo(Scene, 1, TimeSpan.FromMilliseconds(450));
+        }
+
         var incoming = _back;
         var outgoing = _front;
         incoming.Source = bitmap;

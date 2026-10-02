@@ -6,7 +6,7 @@
     xmlns:controls="using:MoonMovie.Controls"
     xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     xmlns:vm="using:MoonMovie.ViewModels"
-    Background="{StaticResource MoonCanvasBrush}"
+    Background="Transparent"
     XYFocusKeyboardNavigation="Enabled">
 
     <Grid>

@@ -26,29 +26,49 @@ public static class Program
         var main = AppInstance.FindOrRegisterForKey(key);
         if (!main.IsCurrent)
         {
-            Redirect(main, AppInstance.GetCurrent().GetActivatedEventArgs());
-            return 0;
+            if (Redirect(main, AppInstance.GetCurrent().GetActivatedEventArgs())) return 0;
+
+            // The running copy did not answer (it may be closing, or hung): open a window of our own rather than
+            // leaving the user with nothing.
+            Services.Lifecycle.Log($"redirect to {main.ProcessId} timed out; starting a window of our own");
+        }
+        else
+        {
+            main.Activated += (_, e) => Services.ActivationRouter.OnRedirected(e);
         }
 
-        main.Activated += (_, e) => Services.ActivationRouter.OnRedirected(e);
+        Services.Lifecycle.Log("start");
         Application.Start(_1 =>
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
             _ = new App();
         });
+        Services.Lifecycle.Log("exit");
         return 0;
     }
 
-    /// <summary>Waits for the hand-off without blocking COM (the documented pattern), then yields focus.</summary>
-    private static void Redirect(AppInstance target, AppActivationArguments args)
+    /// <summary>
+    /// Waits for the hand-off without blocking COM (the documented pattern), then yields focus. False when the
+    /// running copy did not take it within a few seconds.
+    /// </summary>
+    private static bool Redirect(AppInstance target, AppActivationArguments args)
     {
         var done = CreateEventW(0, true, false, null);
         Task.Run(() =>
         {
-            target.RedirectActivationToAsync(args).AsTask().Wait();
-            SetEvent(done);
+            try
+            {
+                target.RedirectActivationToAsync(args).AsTask().Wait();
+                SetEvent(done);
+            }
+            catch (AggregateException)
+            {
+                // The target went away mid-hand-off: the wait below times out and we start normally.
+            }
         });
-        _ = CoWaitForMultipleObjects(0, 0xFFFFFFFF, 1, [done], out _);
+        var result = CoWaitForMultipleObjects(0, 5000, 1, [done], out _);
+        if (result != 0) return false; // RPC_S_CALLPENDING: no answer in time
+
         try
         {
             AllowSetForegroundWindow((int)target.ProcessId);
@@ -56,6 +76,8 @@ public static class Program
         catch (ArgumentException)
         {
         }
+
+        return true;
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]

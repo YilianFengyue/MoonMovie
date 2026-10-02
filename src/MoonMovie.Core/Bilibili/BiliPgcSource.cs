@@ -73,19 +73,36 @@ public sealed partial class BiliPgcSource(BiliClient client)
             return Candidate(first, null, target) is { } movie ? [movie] : [];
         }
 
-        // The series' seasons as B站 lists them; pick TMDB's season number, original before dubs.
+        // B站 lists a series' other seasons next to it, but also whole franchises under one roof (喜羊羊:
+        // 经典版, 羊村守护者, 异国破晓…). Only generic labels count as seasons: "第二季", "TV", "第一季(中配)".
+        // The matched season itself serves when it is the wanted number; others must say their number.
         var wanted = target.Season ?? 1;
-        var refs = first.Seasons.Count > 0 ? first.Seasons : [new BiliSeasonRef(first.SeasonId, first.SeasonTitle)];
-        var numbered = refs.Select(r => (Ref: r, Label: ParseLabel(r.Title))).Where(x => !x.Label.Special).ToArray();
-        var picks = numbered.Where(x => (x.Label.Number ?? 1) == wanted).OrderBy(x => x.Label.Dub is null ? 0 : 1).Take(4).ToArray();
-        if (picks.Length == 0) return [];
+        var own = ParseLabel(first.SeasonTitle);
+        var refs = first.Seasons
+            .Where(r => r.SeasonId != first.SeasonId)
+            .Select(r => (Ref: r, Label: ParseLabel(r.Title)))
+            .Where(x => !x.Label.Special && IsGenericLabel(x.Ref.Title))
+            .ToList();
 
-        var results = new List<SourceCandidate>(picks.Length);
-        foreach (var (seasonRef, label) in picks)
+        var picks = new List<(BiliSeasonRef Ref, string? Dub)>();
+        if ((own.Number ?? 1) == wanted && !own.Special)
+        {
+            picks.Add((new BiliSeasonRef(first.SeasonId, first.SeasonTitle), own.Dub));
+        }
+        else if (refs.FirstOrDefault(x => x.Label.Dub is null && (x.Label.Number ?? (wanted == 1 ? 1 : 0)) == wanted) is { Ref: { } other })
+        {
+            picks.Add((other, null));
+        }
+
+        if (picks.Count == 0) return [];
+        picks.AddRange(refs.Where(x => x.Label.Dub is not null && (x.Label.Number ?? 1) == wanted).Take(3).Select(x => (x.Ref, x.Label.Dub)));
+
+        var results = new List<SourceCandidate>(picks.Count);
+        foreach (var (seasonRef, dub) in picks)
         {
             var season = seasonRef.SeasonId == first.SeasonId ? first : await client.SeasonAsync(seasonRef.SeasonId, ct).ConfigureAwait(false);
             if (season.SeasonType == 2) continue; // a film of the series (剧场总集篇…), not this season
-            if (Candidate(season, label.Dub, target) is { } candidate && results.All(c => c.Site.Name != candidate.Site.Name))
+            if (Candidate(season, dub, target) is { } candidate && results.All(c => c.Site.Name != candidate.Site.Name))
             {
                 results.Add(candidate);
             }
@@ -146,7 +163,17 @@ public sealed partial class BiliPgcSource(BiliClient client)
         return (number > 0 ? number : null, dub, false);
     }
 
-    /// <summary>The series name without B站's season, part and dub suffixes, normalised for comparison.</summary>
+    /// <summary>"第二季", "TV", "正片", "第一季(中配)", "Season 2": a season label rather than a title of its own.</summary>
+    internal static bool IsGenericLabel(string text)
+    {
+        var rest = Suffixes().Replace(text, "").Trim();
+        return rest.Length == 0 || rest.Equals("TV", StringComparison.OrdinalIgnoreCase) || rest is "正片" or "TV版" or "原版";
+    }
+
+    /// <summary>
+    /// The series name without B站's season and dub suffixes, normalised for comparison. A sequel number stays:
+    /// "罗小黑战记 2" and "罗小黑战记2" are the same film, "罗小黑战记" is another.
+    /// </summary>
     internal static string BaseName(string? title)
     {
         if (string.IsNullOrWhiteSpace(title)) return string.Empty;
@@ -173,6 +200,6 @@ public sealed partial class BiliPgcSource(BiliClient client)
     [GeneratedRegex(@"剧场版|电影版|OVA|OAD|特别篇|总集篇|SP\b|番外", RegexOptions.IgnoreCase)]
     private static partial Regex Special();
 
-    [GeneratedRegex(@"第\s*(\d+|[一二三四五六七八九十]+)\s*[季部期]|Season\s*\d+|[（(]?[中粤日英国]配版?[）)]?|[（(][^）)]*(?:地区|版)[）)]|(?<=\S)\s+\d+$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"第\s*(\d+|[一二三四五六七八九十]+)\s*[季部期]|Season\s*\d+|[（(]?[中粤日英国]配版?[）)]?|[（(][^）)]*(?:地区|版)[）)]", RegexOptions.IgnoreCase)]
     private static partial Regex Suffixes();
 }

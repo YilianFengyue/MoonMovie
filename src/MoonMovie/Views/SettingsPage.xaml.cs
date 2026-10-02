@@ -1,4 +1,4 @@
-using MoonMovie.Core.Caching;
+﻿using MoonMovie.Core.Caching;
 using MoonMovie.Core.Downloads;
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +10,7 @@ using MoonMovie.Controls;
 using MoonMovie.Core.Configuration;
 using MoonMovie.Core.Danmaku;
 using MoonMovie.Core.Settings;
+using MoonMovie.Services;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
 namespace MoonMovie.Views;
@@ -82,7 +83,11 @@ public sealed partial class SettingsPage : Page
         }
 
         DataFolderText.Text = AppPaths.Root;
-        VersionText.Text = $"MoonMovie {typeof(App).Assembly.GetName().Version?.ToString(3)}";
+        VersionText.Text = $"MoonMovie {AppEnvironment.VersionText}{(AppEnvironment.IsPackaged ? string.Empty : " · 便携版")}";
+        var updates = App.Services.GetRequiredService<UpdateService>();
+        updates.Changed += SyncUpdate;
+        Unloaded += (_, _) => updates.Changed -= SyncUpdate;
+        SyncUpdate();
 
         Sync();
         Loaded += async (_, _) => await UpdateCacheSizesAsync();
@@ -333,6 +338,42 @@ public sealed partial class SettingsPage : Page
         {
             try { File.Delete(file); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    // ----- 软件更新 -------------------------------------------------------------------------------------------
+
+    private void SyncUpdate()
+    {
+        var updates = App.Services.GetRequiredService<UpdateService>();
+        var busy = updates.State is UpdateState.Checking or UpdateState.Downloading;
+        UpdateRing.IsActive = busy;
+        UpdateRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        UpdateButton.IsEnabled = !busy;
+        UpdateButtonText.Text = updates.Available is not null ? (AppEnvironment.IsPackaged ? "立即更新" : "前往下载") : "检查更新";
+        UpdateStatus.Text = updates.State switch
+        {
+            UpdateState.Checking => "正在检查…",
+            UpdateState.Downloading => $"正在下载 {updates.Available?.Version.ToString(3)}… {updates.Progress:P0}",
+            UpdateState.Failed => updates.Error ?? "检查更新失败",
+            _ when updates.Available is { } update => $"新版本 {update.Version.ToString(3)} 已发布（{update.Published.ToLocalTime():M月d日}）",
+            UpdateState.UpToDate => $"已是最新版本 · {AppEnvironment.VersionText}",
+            _ => $"当前版本 {AppEnvironment.VersionText}；启动后会自动检查新版本",
+        };
+    }
+
+    private async void OnUpdateClick(object sender, RoutedEventArgs e)
+    {
+        var updates = App.Services.GetRequiredService<UpdateService>();
+        if (updates.Available is not null)
+        {
+            App.MainWindow.ShowUpdateBar();
+            await updates.InstallAsync();
+        }
+        else
+        {
+            await updates.CheckAsync(manual: true);
+            if (updates.Available is not null) App.MainWindow.ShowUpdateBar();
         }
     }
 

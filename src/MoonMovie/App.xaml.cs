@@ -66,6 +66,7 @@ public partial class App : Application
             MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.Navigate(typeof(Views.SettingsPage), "tmdb"));
         }
         JumpListUpdater.Start();
+        Services.GetRequiredService<UpdateService>().Start();
     }
 
     private static ServiceProvider ConfigureServices()
@@ -145,6 +146,9 @@ public partial class App : Application
             .AddSingleton<ProfileStore>()
             .AddTransient<ProfileViewModel>()
             .AddSingleton<BiliHubViewModel>()
+            // Releases come from GitHub through the system proxy; the package download is long, so no overall timeout.
+            .AddSingleton(_ => new Core.Updates.UpdateChecker(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }))
+            .AddSingleton<UpdateService>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()

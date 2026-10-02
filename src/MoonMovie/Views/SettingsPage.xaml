@@ -336,6 +336,25 @@
 
             <!-- ===== 关于 ===== -->
             <TextBlock Style="{StaticResource SectionStyle}" Text="关于" />
+            <tk:SettingsCard Header="软件更新">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE895;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="UpdateStatus" Style="{StaticResource CaptionStyle}" />
+                </tk:SettingsCard.Description>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ProgressRing
+                        x:Name="UpdateRing"
+                        Width="18"
+                        Height="18"
+                        IsActive="False"
+                        Visibility="Collapsed" />
+                    <Button x:Name="UpdateButton" Click="OnUpdateClick" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock x:Name="UpdateButtonText" Text="检查更新" />
+                    </Button>
+                </StackPanel>
+            </tk:SettingsCard>
             <tk:SettingsCard Description="影视资料与图片来自 TMDB；本产品使用 TMDB API，但未经 TMDB 认可或认证。片源来自公开资源站，弹幕由你配置的服务器提供。">
                 <tk:SettingsCard.Header>
                     <TextBlock x:Name="VersionText" />

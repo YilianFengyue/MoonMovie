@@ -31,6 +31,9 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         ConfigureWindow();
         StartSplash();
+        var updates = App.Services.GetRequiredService<UpdateService>();
+        updates.Changed += SyncUpdateBar;
+        UpdateBar.CloseButtonClick += (_, _) => _updateDismissed = true;
 
         AppTitleBar.Loaded += (_, _) => UpdateTitleBarRegions();
         foreach (var item in Nav.Items) item.Tapped += OnNavItemTapped;
@@ -86,6 +89,53 @@ public sealed partial class MainWindow : Window
     public object? CurrentPage => ContentFrame.Content;
 
     /// <summary>Another launch handed us work: come forward (restoring from the taskbar if minimized).</summary>
+    // ----- 更新 -----------------------------------------------------------------------------------------------
+
+    private bool _updateDismissed;
+
+    private void SyncUpdateBar()
+    {
+        var updates = App.Services.GetRequiredService<UpdateService>();
+        if (updates.Available is not { } update || _updateDismissed && updates.State != UpdateState.Downloading)
+        {
+            UpdateBar.IsOpen = false;
+            return;
+        }
+
+        UpdateBar.Title = $"MoonMovie {update.Version.ToString(3)} 可以更新";
+        UpdateBar.Message = updates.State switch
+        {
+            UpdateState.Downloading => $"正在下载… {updates.Progress:P0}",
+            UpdateState.Failed => updates.Error ?? "更新失败",
+            _ => AppEnvironment.IsPackaged ? $"当前版本 {AppEnvironment.VersionText}，下载后由系统完成安装" : $"当前版本 {AppEnvironment.VersionText}，便携版请到发布页下载",
+        };
+        UpdateBar.Severity = updates.State == UpdateState.Failed ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
+        UpdateProgress.Visibility = updates.State == UpdateState.Downloading ? Visibility.Visible : Visibility.Collapsed;
+        UpdateProgress.Value = updates.Progress;
+        UpdateNowButton.IsEnabled = updates.State != UpdateState.Downloading;
+        UpdateNowButton.Content = AppEnvironment.IsPackaged ? "立即更新" : "前往下载";
+        UpdateBar.IsOpen = true;
+    }
+
+    private async void OnUpdateNow(object sender, RoutedEventArgs e) => await App.Services.GetRequiredService<UpdateService>().InstallAsync();
+
+    private void OnUpdateSkip(object sender, RoutedEventArgs e) => App.Services.GetRequiredService<UpdateService>().Skip();
+
+    private void OnUpdateNotes(object sender, RoutedEventArgs e)
+    {
+        if (App.Services.GetRequiredService<UpdateService>().Available is { } update)
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri(update.PageUrl));
+        }
+    }
+
+    /// <summary>The settings page shows the bar again after it was closed here.</summary>
+    public void ShowUpdateBar()
+    {
+        _updateDismissed = false;
+        SyncUpdateBar();
+    }
+
     public void BringToFront()
     {
         if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter) presenter.Restore();

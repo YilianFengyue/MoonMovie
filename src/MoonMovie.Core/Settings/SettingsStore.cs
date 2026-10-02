@@ -173,8 +173,21 @@ public sealed class DownloadSettings
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "MoonMovie");
 }
 
+public sealed class UpdateSettings
+{
+    /// <summary>Look for a new release a little after start (at most every few hours).</summary>
+    public bool AutoCheck { get; set; } = true;
+
+    public DateTimeOffset? LastCheck { get; set; }
+
+    /// <summary>A release the user chose to skip ("1.2.0"): not offered again until a newer one.</summary>
+    public string? SkippedVersion { get; set; }
+}
+
 public sealed class AppSettings
 {
+    public UpdateSettings Updates { get; set; } = new();
+
     public ServiceSettings Services { get; set; } = new();
 
     public CacheSettings Cache { get; set; } = new();

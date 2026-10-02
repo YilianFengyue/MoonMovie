@@ -67,11 +67,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: MoonMovie
-          path: artifacts/release/*.zip
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.msix
 
       - name: Publish release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/release/*.zip
+          files: |
+            artifacts/release/*.zip
+            artifacts/release/*.msix
           generate_release_notes: true

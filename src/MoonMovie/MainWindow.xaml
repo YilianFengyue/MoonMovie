@@ -234,6 +234,32 @@
             </StackPanel>
         </Grid>
 
+        <!-- A new release: offered under the title bar until updated, skipped or closed. -->
+        <InfoBar
+            x:Name="UpdateBar"
+            MaxWidth="720"
+            Background="{StaticResource MoonChromeAcrylicBrush}"
+            BorderBrush="{StaticResource MoonCardStrokeBrush}"
+            Margin="24,68,24,0"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            IsClosable="True"
+            IsOpen="False"
+            Severity="Informational">
+            <InfoBar.ActionButton>
+                <Button x:Name="UpdateNowButton" Click="OnUpdateNow" Content="立即更新" />
+            </InfoBar.ActionButton>
+            <InfoBar.Content>
+                <StackPanel Margin="0,0,0,12" Spacing="8">
+                    <ProgressBar x:Name="UpdateProgress" Maximum="1" Visibility="Collapsed" />
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <HyperlinkButton Padding="0" Click="OnUpdateNotes" Content="更新内容" />
+                        <HyperlinkButton Padding="0" Click="OnUpdateSkip" Content="跳过此版本" />
+                    </StackPanel>
+                </StackPanel>
+            </InfoBar.Content>
+        </InfoBar>
+
         <!-- Shown while files are dragged over the window. -->
         <Grid
             x:Name="DropOverlay"

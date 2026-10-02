@@ -25,7 +25,7 @@ public static partial class Notifications
     {
         try
         {
-            if (IsPackaged)
+            if (AppEnvironment.IsPackaged)
             {
                 _notifier = ToastNotificationManager.CreateToastNotifier();
             }
@@ -138,18 +138,6 @@ public static partial class Notifications
         if (File.Exists(icon)) key.SetValue("IconUri", icon);
         key.SetValue("IconBackgroundColor", "FF0C0D10");
     }
-
-    private static bool IsPackaged
-    {
-        get
-        {
-            var length = 0;
-            return GetCurrentPackageFullName(ref length, 0) != 15700; // APPMODEL_ERROR_NO_PACKAGE
-        }
-    }
-
-    [LibraryImport("kernel32.dll")]
-    private static partial int GetCurrentPackageFullName(ref int length, nint name);
 
     [Conditional("DEBUG")]
     private static void Log(string line)

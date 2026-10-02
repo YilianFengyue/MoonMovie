@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="MoonMovie.Views.SearchPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -101,11 +101,42 @@
                         <SelectorBarItem IsSelected="True" Tag="All" Text="全部" />
                         <SelectorBarItem Tag="Movie" Text="电影" />
                         <SelectorBarItem Tag="Tv" Text="剧集" />
+                        <SelectorBarItem Tag="Bili" Text="B站" />
                     </SelectorBar>
                 </StackPanel>
 
+                <!-- 「B站」: videos for the query, in a grid that follows the window; more load near the end. -->
+                <StackPanel x:Name="BiliPanel" Margin="56,8,56,0" Spacing="18" Visibility="Collapsed">
+                    <SelectorBar x:Name="BiliOrderBar" Margin="-12,0,0,0" SelectionChanged="OnBiliOrderChanged">
+                        <SelectorBarItem IsSelected="True" Tag="Relevance" Text="综合" />
+                        <SelectorBarItem Tag="Plays" Text="最多播放" />
+                        <SelectorBarItem Tag="Newest" Text="最新发布" />
+                        <SelectorBarItem Tag="Danmaku" Text="最多弹幕" />
+                    </SelectorBar>
+                    <ItemsRepeater
+                        x:Name="BiliRepeater"
+                        ItemTemplate="{StaticResource BiliVideoTileTemplate}"
+                        ItemsSource="{x:Bind ViewModel.BiliVideos}"
+                        XYFocusKeyboardNavigation="Enabled">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout
+                                ItemsStretch="Fill"
+                                MinColumnSpacing="20"
+                                MinItemWidth="260"
+                                MinRowSpacing="28" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                    <ProgressRing
+                        x:Name="BiliMoreRing"
+                        Width="24"
+                        Height="24"
+                        HorizontalAlignment="Center"
+                        IsActive="False"
+                        Visibility="Collapsed" />
+                </StackPanel>
+
                 <!-- Rows share one width (the hover wash lines up) that follows the window, capped for readability. -->
-                <Grid Margin="44,20,44,0">
+                <Grid x:Name="ResultsPanel" Margin="44,20,44,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MaxWidth="1480" />
                         <ColumnDefinition Width="Auto" />

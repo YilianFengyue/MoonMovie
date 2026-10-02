@@ -80,7 +80,8 @@ public sealed record BiliComment(
     DateTimeOffset Time,
     int ReplyCount,
     bool Pinned,
-    string? Location);
+    string? Location,
+    IReadOnlyList<BiliComment>? Previews = null);
 
 /// <summary>A page of comments, whether more pages follow, and whether a guest is seeing only a sample.</summary>
 public sealed record BiliComments(IReadOnlyList<BiliComment> Items, long Total, bool LimitedForGuests, bool HasMore);

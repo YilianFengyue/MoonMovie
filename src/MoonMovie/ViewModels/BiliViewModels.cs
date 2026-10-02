@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using MoonMovie.Core.Bilibili;
@@ -28,9 +30,87 @@ public sealed partial class BiliVideoViewModel(BiliVideo video)
     private void OpenInBrowser() => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(Video.WebUrl));
 }
 
-/// <summary>A comment in the player's 评论 tab.</summary>
-public sealed class BiliCommentViewModel(BiliComment comment)
+/// <summary>
+/// A comment in the player's 评论 tab. Its thread starts with B站's few preview replies; 「查看全部」 loads the
+/// replies page by page in place, 「收起」 folds back to the preview.
+/// </summary>
+public sealed partial class BiliCommentViewModel : ObservableObject
 {
+    private readonly BiliComment comment;
+    private readonly Func<long, int, Task<BiliComments>>? _loadReplies;
+    private int _page;
+    private bool _hasMore;
+
+    public BiliCommentViewModel(BiliComment comment, Func<long, int, Task<BiliComments>>? loadReplies = null)
+    {
+        this.comment = comment;
+        _loadReplies = loadReplies;
+        ShowPreviews();
+    }
+
+    public ObservableCollection<BiliCommentViewModel> Replies { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThreadActionText), nameof(ThreadActionVisibility), nameof(CollapseVisibility))]
+    public partial bool Expanded { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThreadActionVisibility), nameof(LoadingVisibility))]
+    public partial bool Loading { get; set; }
+
+    public Visibility ThreadVisibility => comment.ReplyCount > 0 && _loadReplies is not null ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>「查看全部 238 条回复」 first, then 「加载更多回复」 while pages remain.</summary>
+    public string ThreadActionText => Expanded ? "加载更多回复" : $"查看全部 {comment.ReplyCount} 条回复";
+
+    public Visibility ThreadActionVisibility =>
+        !Loading && (Expanded ? _hasMore : comment.ReplyCount > Replies.Count) ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility CollapseVisibility => Expanded ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility LoadingVisibility => Loading ? Visibility.Visible : Visibility.Collapsed;
+
+    [RelayCommand]
+    private async Task MoreRepliesAsync()
+    {
+        if (_loadReplies is null || Loading) return;
+        Loading = true;
+        try
+        {
+            var page = Expanded ? _page + 1 : 1;
+            var replies = await _loadReplies(comment.Id, page);
+            if (page == 1) Replies.Clear();
+            foreach (var r in replies.Items) Replies.Add(new BiliCommentViewModel(r));
+            _page = page;
+            _hasMore = replies.HasMore;
+            Expanded = true;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+        {
+            // Keep what is shown; the button stays for another try.
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CollapseReplies()
+    {
+        ShowPreviews();
+        Expanded = false;
+        OnPropertyChanged(nameof(ThreadActionVisibility));
+    }
+
+    private void ShowPreviews()
+    {
+        Replies.Clear();
+        foreach (var r in comment.Previews ?? []) Replies.Add(new BiliCommentViewModel(r));
+        _page = 0;
+        _hasMore = false;
+    }
+
     public string User => comment.User;
 
     public string? AvatarUrl => BiliClient.Thumb(comment.Avatar, 72, 72);
@@ -46,9 +126,6 @@ public sealed class BiliCommentViewModel(BiliComment comment)
 
     public Visibility PinnedVisibility => comment.Pinned ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility RepliesVisibility => comment.ReplyCount > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-    public string RepliesText => $"{comment.ReplyCount} 条回复";
 }
 
 /// <summary>Numbers and dates the way B站 writes them.</summary>

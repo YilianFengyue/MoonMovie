@@ -289,6 +289,61 @@
         </Button>
     </DataTemplate>
 
+    <!-- B站 video in a grid: the same card, stretching with its column (cover keeps 16:9). -->
+    <DataTemplate x:Key="BiliVideoTileTemplate" x:DataType="vm:BiliVideoViewModel">
+        <Button
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch"
+            AutomationProperties.Name="{x:Bind AutomationName}"
+            Command="{x:Bind PlayCommand}"
+            Style="{StaticResource MoonCardButtonStyle}"
+            ToolTipService.ToolTip="{x:Bind Title}"
+            motion:CardMotion.IsEnabled="True">
+            <Button.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Command="{x:Bind PlayCommand}" Text="播放">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE768;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Command="{x:Bind OpenInBrowserCommand}" Text="在 B站打开">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE774;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Button.ContextFlyout>
+            <StackPanel>
+                <tk:ConstrainedBox AspectRatio="16:9">
+                    <Grid Background="{StaticResource MoonSurfaceBrush}" CornerRadius="{StaticResource MoonCardRadius}">
+                        <Image imaging:ImageEx.DecodeWidth="400" imaging:ImageEx.Url="{x:Bind CoverUrl}" Stretch="UniformToFill" />
+                        <Border
+                            Margin="0,0,8,8"
+                            Padding="6,1,6,2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="#B3000000"
+                            CornerRadius="4">
+                            <TextBlock FontSize="11" Foreground="#F2FFFFFF" Text="{x:Bind DurationText}" />
+                        </Border>
+                        <Border BorderBrush="{StaticResource MoonCardStrokeBrush}" BorderThickness="1" CornerRadius="{StaticResource MoonCardRadius}" />
+                    </Grid>
+                </tk:ConstrainedBox>
+                <TextBlock
+                    Height="40"
+                    Margin="2,10,2,0"
+                    FontSize="14"
+                    Foreground="{StaticResource MoonTextPrimaryBrush}"
+                    LineHeight="20"
+                    MaxLines="2"
+                    Text="{x:Bind Title}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+                <TextBlock Margin="2,4,2,0" Style="{StaticResource MoonCardMetaStyle}" Text="{x:Bind Meta}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
     <DataTemplate x:Key="WallLandscapeTemplate" x:DataType="vm:MediaCardViewModel">
         <Button
             AutomationProperties.Name="{x:Bind Title}"

@@ -16,6 +16,47 @@
     -->
 
     <Page.Resources>
+        <!-- A reply inside a thread: smaller avatar, no nested thread. -->
+        <DataTemplate x:Key="BiliReplyTemplate" x:DataType="vm:BiliCommentViewModel">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="22" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid
+                    Width="22"
+                    Height="22"
+                    VerticalAlignment="Top"
+                    Background="{StaticResource MoonSurfaceRaisedBrush}"
+                    CornerRadius="11">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="10"
+                        Foreground="{StaticResource MoonTextTertiaryBrush}"
+                        Text="{x:Bind Initial}" />
+                    <Image imaging:ImageEx.DecodeWidth="22" imaging:ImageEx.Url="{x:Bind AvatarUrl}" Stretch="UniformToFill" />
+                </Grid>
+                <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock FontSize="12" Foreground="{StaticResource MoonTextSecondaryBrush}" Text="{x:Bind User}" />
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{StaticResource MoonTextPrimaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        LineHeight="20"
+                        Text="{x:Bind Text}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <TextBlock FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="{x:Bind Meta}" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE8E1;" />
+                            <TextBlock FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="{x:Bind Likes}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
         <!-- B站 comment: avatar, name (and 置顶), text, when · where · likes. -->
         <DataTemplate x:Key="BiliCommentTemplate" x:DataType="vm:BiliCommentViewModel">
             <Grid ColumnSpacing="12">
@@ -62,11 +103,47 @@
                             <FontIcon FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Glyph="&#xE8E1;" />
                             <TextBlock FontSize="11" Foreground="{StaticResource MoonTextTertiaryBrush}" Text="{x:Bind Likes}" />
                         </StackPanel>
-                        <TextBlock
-                            FontSize="11"
-                            Foreground="{StaticResource MoonTextTertiaryBrush}"
-                            Text="{x:Bind RepliesText}"
-                            Visibility="{x:Bind RepliesVisibility}" />
+                    </StackPanel>
+                    <!-- The thread: preview replies, then the full list on request. -->
+                    <StackPanel
+                        Margin="0,4,0,0"
+                        Padding="12,10"
+                        Background="#0AFFFFFF"
+                        CornerRadius="8"
+                        Spacing="12"
+                        Visibility="{x:Bind ThreadVisibility}">
+                        <ItemsRepeater ItemTemplate="{StaticResource BiliReplyTemplate}" ItemsSource="{x:Bind Replies}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="12" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <HyperlinkButton
+                                Padding="0"
+                                AutomationProperties.Name="{x:Bind ThreadActionText, Mode=OneWay}"
+                                Command="{x:Bind MoreRepliesCommand}"
+                                FontSize="12"
+                                Foreground="{StaticResource MoonTextSecondaryBrush}"
+                                Visibility="{x:Bind ThreadActionVisibility, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{x:Bind ThreadActionText, Mode=OneWay}" />
+                                    <FontIcon FontSize="10" Glyph="&#xE70D;" />
+                                </StackPanel>
+                            </HyperlinkButton>
+                            <ProgressRing Width="14" Height="14" IsActive="{x:Bind Loading, Mode=OneWay}" Visibility="{x:Bind LoadingVisibility, Mode=OneWay}" />
+                            <HyperlinkButton
+                                Padding="0"
+                                AutomationProperties.Name="收起回复"
+                                Command="{x:Bind CollapseRepliesCommand}"
+                                FontSize="12"
+                                Foreground="{StaticResource MoonTextTertiaryBrush}"
+                                Visibility="{x:Bind CollapseVisibility, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="收起" />
+                                    <FontIcon FontSize="10" Glyph="&#xE70E;" />
+                                </StackPanel>
+                            </HyperlinkButton>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Grid>

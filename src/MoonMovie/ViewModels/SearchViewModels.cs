@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
+using MoonMovie.Core.Bilibili;
 using MoonMovie.Core.Models;
 using MoonMovie.Core.Search;
 using MoonMovie.Core.Sources;
@@ -99,11 +100,24 @@ public enum SearchFilter
     All,
     Movie,
     Tv,
+    Bili,
 }
 
-public sealed partial class SearchViewModel(SearchService search, TmdbClient tmdb) : ObservableObject
+public sealed partial class SearchViewModel(SearchService search, TmdbClient tmdb, BiliClient bili) : ObservableObject
 {
     private SearchResults? _results;
+    private string _query = "";
+    private int _biliPage;
+    private bool _biliHasMore = true;
+    private int _biliVersion;
+
+    /// <summary>The 「B站」 tab: videos for the raw query, loaded the first time the tab opens, then page by page.</summary>
+    public ObservableCollection<BiliVideoViewModel> BiliVideos { get; } = [];
+
+    public BiliOrder BiliOrder { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsBiliLoading { get; private set; }
 
     public ObservableCollection<SearchResultViewModel> Results { get; } = [];
 
@@ -121,6 +135,7 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
 
     public async Task RunAsync(string query, CancellationToken ct)
     {
+        _query = query;
         IsLoading = true;
         Summary = "正在搜索…";
         try
@@ -151,6 +166,13 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
     public void ApplyFilter(SearchFilter filter)
     {
         Filter = filter;
+        if (filter == SearchFilter.Bili)
+        {
+            if (BiliVideos.Count == 0 && !IsBiliLoading) _ = LoadBiliAsync(reset: true);
+            else Summary = BiliSummary();
+            return;
+        }
+
         Results.Clear();
         if (_results is null)
         {
@@ -180,4 +202,47 @@ public sealed partial class SearchViewModel(SearchService search, TmdbClient tmd
             ? "没有找到相关的电影或剧集"
             : $"{Results.Count} 部作品{(People.Count > 0 ? $" · {People.Count} 位人物" : "")}{(hints.Count > 0 ? " · 已识别 " + string.Join("、", hints) : "")}";
     }
+
+    public void SetBiliOrder(BiliOrder order)
+    {
+        if (order == BiliOrder) return;
+        BiliOrder = order;
+        _ = LoadBiliAsync(reset: true);
+    }
+
+    /// <summary>The next page (or the first, after a new order); stale answers from an older order are dropped.</summary>
+    public async Task LoadBiliAsync(bool reset = false)
+    {
+        if (_query.Length == 0 || (!reset && (IsBiliLoading || !_biliHasMore))) return;
+        var version = reset ? ++_biliVersion : _biliVersion;
+        if (reset)
+        {
+            BiliVideos.Clear();
+            _biliPage = 0;
+            _biliHasMore = true;
+        }
+
+        IsBiliLoading = true;
+        if (BiliVideos.Count == 0) Summary = "正在搜索 B站…";
+        try
+        {
+            var page = await bili.SearchAsync(_query, BiliOrder, _biliPage + 1);
+            if (version != _biliVersion) return;
+            _biliPage++;
+            _biliHasMore = page.Count >= 20 && _biliPage < 25;
+            var seen = BiliVideos.Select(v => v.Video.Bvid).ToHashSet();
+            foreach (var v in page.Where(v => seen.Add(v.Bvid))) BiliVideos.Add(new BiliVideoViewModel(v));
+            if (Filter == SearchFilter.Bili) Summary = BiliSummary();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BiliException or System.Text.Json.JsonException)
+        {
+            if (version == _biliVersion && Filter == SearchFilter.Bili && BiliVideos.Count == 0) Summary = "B站搜索失败，请稍后再试";
+        }
+        finally
+        {
+            if (version == _biliVersion) IsBiliLoading = false;
+        }
+    }
+
+    private string BiliSummary() => BiliVideos.Count == 0 ? "B站上没有找到相关视频" : $"B站视频 · 已加载 {BiliVideos.Count} 个";
 }

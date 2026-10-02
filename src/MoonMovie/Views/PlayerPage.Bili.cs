@@ -132,7 +132,8 @@ public sealed partial class PlayerPage
             var comments = await _bili.CommentsAsync(bili.Video.Aid, page);
             _biliCommentPage = page;
             if (!more) _biliComments.Clear();
-            foreach (var c in comments.Items) _biliComments.Add(new BiliCommentViewModel(c));
+            var aid = bili.Video.Aid;
+            foreach (var c in comments.Items) _biliComments.Add(new BiliCommentViewModel(c, (root, pn) => _bili.RepliesAsync(aid, root, pn)));
             CommentsMoreButton.Visibility = comments.HasMore ? Visibility.Visible : Visibility.Collapsed;
             CommentsCount.Text = comments.Total > 0 ? $"共 {BiliText.Count(comments.Total)} 条" : string.Empty;
             if (comments.Items.Count == 0)

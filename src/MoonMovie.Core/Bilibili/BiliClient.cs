@@ -240,6 +240,25 @@ public sealed partial class BiliClient
         return new BiliComments(items, total, LimitedForGuests: Credentials is null && total > items.Count, hasMore);
     }
 
+    /// <summary>Replies under one comment, oldest first, 20 a page (guests can read these too).</summary>
+    public async Task<BiliComments> RepliesAsync(long aid, long root, int page = 1, CancellationToken ct = default)
+    {
+        var d = await GetAsync("/x/v2/reply/reply", new()
+        {
+            ["type"] = "1",
+            ["oid"] = aid.ToString(CultureInfo.InvariantCulture),
+            ["root"] = root.ToString(CultureInfo.InvariantCulture),
+            ["pn"] = page.ToString(CultureInfo.InvariantCulture),
+            ["ps"] = "20",
+        }, signed: false, ct).ConfigureAwait(false);
+
+        var items = d.TryGetProperty("replies", out var replies) && replies.ValueKind == JsonValueKind.Array
+            ? replies.EnumerateArray().Select(r => Comment(r, pinned: false)).ToArray()
+            : [];
+        var total = d.TryGetProperty("page", out var paging) ? Long(paging, "count") : items.Length;
+        return new BiliComments(items, total, LimitedForGuests: false, HasMore: items.Length > 0 && page * 20 < total);
+    }
+
     // ----- Account ----------------------------------------------------------------------------------------
 
     /// <summary>Starts a QR login: the URL to encode and the key to poll with (valid about three minutes).</summary>
@@ -513,6 +532,10 @@ public sealed partial class BiliClient
             location = loc.Replace("IP属地：", "");
         }
 
+        var previews = r.TryGetProperty("replies", out var replies) && replies.ValueKind == JsonValueKind.Array
+            ? replies.EnumerateArray().Select(x => Comment(x, pinned: false)).ToArray()
+            : null;
+
         return new BiliComment(
             Long(r, "rpid"),
             Str(member, "uname") ?? "",
@@ -522,7 +545,8 @@ public sealed partial class BiliClient
             DateTimeOffset.FromUnixTimeSeconds(Long(r, "ctime")),
             (int)Long(r, "rcount"),
             pinned,
-            location);
+            location,
+            previews);
     }
 
     /// <summary>A regular CDN URL beats a peer-to-peer edge (mcdn / PCDN hosts), which is often slow or blocked.</summary>

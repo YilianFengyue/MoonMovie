@@ -40,19 +40,28 @@ public sealed unsafe class MpvPlayer : IDisposable
         Option("input-vo-keyboard", "no");
         Option("cursor-autohide", "no");
         Option("idle", "yes");
+        Option("ytdl", "no"); // URLs are resolved by MoonMovie; never spawn youtube-dl
         Option("keep-open", "yes");
 
-        // Windows media flyout and media keys.
-        Option("media-controls", "yes");
+        // The page drives the Windows media flyout itself (SystemMediaControls), with artwork and episodes.
+        Option("media-controls", "no");
         Option("audio-client-name", "MoonMovie");
 
         // Network: generous read-ahead, reconnect on drops.
         Option("cache", "yes");
         Option("demuxer-readahead-secs", "30");
-        Option("demuxer-max-bytes", "400MiB");
-        Option("demuxer-max-back-bytes", "100MiB");
+        Option("demuxer-max-bytes", "96MiB");
+        Option("demuxer-max-back-bytes", "32MiB");
         Option("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
 
+#if DEBUG
+        // Experiments: MOONMOVIE_DEBUG_MPVOPTS="name=value;name=value" overrides any option above.
+        foreach (var pair in (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_MPVOPTS") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = pair.IndexOf('=');
+            if (eq > 0) Option(pair[..eq], pair[(eq + 1)..]);
+        }
+#endif
         Option("log-file", Path.Combine(AppPaths.Root, "mpv.log"));
         Check(LibMpv.mpv_request_log_messages(_handle, "warn"), "request_log_messages");
         Check(LibMpv.mpv_initialize(_handle), "mpv_initialize");

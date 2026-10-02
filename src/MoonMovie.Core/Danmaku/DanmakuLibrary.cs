@@ -64,7 +64,7 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
         foreach (var original in raw)
         {
             // Platform emoticon codes ("[喜欢]", "[6周年]") have no meaning outside their own player.
-            var text = Emoticon.Replace(Invisible.Replace(original.Text, string.Empty), string.Empty).Trim();
+            var text = Emoticon.Replace(Invisible.Replace(System.Net.WebUtility.HtmlDecode(original.Text), string.Empty), string.Empty).Trim();
 
             // The server appends likes ("♡14") and merged repeats ("x3"): keep them as weight, not as text.
             var weight = original.Weight;
@@ -74,7 +74,7 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
                 text = text[..m.Index].TrimEnd();
             }
 
-            if (text.Length == 0) continue;
+            if (text.Length == 0 || Spam.IsMatch(text)) continue;
             var c = text == original.Text && weight == original.Weight ? original : original with { Text = text, Weight = weight };
 
             if (blockers.Any(b => b(c.Text))) continue;
@@ -241,6 +241,11 @@ public sealed class DanmakuLibrary(DanmakuClient client, SettingsStore settings)
 
     // Zero-width spaces/joiners and emoji variation selectors: invisible, but they defeat every text rule.
     private static readonly Regex Invisible = new(@"[​-‏⁠︎️]", RegexOptions.Compiled);
+
+    // Always dropped: gambling / betting ads, links and contact bait, and script-injection junk.
+    private static readonly Regex Spam = new(
+        @"(提款|到账|官方直营|以小博大|博彩|彩票|娱乐城|百家乐|棋牌|下注|充值返|加微|加v|vx[:：]|qq群|https?://|www\.|\.com\b|<\s*(img|script|iframe)|onerror|javascript:|document\.cookie)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex Annotation = new(@"\s*(?:[♡❤♥]\s*|[x×X]\s?)(\d{1,6})$", RegexOptions.Compiled);
 

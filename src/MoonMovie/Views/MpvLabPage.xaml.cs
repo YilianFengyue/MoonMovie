@@ -118,7 +118,7 @@ public sealed partial class MpvLabPage : Page
                 var uri = episode.Url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase)
                     ? await proxy.PlaylistUriAsync(episode.Url)
                     : await proxy.FileUriAsync(episode.Url);
-                return uri.ToString();
+                return uri.AbsoluteUri;
             default:
                 return null;
         }

@@ -108,6 +108,7 @@ public partial class App : Application
             .AddSingleton<DanmakuLibrary>()
             .AddSingleton<FavoritesStore>()
             .AddSingleton<WatchProgressStore>()
+            .AddSingleton<TitlePrefsStore>()
             .AddSingleton(_ => new MediaProxy(direct))
             .AddSingleton<HomeFeedService>()
             .AddSingleton<SearchService>()

@@ -17,9 +17,7 @@ using MoonMovie.Imaging;
 using MoonMovie.Playback;
 using MoonMovie.Services;
 using MoonMovie.ViewModels;
-using Windows.Media.Core;
-using Windows.Media.Playback;
-using Windows.Media.Streaming.Adaptive;
+using MoonMovie.Playback.Engines;
 using Windows.System;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
@@ -46,12 +44,13 @@ public sealed partial class PlayerPage : Page
     private readonly ObservableCollection<PlayerEpisodeItem> _episodes = [];
     private readonly HashSet<string> _failedSources = [];
 
-    private MediaPlayer? _player;
+    private IPlaybackEngine? _engine;
     private PlaybackRequest _request = null!;
     private SourceItemViewModel _source = null!;
     private int _episodeIndex;
     private int _openVersion;
     private TimeSpan _pendingSeek;
+    private double _speed = 1.0;
     private TimeSpan _duration;
     private DateTimeOffset _stallSince = DateTimeOffset.MaxValue;
     private DateTimeOffset _lastSave;
@@ -125,12 +124,7 @@ public sealed partial class PlayerPage : Page
         App.MainWindow.SetImmersive(true);
         ImageEx.SetUrl(LoadingBackdrop, _tmdb.ImageUrl(request.Item.BackdropPath, "w1280"));
 
-        _player = new MediaPlayer { AutoPlay = true, Volume = _volume };
-        _player.MediaOpened += (_, _) => DispatcherQueue.TryEnqueue(OnMediaOpened);
-        _player.MediaFailed += (_, args) => DispatcherQueue.TryEnqueue(() => OnMediaFailed(args.ErrorMessage));
-        _player.MediaEnded += (_, _) => DispatcherQueue.TryEnqueue(OnMediaEnded);
-        _player.PlaybackSession.PlaybackStateChanged += (_, _) => DispatcherQueue.TryEnqueue(UpdatePlaybackState);
-        Video.SetMediaPlayer(_player);
+        CreateEngine();
         InitSystemMedia();
         VolumeBar.Value = _volume * 100;
 
@@ -154,12 +148,13 @@ public sealed partial class PlayerPage : Page
         StopDanmaku();
         KeepAwake(false);
 
-        if (_player is not null)
+        DisposeSystemMedia();
+        if (_engine is not null)
         {
-            _player.Pause();
-            Video.SetMediaPlayer(null);
-            _player.Dispose();
-            _player = null;
+            _engine.Pause();
+            VideoHost.Children.Clear();
+            _engine.Dispose();
+            _engine = null;
         }
 
         App.MainWindow.SetCompactOverlay(false);
@@ -174,13 +169,14 @@ public sealed partial class PlayerPage : Page
 
     private async Task OpenAsync(bool resume, TimeSpan? startAt = null)
     {
-        if (_player is null) return;
+        if (_engine is null) return;
 
         var version = ++_openVersion;
         _episodeIndex = Math.Clamp(_episodeIndex, 0, Line.Episodes.Count - 1);
         var episode = Line.Episodes[_episodeIndex];
 
         ErrorPanel.Visibility = Visibility.Collapsed;
+        ResetSkips();
         HideNextCard(resetCancel: true);
         HidePausedInfo();
         ShowLoading($"正在连接 {_source.SiteName}…");
@@ -197,37 +193,15 @@ public sealed partial class PlayerPage : Page
 
         try
         {
-            MediaSource source;
-            if (episode.Url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase))
-            {
-                var uri = await _proxy.PlaylistUriAsync(episode.Url);
-                var result = await AdaptiveMediaSource.CreateFromUriAsync(uri);
-                if (version != _openVersion) return;
-                if (result.Status != AdaptiveMediaSourceCreationStatus.Success)
-                {
-                    OnMediaFailed($"无法解析播放列表（{result.Status}）");
-                    return;
-                }
+            var isHls = episode.Url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
+            var uri = isHls ? await _proxy.PlaylistUriAsync(episode.Url) : await _proxy.FileUriAsync(episode.Url);
+            if (version != _openVersion || _engine is null) return;
 
-                // Start at the best rendition: resource sites rarely offer more than one anyway.
-                if (result.MediaSource.AvailableBitrates.Count > 0)
-                {
-                    result.MediaSource.InitialBitrate = result.MediaSource.AvailableBitrates.Max();
-                }
-
-                source = MediaSource.CreateFromAdaptiveMediaSource(result.MediaSource);
-            }
-            else
-            {
-                source = MediaSource.CreateFromUri(await _proxy.FileUriAsync(episode.Url));
-            }
-
-            if (version != _openVersion) return;
             _awaitingFirstFrame = true;
-            var playbackItem = new MediaPlaybackItem(source);
-            ApplyDisplayProperties(playbackItem);
-            _player.Source = playbackItem;
-            _player.PlaybackSession.PlaybackRate = CurrentSpeed;
+            var speed = _speed;
+            await _engine.OpenAsync(uri.AbsoluteUri, _pendingSeek, isHls); // escaped: mpv sends the string verbatim
+            _engine.Rate = speed;
+            UpdateSystemMediaInfo();
         }
         catch (Exception ex)
         {
@@ -237,22 +211,20 @@ public sealed partial class PlayerPage : Page
 
     private void OnMediaOpened()
     {
-        if (_player is null) return;
+        if (_engine is null) return;
 
-        _duration = _player.PlaybackSession.NaturalDuration;
+        _duration = _engine.Duration;
         _stallSince = DateTimeOffset.MaxValue;
         _failedSources.Clear();
         LogVideoTracks("opened");
         LoadingText.Text = "正在缓冲…";
 
-        if (_pendingSeek > TimeSpan.Zero && (_duration == TimeSpan.Zero || _pendingSeek < _duration - TimeSpan.FromSeconds(30)))
+        if (_pendingSeek > TimeSpan.Zero)
         {
+            // The engine already opened at this position; offer the way back to the start.
             var resumeAt = _pendingSeek;
-            _player.PlaybackSession.Position = resumeAt;
-            ShowToast($"从 {TimeText.Format(resumeAt)} 继续播放", "从头播放", () =>
-            {
-                if (_player is not null) _player.PlaybackSession.Position = TimeSpan.Zero;
-            }, TimeSpan.FromSeconds(7));
+            ShowToast($"从 {TimeText.Format(resumeAt)} 继续播放", "从头播放", () => _engine?.Seek(TimeSpan.Zero),
+                TimeSpan.FromSeconds(7));
         }
 
         _pendingSeek = TimeSpan.Zero;
@@ -261,7 +233,7 @@ public sealed partial class PlayerPage : Page
     private void OnMediaFailed(string? reason)
     {
         _failedSources.Add(_source.Candidate.Identity);
-        var position = _player?.PlaybackSession.Position ?? TimeSpan.Zero;
+        var position = _engine?.Position ?? TimeSpan.Zero;
 
         // Automatic failover to the next reachable source, keeping the position.
         var next = _request.Sources.Items.FirstOrDefault(i =>
@@ -308,7 +280,7 @@ public sealed partial class PlayerPage : Page
     private void OnSourceChosen(object? sender, SourceItemViewModel chosen)
     {
         if (chosen == _source) return;
-        var position = _player?.PlaybackSession.Position ?? TimeSpan.Zero;
+        var position = _engine?.Position ?? TimeSpan.Zero;
         _failedSources.Clear();
         CloseSidePanel();
         ShowToast($"已切换到 {chosen.SiteName}");
@@ -390,20 +362,22 @@ public sealed partial class PlayerPage : Page
 
     private void OnTick()
     {
-        if (_player is null) return;
-        var session = _player.PlaybackSession;
-        var position = session.Position;
+        if (_engine is null) return;
+        var position = _engine.Position;
+        var state = _engine.State;
 
-        if (_duration == TimeSpan.Zero && session.NaturalDuration > TimeSpan.Zero)
+        if (_duration == TimeSpan.Zero && _engine.Duration > TimeSpan.Zero)
         {
-            _duration = session.NaturalDuration;
+            _duration = _engine.Duration;
+            UpdateMarks(); // the credits mark needs the duration
         }
 
-        SeekBar.Update(position, _duration, BufferedFraction(session, position));
+        var buffered = _duration > TimeSpan.Zero ? (position.TotalSeconds + _engine.BufferedAhead) / _duration.TotalSeconds : 0;
+        SeekBar.Update(position, _duration, buffered);
         if (!SeekBar.IsDragging) UpdateTimeText(position);
 
         // A source that stops delivering data is as bad as one that fails outright.
-        if (session.PlaybackState is MediaPlaybackState.Opening or MediaPlaybackState.Buffering)
+        if (state is EngineState.Opening or EngineState.Buffering)
         {
             if (_stallSince == DateTimeOffset.MaxValue) _stallSince = DateTimeOffset.Now;
             if (DateTimeOffset.Now - _stallSince > StallLimit && ErrorPanel.Visibility != Visibility.Visible)
@@ -418,18 +392,11 @@ public sealed partial class PlayerPage : Page
         }
 
         UpdateNextCard(position);
+        UpdateSkips(position);
         SyncDanmaku(position);
-#if DEBUG
-        if (DateTimeOffset.Now - _lastDiag > TimeSpan.FromSeconds(5))
-        {
-            _lastDiag = DateTimeOffset.Now;
-            PlayerLog($"tick pos={(int)position.TotalSeconds}s state={session.PlaybackState} video={session.NaturalVideoWidth}x{session.NaturalVideoHeight} " +
-                      $"cover={LoadingCover.Visibility}/{LoadingCover.Opacity:0.00} awaiting={_awaitingFirstFrame} " +
-                      $"backdrop={LoadingBackdrop.Opacity:0.00} videoEl={Video.ActualWidth:0}x{Video.ActualHeight:0}");
-        }
-#endif
+        if (InfoPanel.Visibility == Visibility.Visible) UpdateInfoPanel();
 
-        if (session.PlaybackState == MediaPlaybackState.Playing && DateTimeOffset.Now - _lastSave > TimeSpan.FromSeconds(5))
+        if (state == EngineState.Playing && DateTimeOffset.Now - _lastSave > TimeSpan.FromSeconds(5))
         {
             SaveProgress(flush: false);
         }
@@ -439,18 +406,18 @@ public sealed partial class PlayerPage : Page
     private DateTimeOffset _lastDiag;
 #endif
 
-    /// <summary>Codec and picture size of what just opened — the first thing to check on "sound but no picture".</summary>
+    /// <summary>What just opened and through which engine — the first thing to check on playback problems.</summary>
     private void LogVideoTracks(string when)
     {
-        if (_player?.Source is not MediaPlaybackItem item) return;
-        var tracks = string.Join(", ", item.VideoTracks.Select(t =>
+        if (_engine is MpvEngine mpv)
         {
-            var p = t.GetEncodingProperties();
-            return $"{p.Subtype} {p.Width}x{p.Height}";
-        }));
-        var session = _player.PlaybackSession;
-        PlayerLog($"{when} source={_source.SiteName} ep={_episodeIndex + 1} tracks=[{tracks}] audio={item.AudioTracks.Count} " +
-                  $"natural={session.NaturalVideoWidth}x{session.NaturalVideoHeight}");
+            PlayerLog($"{when} engine=mpv source={_source.SiteName} ep={_episodeIndex + 1} " +
+                      string.Join(" ", mpv.Stats().Select(r => $"{r.Label}={r.Value}")));
+        }
+        else if (_engine is not null)
+        {
+            PlayerLog($"{when} engine={_engine.Name} source={_source.SiteName} ep={_episodeIndex + 1}");
+        }
     }
 
     private static void PlayerLog(string line)
@@ -465,26 +432,6 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private double BufferedFraction(MediaPlaybackSession session, TimeSpan position)
-    {
-        if (_duration <= TimeSpan.Zero) return 0;
-        try
-        {
-            foreach (var range in session.GetBufferedRanges())
-            {
-                if (range.Start <= position + TimeSpan.FromSeconds(1) && range.End >= position)
-                {
-                    return range.End / _duration;
-                }
-            }
-        }
-        catch (COMException)
-        {
-        }
-
-        return 0;
-    }
-
     private void UpdateTimeText(TimeSpan position)
     {
         var shown = _showRemaining && _duration > TimeSpan.Zero ? $"-{TimeText.Format(_duration - position)}" : TimeText.Format(position);
@@ -493,8 +440,8 @@ public sealed partial class PlayerPage : Page
 
     private void SaveProgress(bool flush)
     {
-        if (_player is null || _duration <= TimeSpan.Zero) return;
-        var position = _player.PlaybackSession.Position;
+        if (_engine is null || _duration <= TimeSpan.Zero) return;
+        var position = _engine.Position;
         if (position < TimeSpan.FromSeconds(5)) return;
 
         var item = _request.Item;
@@ -519,29 +466,35 @@ public sealed partial class PlayerPage : Page
 
     private void UpdatePlaybackState()
     {
-        if (_player is null) return;
-        var state = _player.PlaybackSession.PlaybackState;
-        PlayPauseGlyph.Glyph = state == MediaPlaybackState.Playing ? "" : "";
-        KeepAwake(state is MediaPlaybackState.Playing or MediaPlaybackState.Buffering or MediaPlaybackState.Opening);
+        if (_engine is null) return;
+        var state = _engine.State;
+        PlayPauseGlyph.Glyph = state == EngineState.Playing ? "\uE769" : "\uE768";
+        KeepAwake(state is EngineState.Playing or EngineState.Buffering or EngineState.Opening);
+        _media?.SetPlaying(state switch
+        {
+            EngineState.Playing or EngineState.Buffering => true,
+            EngineState.Paused or EngineState.Ended => false,
+            _ => null,
+        });
         SyncDanmaku();
 
-        if (state == MediaPlaybackState.Playing && _awaitingFirstFrame)
+        if (state == EngineState.Playing && _awaitingFirstFrame)
         {
             _awaitingFirstFrame = false;
             HideLoading();
         }
 
-        BufferRing.Visibility = !_awaitingFirstFrame && state is MediaPlaybackState.Buffering
+        BufferRing.Visibility = !_awaitingFirstFrame && state is EngineState.Buffering
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        if (state == MediaPlaybackState.Paused && !_awaitingFirstFrame)
+        if (state == EngineState.Paused && !_awaitingFirstFrame)
         {
             ShowChrome(pin: true);
             _pausedTimer.Stop();
             _pausedTimer.Start();
         }
-        else if (state == MediaPlaybackState.Playing)
+        else if (state == EngineState.Playing)
         {
             _pausedTimer.Stop();
             HidePausedInfo();
@@ -566,7 +519,7 @@ public sealed partial class PlayerPage : Page
 
     private void ShowPausedInfo()
     {
-        if (_player?.PlaybackSession.PlaybackState != MediaPlaybackState.Paused || _sideOpen) return;
+        if (_engine?.State != EngineState.Paused || _sideOpen) return;
         _pausedInfoShown = true;
         _ = Motion.SlideFadeAsync(PausedInfo, 0, 0, 14, 0, 0, 1, TimeSpan.FromMilliseconds(600));
     }
@@ -627,26 +580,26 @@ public sealed partial class PlayerPage : Page
 
     private void TogglePlay()
     {
-        if (_player is null) return;
-        var playing = _player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
-        if (playing) _player.Pause(); else _player.Play();
+        if (_engine is null) return;
+        var playing = _engine.State is EngineState.Playing or EngineState.Buffering;
+        if (playing) _engine.Pause(); else _engine.Play();
         FlashCenter(playing ? "" : "");
     }
 
     private void SeekTo(TimeSpan target)
     {
-        if (_player is null) return;
+        if (_engine is null) return;
         if (target < TimeSpan.Zero) target = TimeSpan.Zero;
         if (_duration > TimeSpan.Zero && target > _duration) target = _duration - TimeSpan.FromSeconds(1);
-        _player.PlaybackSession.Position = target;
+        _engine.Seek(target);
         UpdateTimeText(target);
         SyncDanmaku(target);
     }
 
     private void SeekBy(double seconds)
     {
-        if (_player is null) return;
-        SeekTo(_player.PlaybackSession.Position + TimeSpan.FromSeconds(seconds));
+        if (_engine is null) return;
+        SeekTo(_engine.Position + TimeSpan.FromSeconds(seconds));
         Ripple(seconds);
         ShowChrome();
     }
@@ -660,12 +613,12 @@ public sealed partial class PlayerPage : Page
         Motion.FadeTo(host, 0, TimeSpan.FromMilliseconds(650));
     }
 
-    private double CurrentSpeed => _player?.PlaybackSession.PlaybackRate is > 0 and var r ? r : 1.0;
+    private double CurrentSpeed => _speed;
 
     private void SetSpeed(double speed)
     {
-        if (_player is null) return;
-        _player.PlaybackSession.PlaybackRate = speed;
+        _speed = speed;
+        if (_engine is not null) _engine.Rate = speed;
         SyncDanmaku();
         SpeedText.Text = $"{speed:0.0#}x";
         foreach (var item in SpeedMenu.Items.OfType<RadioMenuFlyoutItem>()) item.IsChecked = (double)item.Tag == speed;
@@ -681,20 +634,20 @@ public sealed partial class PlayerPage : Page
 
     private void SetVolume(double volume)
     {
-        _volume = Math.Clamp(volume, 0, 1);
-        if (_player is not null)
+        _volume = Math.Clamp(volume, 0, MaxVolume);
+        if (_engine is not null)
         {
-            _player.Volume = _volume;
-            _player.IsMuted = false;
+            _engine.Volume = _volume;
+            _engine.Muted = false;
         }
 
         VolumeBar.Value = _volume * 100;
         UpdateVolumeGlyph();
-        ShowHud(VolumeGlyph.Glyph, _volume, $"{Math.Round(_volume * 100)}");
+        ShowHud(VolumeGlyph.Glyph, _volume / MaxVolume, $"{Math.Round(_volume * 100)}");
     }
 
     private void UpdateVolumeGlyph() =>
-        VolumeGlyph.Glyph = _player?.IsMuted == true || _volume == 0 ? "" : _volume < 0.5 ? "" : "";
+        VolumeGlyph.Glyph = _engine?.Muted == true || _volume == 0 ? "" : _volume < 0.5 ? "" : "";
 
     private void ShowHud(string glyph, double fraction, string text)
     {
@@ -749,24 +702,24 @@ public sealed partial class PlayerPage : Page
     private void OnTimeClick(object sender, RoutedEventArgs e)
     {
         _showRemaining = !_showRemaining;
-        UpdateTimeText(_player?.PlaybackSession.Position ?? TimeSpan.Zero);
+        UpdateTimeText(_engine?.Position ?? TimeSpan.Zero);
     }
 
     private void OnMuteClick(object sender, RoutedEventArgs e)
     {
-        if (_player is null) return;
-        _player.IsMuted = !_player.IsMuted;
+        if (_engine is null) return;
+        _engine.Muted = !_engine.Muted;
         UpdateVolumeGlyph();
-        ShowHud(VolumeGlyph.Glyph, _player.IsMuted ? 0 : _volume, _player.IsMuted ? "静音" : $"{Math.Round(_volume * 100)}");
+        ShowHud(VolumeGlyph.Glyph, _engine.Muted ? 0 : _volume / MaxVolume, _engine.Muted ? "静音" : $"{Math.Round(_volume * 100)}");
     }
 
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         _volume = e.NewValue / 100;
-        if (_player is not null)
+        if (_engine is not null)
         {
-            _player.Volume = _volume;
-            if (_volume > 0) _player.IsMuted = false;
+            _engine.Volume = _volume;
+            if (_volume > 0) _engine.Muted = false;
         }
 
         UpdateVolumeGlyph();
@@ -801,8 +754,41 @@ public sealed partial class PlayerPage : Page
     {
         var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift)
                      & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+        var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control)
+                    & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         switch (e.Key)
         {
+            // mpv-only extras (ignored on the system engine).
+            case VirtualKey.S when ctrl:
+                TakeScreenshot(withSubtitles: shift);
+                break;
+            case VirtualKey.L when ctrl:
+                if (Mpv is { } loop) ShowHud("", 1, loop.CycleAbLoop());
+                break;
+            case VirtualKey.I:
+                ToggleInfoPanel();
+                break;
+            case VirtualKey.V when shift:
+                CycleTrack("sub");
+                break;
+            case VirtualKey.V:
+                ToggleSubtitles();
+                break;
+            case VirtualKey.A:
+                CycleTrack("audio");
+                break;
+            case VirtualKey.Z:
+                NudgeSubtitle(-0.1);
+                break;
+            case VirtualKey.X:
+                NudgeSubtitle(0.1);
+                break;
+            case (VirtualKey)188: // ,
+                Mpv?.FrameStep(back: true);
+                break;
+            case (VirtualKey)190: // .
+                Mpv?.FrameStep(back: false);
+                break;
             case VirtualKey.Space or VirtualKey.K:
                 TogglePlay();
                 break;
@@ -900,7 +886,7 @@ public sealed partial class PlayerPage : Page
 
     private void HideChromeIfIdle()
     {
-        var playing = _player?.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
+        var playing = _engine?.State == EngineState.Playing;
         if (!playing || _sideOpen || SeekBar.IsDragging || SpeedMenu.IsOpen || _nextShown) return;
 
         _chromeVisible = false;
@@ -1005,7 +991,17 @@ public sealed partial class PlayerPage : Page
         EpisodesView.Visibility = sender.SelectedItem == EpisodesTab ? Visibility.Visible : Visibility.Collapsed;
         SourcesView.Visibility = sender.SelectedItem == SourcesTab ? Visibility.Visible : Visibility.Collapsed;
         DanmakuView.Visibility = sender.SelectedItem == DanmakuTab ? Visibility.Visible : Visibility.Collapsed;
+        PictureView.Visibility = sender.SelectedItem == PictureTab ? Visibility.Visible : Visibility.Collapsed;
+        AudioView.Visibility = sender.SelectedItem == AudioTab ? Visibility.Visible : Visibility.Collapsed;
+        SubtitleView.Visibility = sender.SelectedItem == SubtitleTab ? Visibility.Visible : Visibility.Collapsed;
         if (sender.SelectedItem == DanmakuTab) OnDanmakuTabShown();
+        if (sender.SelectedItem == PictureTab || sender.SelectedItem == AudioTab || sender.SelectedItem == SubtitleTab)
+        {
+            OnTuningTabShown();
+            SyncPictureUi();
+            SyncAudioUi();
+            SyncSubtitleUi();
+        }
     }
 
     private void OnEpisodeRowClick(object sender, RoutedEventArgs e)

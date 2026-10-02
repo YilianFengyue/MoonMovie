@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using MoonMovie.Controls;
 using MoonMovie.Core.Danmaku;
 using MoonMovie.Core.Settings;
-using Windows.Media.Playback;
+using MoonMovie.Playback.Engines;
 using Windows.System;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
@@ -197,9 +197,8 @@ public sealed partial class PlayerPage
     /// <summary>Keeps the overlay on the media clock (called from the tick, state changes and seeks).</summary>
     private void SyncDanmaku(TimeSpan? position = null)
     {
-        if (_player is null) return;
-        var session = _player.PlaybackSession;
-        Danmaku.Sync(position ?? session.Position, session.PlaybackState == MediaPlaybackState.Playing, session.PlaybackRate);
+        if (_engine is null) return;
+        Danmaku.Sync(position ?? _engine.Position, _engine.State == EngineState.Playing, _speed);
     }
 
     // ----- Switch and panel -------------------------------------------------------------------------------

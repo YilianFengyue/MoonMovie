@@ -59,17 +59,74 @@
             <StackPanel>
                 <TextBlock Style="{StaticResource SectionStyle}" Text="播放" />
                 <Border Style="{StaticResource CardStyle}">
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="自动播放下一集" />
-                            <TextBlock Style="{StaticResource RowCaptionStyle}" Text="剧集播完后接着放下一集；片尾 30 秒会先给出提示，可以取消" />
-                        </StackPanel>
-                        <Border x:Name="AutoNextHost" Grid.Column="1" VerticalAlignment="Center" />
-                    </Grid>
+                    <StackPanel>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="自动播放下一集" />
+                                <TextBlock x:Name="AutoNextChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="剧集播完后接着放下一集；片尾 30 秒会先给出提示，可以取消" />
+                            </StackPanel>
+                            <StackPanel x:Name="AutoNextChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="播放内核" />
+                                <TextBlock x:Name="EngineChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="mpv：几乎所有格式、ASS 特效字幕、HDR、超分；系统内核作为备用。下次打开播放器时生效" />
+                            </StackPanel>
+                            <StackPanel x:Name="EngineChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="画质档位" />
+                                <TextBlock x:Name="QualityChipsHostCaption" Style="{StaticResource RowCaptionStyle}" Text="" />
+                            </StackPanel>
+                            <StackPanel x:Name="QualityChipsHost" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="运动平滑" />
+                                <TextBlock x:Name="InterpolationChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="把 24 帧电影重采样到屏幕刷新率，高刷屏上镜头平移不抖（略增显卡负担）" />
+                            </StackPanel>
+                            <StackPanel x:Name="InterpolationChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid BorderThickness="0,0,0,1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="字幕样式" />
+                                <TextBlock x:Name="SubtitleStyleChipsCaption" Style="{StaticResource RowCaptionStyle}" Text="背景板：字幕下加半透明底；统一样式：番剧特效字幕也按统一字体字号显示" />
+                            </StackPanel>
+                            <StackPanel x:Name="SubtitleStyleChips" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                        <Grid Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="声音" />
+                                <TextBlock x:Name="AudioChipsHostCaption" Style="{StaticResource RowCaptionStyle}" Text="夜间模式：压低爆炸声、提亮对白；源码输出：杜比 / DTS 原样送功放" />
+                            </StackPanel>
+                            <StackPanel x:Name="AudioChipsHost" Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4" />
+                        </Grid>
+                    </StackPanel>
                 </Border>
             </StackPanel>
 

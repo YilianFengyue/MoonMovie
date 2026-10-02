@@ -40,7 +40,8 @@ public sealed partial class SettingsPage : Page
 
         _autoNextChip = Chips.Create("已开启", () => { Playback.AutoNext = !Playback.AutoNext; Changed(); });
         _danmakuOnChip = Chips.Create("已开启", () => { Danmaku.Enabled = !Danmaku.Enabled; Changed(); });
-        AutoNextHost.Child = _autoNextChip;
+        AutoNextChips.Children.Add(_autoNextChip);
+        BuildPlayerRows();
         DanmakuOnHost.Child = _danmakuOnChip;
 
         foreach (var (label, value) in Areas)
@@ -82,6 +83,48 @@ public sealed partial class SettingsPage : Page
 
     private PlaybackSettings Playback => _settings.Current.Playback;
 
+    private readonly List<(Button Chip, Func<bool> IsOn)> _playerChips = [];
+
+    /// <summary>Engine, quality, smoothing, subtitle and audio defaults (the player panels change the same settings).</summary>
+    private void BuildPlayerRows()
+    {
+        var video = _settings.Current.Video;
+        var subs = _settings.Current.Subtitles;
+        var audio = _settings.Current.Audio;
+
+        void Add(Panel host, string label, Func<bool> isOn, Action toggle)
+        {
+            var chip = Chips.Create(label, () => { toggle(); Changed(); });
+            _playerChips.Add((chip, isOn));
+            host.Children.Add(chip);
+        }
+
+        Add(EngineChips, "mpv", () => video.Engine == PlayerEngineKind.Mpv, () => video.Engine = PlayerEngineKind.Mpv);
+        Add(EngineChips, "系统", () => video.Engine == PlayerEngineKind.System, () => video.Engine = PlayerEngineKind.System);
+
+        foreach (var (label, value) in new[] { ("自动", QualityPreset.Auto), ("性能", QualityPreset.Performance), ("均衡", QualityPreset.Balanced), ("画质", QualityPreset.Quality) })
+        {
+            Add(QualityChipsHost, label, () => video.Quality == value, () => video.Quality = value);
+        }
+
+        var gpu = MoonMovie.Playback.Engines.GpuInfo.Name;
+        var recommended = MoonMovie.Playback.Engines.GpuInfo.Recommended switch
+        {
+            QualityPreset.Performance => "性能",
+            QualityPreset.Quality => "画质",
+            _ => "均衡",
+        };
+        QualityChipsHostCaption.Text = gpu.Length > 0
+            ? $"自动：按显卡选择 · {gpu} → {recommended}。性能档省电，画质档用更好的缩放与去色带"
+            : "自动：按显卡选择。性能档省电，画质档用更好的缩放与去色带";
+
+        Add(InterpolationChips, "运动平滑", () => video.Interpolation, () => video.Interpolation = !video.Interpolation);
+        Add(SubtitleStyleChips, "背景板", () => subs.Background, () => subs.Background = !subs.Background);
+        Add(SubtitleStyleChips, "统一样式", () => subs.OverrideAss, () => subs.OverrideAss = !subs.OverrideAss);
+        Add(AudioChipsHost, "夜间模式", () => audio.NightMode, () => audio.NightMode = !audio.NightMode);
+        Add(AudioChipsHost, "源码输出", () => audio.Passthrough, () => audio.Passthrough = !audio.Passthrough);
+    }
+
     private void Changed()
     {
         Sync();
@@ -93,6 +136,7 @@ public sealed partial class SettingsPage : Page
     {
         _syncing = true;
         Chips.Set(_autoNextChip, Playback.AutoNext);
+        foreach (var (chip, isOn) in _playerChips) Chips.Set(chip, isOn());
         Chips.SetLabel(_autoNextChip, Playback.AutoNext ? "已开启" : "已关闭");
         Chips.Set(_danmakuOnChip, Danmaku.Enabled);
         Chips.SetLabel(_danmakuOnChip, Danmaku.Enabled ? "已开启" : "已关闭");

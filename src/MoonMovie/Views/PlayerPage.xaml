@@ -14,6 +14,20 @@
     -->
 
     <Page.Resources>
+        <Style x:Key="PanelLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource MoonTextSecondaryBrush}" />
+        </Style>
+        <SolidColorBrush x:Key="SliderTrackValueFill" Color="White" />
+        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
+        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#D9FFFFFF" />
+        <SolidColorBrush x:Key="SliderTrackFill" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#4DFFFFFF" />
+        <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
+        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
+        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
+        <SolidColorBrush x:Key="SliderOuterThumbBackground" Color="#33000000" />
         <DataTemplate x:Key="PlayerEpisodeTemplate" x:DataType="playback:PlayerEpisodeItem">
             <Button Click="OnEpisodeRowClick" Style="{StaticResource MoonListRowButtonStyle}" Tag="{x:Bind Index}">
                 <Grid Padding="10" ColumnSpacing="14">
@@ -80,11 +94,8 @@
     </Page.Resources>
 
     <Grid x:Name="Root" PointerMoved="OnPointerMoved" PointerExited="OnPointerExitedRoot">
-        <MediaPlayerElement
-            x:Name="Video"
-            AreTransportControlsEnabled="False"
-            IsHitTestVisible="False"
-            Stretch="Uniform" />
+        <!-- The engine's picture (mpv swap chain or MediaPlayerElement) is placed here. -->
+        <Grid x:Name="VideoHost" IsHitTestVisible="False" />
 
         <!-- Clicks on the picture: toggle playback; double-click: full screen. -->
         <Rectangle
@@ -522,12 +533,33 @@
             </StackPanel>
         </StackPanel>
 
+        <!-- ===== Playback info (I) ===== -->
+        <Border
+            x:Name="InfoPanel"
+            Margin="28,76,0,0"
+            Padding="16,12"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Background="{StaticResource MoonChromeAcrylicBrush}"
+            BorderBrush="{StaticResource MoonHairlineBrush}"
+            BorderThickness="1"
+            CornerRadius="10"
+            IsHitTestVisible="False"
+            Visibility="Collapsed">
+            <Grid x:Name="InfoRows" ColumnSpacing="18" RowSpacing="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+            </Grid>
+        </Border>
+
         <!-- ===== Side panel: episodes & sources ===== -->
         <Grid x:Name="SideLayer" Visibility="Collapsed">
             <Rectangle Fill="#4D000000" Tapped="OnSideDismissTapped" />
             <Grid
                 x:Name="SidePanel"
-                Width="420"
+                Width="470"
                 Margin="0,60,12,12"
                 HorizontalAlignment="Right"
                 Background="{StaticResource MoonChromeAcrylicBrush}"
@@ -543,6 +575,9 @@
                         <SelectorBarItem x:Name="EpisodesTab" Text="选集" />
                         <SelectorBarItem x:Name="SourcesTab" Text="片源" />
                         <SelectorBarItem x:Name="DanmakuTab" Text="弹幕" />
+                        <SelectorBarItem x:Name="PictureTab" Text="画面" />
+                        <SelectorBarItem x:Name="AudioTab" Text="声音" />
+                        <SelectorBarItem x:Name="SubtitleTab" Text="字幕" />
                     </SelectorBar>
                     <Button
                         HorizontalAlignment="Right"
@@ -695,6 +730,168 @@
                                 PlaceholderText="不对？输入片名回车搜索" />
                             <TextBlock x:Name="CandidatesEmpty" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" TextWrapping="Wrap" Visibility="Collapsed" />
                             <StackPanel x:Name="CandidatesList" Spacing="2" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== 画面 ===== -->
+                <ScrollViewer x:Name="PictureView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <StackPanel Spacing="22">
+                        <StackPanel Spacing="8">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="画质档位" />
+                                <TextBlock x:Name="QualityNote" HorizontalAlignment="Right" FontSize="12" Style="{StaticResource MoonCardMetaStyle}" />
+                            </Grid>
+                            <StackPanel x:Name="QualityChips" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="增强" />
+                            <StackPanel x:Name="EnhanceChips" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="画面比例" />
+                            <StackPanel x:Name="AspectChips" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="画面调节" />
+                                <Button
+                                    HorizontalAlignment="Right"
+                                    Click="OnResetPicture"
+                                    FontSize="12"
+                                    Style="{StaticResource MoonLinkButtonStyle}">
+                                    <TextBlock Text="重置" />
+                                </Button>
+                            </Grid>
+                            <StackPanel x:Name="AdjustSliders" Spacing="2" />
+                        </StackPanel>
+                        <StackPanel x:Name="SkipSection" Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="跳过片头片尾（本季记住）" />
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="IntroText" VerticalAlignment="Center" FontSize="13" Foreground="{StaticResource MoonTextPrimaryBrush}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                    <Button Click="OnMarkIntro" FontSize="12" Style="{StaticResource MoonLinkButtonStyle}">
+                                        <TextBlock Text="设为此处" />
+                                    </Button>
+                                    <Button Click="OnClearIntro" FontSize="12" Style="{StaticResource MoonLinkButtonStyle}">
+                                        <TextBlock Text="清除" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="OutroText" VerticalAlignment="Center" FontSize="13" Foreground="{StaticResource MoonTextPrimaryBrush}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                    <Button Click="OnMarkOutro" FontSize="12" Style="{StaticResource MoonLinkButtonStyle}">
+                                        <TextBlock Text="设为此处" />
+                                    </Button>
+                                    <Button Click="OnClearOutro" FontSize="12" Style="{StaticResource MoonLinkButtonStyle}">
+                                        <TextBlock Text="清除" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="工具" />
+                            <StackPanel x:Name="ToolChips" Orientation="Horizontal" Spacing="4" />
+                            <TextBlock
+                                FontSize="12"
+                                Style="{StaticResource MoonCardMetaStyle}"
+                                Text="快捷键：Ctrl+S 截图 · , . 逐帧 · Ctrl+L A-B 循环 · I 播放信息"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== 声音 ===== -->
+                <ScrollViewer x:Name="AudioView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <StackPanel Spacing="22">
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="音轨" />
+                            <StackPanel x:Name="AudioTrackList" Spacing="2" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="声音" />
+                            <StackPanel x:Name="AudioChips" Orientation="Horizontal" Spacing="4" />
+                            <TextBlock FontSize="12" Style="{StaticResource MoonCardMetaStyle}" Text="音量可放大到 150%（↑ 键或音量条）" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="音画同步（本季记住）" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button AutomationProperties.Name="声音提前 0.1 秒" Click="OnAudioEarlier" Style="{StaticResource MoonTitleBarButtonStyle}">
+                                    <FontIcon FontSize="12" Glyph="&#xE738;" />
+                                </Button>
+                                <TextBlock
+                                    x:Name="AudioDelayText"
+                                    MinWidth="96"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="13"
+                                    Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                    TextAlignment="Center" />
+                                <Button AutomationProperties.Name="声音延后 0.1 秒" Click="OnAudioLater" Style="{StaticResource MoonTitleBarButtonStyle}">
+                                    <FontIcon FontSize="12" Glyph="&#xE710;" />
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="输出设备" />
+                            <StackPanel x:Name="AudioDeviceList" Spacing="2" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== 字幕 ===== -->
+                <ScrollViewer x:Name="SubtitleView" Grid.Row="1" Padding="18,8,18,18" HorizontalScrollMode="Disabled" Visibility="Collapsed">
+                    <StackPanel Spacing="22">
+                        <StackPanel Spacing="6">
+                            <Grid>
+                                <TextBlock Style="{StaticResource PanelLabelStyle}" Text="字幕" />
+                                <Button
+                                    HorizontalAlignment="Right"
+                                    Click="OnLoadSubtitleFile"
+                                    FontSize="12"
+                                    Style="{StaticResource MoonLinkButtonStyle}">
+                                    <TextBlock Text="加载字幕文件…" />
+                                </Button>
+                            </Grid>
+                            <StackPanel x:Name="SubtitleTrackList" Spacing="2" />
+                        </StackPanel>
+                        <StackPanel x:Name="SecondarySection" Spacing="6">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="第二字幕（双语）" />
+                            <StackPanel x:Name="SecondaryTrackList" Spacing="2" />
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="样式" />
+                            <StackPanel x:Name="SubtitleSliders" Spacing="2" />
+                            <StackPanel x:Name="SubtitleChips" Margin="0,6,0,0" Orientation="Horizontal" Spacing="4" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource PanelLabelStyle}" Text="字幕时间轴（本季记住）" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button AutomationProperties.Name="字幕提前 0.1 秒" Click="OnSubtitleEarlier" Style="{StaticResource MoonTitleBarButtonStyle}">
+                                    <FontIcon FontSize="12" Glyph="&#xE738;" />
+                                </Button>
+                                <TextBlock
+                                    x:Name="SubtitleDelayText"
+                                    MinWidth="96"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource MoonFontBold}"
+                                    FontSize="13"
+                                    Foreground="{StaticResource MoonTextPrimaryBrush}"
+                                    TextAlignment="Center" />
+                                <Button AutomationProperties.Name="字幕延后 0.1 秒" Click="OnSubtitleLater" Style="{StaticResource MoonTitleBarButtonStyle}">
+                                    <FontIcon FontSize="12" Glyph="&#xE710;" />
+                                </Button>
+                            </StackPanel>
+                            <TextBlock FontSize="12" Style="{StaticResource MoonCardMetaStyle}" Text="快捷键：V 开关字幕 · Shift+V 切换字幕 · Z / X 提前 / 延后" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

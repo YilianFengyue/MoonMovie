@@ -64,6 +64,7 @@ public sealed partial class MpvVideoView : SwapChainPanel
         if (swapChain == _swapChain) return;
         _swapChain = swapChain;
         SwapChainInterop.SetSwapChain(this, swapChain);
+        Diag($"swapchain=0x{swapChain:X} loaded={IsLoaded} size={ActualWidth:0}x{ActualHeight:0}");
         UpdateMatrix();
     }
 
@@ -93,6 +94,19 @@ public sealed partial class MpvVideoView : SwapChainPanel
         }
 
         SwapChainInterop.SetMatrix(_swapChain, (float)(ActualWidth / bw), (float)(ActualHeight / bh));
+        Diag($"matrix buffer={bw}x{bh} panel={ActualWidth:0}x{ActualHeight:0} wanted={_wanted.Width}x{_wanted.Height}");
         if ((bw, bh) == _wanted || DateTime.UtcNow > _watchUntil) _resizeWatch.Stop();
+    }
+
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void Diag(string line)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(Core.Configuration.AppPaths.Root, "player.log"), $"[{DateTime.Now:HH:mm:ss.fff}] view {line}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
     }
 }

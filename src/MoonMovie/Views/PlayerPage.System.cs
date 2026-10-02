@@ -1,61 +1,104 @@
 using System.Runtime.InteropServices;
-using Windows.Media;
-using Windows.Media.Playback;
-using Windows.Storage.Streams;
+using MoonMovie.Core.Settings;
+using MoonMovie.Playback;
+using MoonMovie.Playback.Engines;
 
 namespace MoonMovie.Views;
 
 /// <summary>
-/// Player ↔ Windows: the media flyout (volume / quick settings panel, lock screen) and hardware media keys through
-/// the system media transport controls, and keeping the display awake while something is playing.
+/// Player ↔ engine and Windows: picks the playback engine (mpv, falling back to Media Foundation), drives the
+/// system media flyout and media keys, and keeps the display awake while something is playing.
 /// </summary>
 public sealed partial class PlayerPage
 {
+    private SystemMediaControls? _media;
     private bool _keepingAwake;
+
+    /// <summary>mpv can boost to 150 %; the system engine stops at 100 %.</summary>
+    private double MaxVolume => _engine is MpvEngine ? 1.5 : 1.0;
+
+    private void CreateEngine()
+    {
+        var settings = _settings.Current;
+        IPlaybackEngine? engine = null;
+        string? fallbackReason = null;
+
+        if (settings.Video.Engine == PlayerEngineKind.Mpv)
+        {
+            try
+            {
+                engine = new MpvEngine(DispatcherQueue, settings, InitialPixels());
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException
+                                           or InvalidOperationException)
+            {
+                fallbackReason = ex.Message;
+                PlayerLog("mpv unavailable, using system engine: " + ex);
+            }
+        }
+
+        engine ??= new SystemEngine(DispatcherQueue);
+        _engine = engine;
+        VideoHost.Children.Add(engine.View);
+
+        engine.Opened += OnMediaOpened;
+        engine.Failed += OnMediaFailed;
+        engine.Ended += OnMediaEnded;
+        engine.StateChanged += UpdatePlaybackState;
+        engine.PositionChanged += () => SyncDanmaku();
+        if (engine is MpvEngine mpv)
+        {
+            mpv.Log += PlayerLog;
+            mpv.Opened += OnTracksMaybeChanged;
+        }
+
+        _volume = Math.Min(_volume, MaxVolume);
+        VolumeBar.Maximum = MaxVolume * 100;
+        engine.Volume = _volume;
+        ConfigureEnginePanels();
+
+        if (fallbackReason is not null)
+        {
+            ShowToast("mpv 内核不可用，已改用系统内核", duration: TimeSpan.FromSeconds(5));
+        }
+    }
+
+    /// <summary>The window's client size in physical pixels: mpv's first output size before layout settles.</summary>
+    private static (int Width, int Height) InitialPixels()
+    {
+        var root = App.MainWindow.Content as Microsoft.UI.Xaml.FrameworkElement;
+        var scale = root?.XamlRoot?.RasterizationScale ?? 1.0;
+        var width = root?.ActualWidth ?? 1280;
+        var height = root?.ActualHeight ?? 720;
+        return ((int)Math.Max(64, width * scale), (int)Math.Max(64, height * scale));
+    }
 
     private void InitSystemMedia()
     {
-        if (_player is null) return;
-        var commands = _player.CommandManager;
-        commands.IsEnabled = true;
-        commands.NextBehavior.EnablingRule = MediaCommandEnablingRule.Always;
-        commands.PreviousBehavior.EnablingRule = MediaCommandEnablingRule.Always;
-        commands.NextReceived += (_, args) =>
-        {
-            args.Handled = true;
-            DispatcherQueue.TryEnqueue(() => PlayEpisode(_episodeIndex + 1));
-        };
-        commands.PreviousReceived += (_, args) =>
-        {
-            args.Handled = true;
-            DispatcherQueue.TryEnqueue(() => PlayEpisode(_episodeIndex - 1));
-        };
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        _media = new SystemMediaControls(hwnd, DispatcherQueue);
+        _media.PlayPressed += () => _engine?.Play();
+        _media.PausePressed += () => _engine?.Pause();
+        _media.NextPressed += () => PlayEpisode(_episodeIndex + 1);
+        _media.PreviousPressed += () => PlayEpisode(_episodeIndex - 1);
     }
 
-    /// <summary>
-    /// Title, episode and artwork for the system media flyout. With a MediaPlaybackItem as the source, the flyout
-    /// reads the item's display properties (the DisplayUpdater is ignored).
-    /// </summary>
-    private void ApplyDisplayProperties(MediaPlaybackItem item)
+    private void DisposeSystemMedia()
     {
-        try
-        {
-            var headline = EpisodeHeadline(_episodeIndex);
-            var props = item.GetDisplayProperties();
-            props.Type = MediaPlaybackType.Video;
-            props.VideoProperties.Title = _request.Item.Title;
-            props.VideoProperties.Subtitle = headline.Length > 0 ? headline : _request.Item.MetaLine;
-            if (_tmdb.ImageUrl(_request.Item.BackdropPath ?? _request.Item.PosterPath, "w780") is { } art)
-            {
-                props.Thumbnail = RandomAccessStreamReference.CreateFromUri(new Uri(art));
-            }
+        _media?.Dispose();
+        _media = null;
+    }
 
-            item.ApplyDisplayProperties(props);
-        }
-        catch (COMException)
-        {
-            // The flyout is a nicety; never let it interfere with playback.
-        }
+    /// <summary>Title, episode and artwork for the system media flyout.</summary>
+    private void UpdateSystemMediaInfo()
+    {
+        var headline = EpisodeHeadline(_episodeIndex);
+        // Also names screenshots ("绝命毒师 第 2 集 00.12.31.png"); path-hostile characters are dropped.
+        var title = headline.Length > 0 ? $"{_request.Item.Title} {headline}" : _request.Item.Title;
+        Mpv?.SetMediaTitle(string.Concat(title.Where(c => !Path.GetInvalidFileNameChars().Contains(c))));
+        _media?.SetInfo(_request.Item.Title, headline.Length > 0 ? headline : _request.Item.MetaLine,
+            _tmdb.ImageUrl(_request.Item.BackdropPath ?? _request.Item.PosterPath, "w780"));
+        _media?.SetEpisodeButtons(_episodeIndex > 0, HasNext);
     }
 
     /// <summary>No screen saver, display sleep or system sleep while playing; released on pause and on leave.</summary>

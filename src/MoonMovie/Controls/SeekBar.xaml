@@ -46,6 +46,8 @@
             <Border x:Name="BufferedFill" HorizontalAlignment="Left" Background="#59FFFFFF" />
             <Border x:Name="HoverFill" HorizontalAlignment="Left" Background="#33FFFFFF" Opacity="0" />
             <Border x:Name="PlayedFill" HorizontalAlignment="Left" Background="White" />
+            <!-- Chapter / intro / outro marks: small gaps cut into the track. -->
+            <Canvas x:Name="Marks" />
         </Grid>
 
         <Ellipse

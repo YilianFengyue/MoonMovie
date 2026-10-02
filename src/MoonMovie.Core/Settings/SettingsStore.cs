@@ -56,11 +56,83 @@ public sealed class PlaybackSettings
     public bool AutoNext { get; set; } = true;
 }
 
+public enum PlayerEngineKind
+{
+    /// <summary>libmpv: every format, ASS subtitles, HDR, shaders.</summary>
+    Mpv,
+
+    /// <summary>Windows Media Foundation: fallback when libmpv is missing or misbehaves.</summary>
+    System,
+}
+
+public enum QualityPreset
+{
+    /// <summary>Pick from the GPU (dedicated memory and vendor).</summary>
+    Auto,
+    Performance,
+    Balanced,
+    Quality,
+}
+
+public sealed class VideoSettings
+{
+    public PlayerEngineKind Engine { get; set; } = PlayerEngineKind.Mpv;
+
+    public QualityPreset Quality { get; set; } = QualityPreset.Auto;
+
+    /// <summary>Motion smoothing: resample to the display refresh rate (no 24p judder on 60/120/144 Hz).</summary>
+    public bool Interpolation { get; set; }
+
+    /// <summary>Pass HDR through when the display is in HDR mode; otherwise always tone-map to SDR.</summary>
+    public bool HdrPassthrough { get; set; } = true;
+
+    /// <summary>Null: Pictures\MoonMovie.</summary>
+    public string? ScreenshotFolder { get; set; }
+}
+
+public sealed class SubtitleSettings
+{
+    /// <summary>Text size multiplier for non-ASS (and overridden) subtitles.</summary>
+    public double Scale { get; set; } = 1.0;
+
+    /// <summary>Vertical position, 0 (top) – 100 (bottom).</summary>
+    public int Position { get; set; } = 100;
+
+    /// <summary>Opaque box behind text instead of an outline.</summary>
+    public bool Background { get; set; }
+
+    /// <summary>Restyle ASS subtitles with the settings above instead of keeping the fansub styling.</summary>
+    public bool OverrideAss { get; set; }
+
+    /// <summary>Preferred subtitle languages, in order.</summary>
+    public string Languages { get; set; } = "chi,zho,zh,chs,sc,zh-Hans,eng,en";
+}
+
+public sealed class AudioSettings
+{
+    /// <summary>Dynamic range compression: clear dialogue, tamer explosions.</summary>
+    public bool NightMode { get; set; }
+
+    /// <summary>Null: the system default device.</summary>
+    public string? Device { get; set; }
+
+    /// <summary>Send Dolby / DTS bitstreams untouched to a receiver (S/PDIF, HDMI).</summary>
+    public bool Passthrough { get; set; }
+
+    public string Languages { get; set; } = "chi,zho,zh,cmn,jpn,ja,eng,en";
+}
+
 public sealed class AppSettings
 {
     public DanmakuSettings Danmaku { get; set; } = new();
 
     public PlaybackSettings Playback { get; set; } = new();
+
+    public VideoSettings Video { get; set; } = new();
+
+    public SubtitleSettings Subtitles { get; set; } = new();
+
+    public AudioSettings Audio { get; set; } = new();
 }
 
 /// <summary>User preferences in data/settings.json; changes apply live through <see cref="Changed"/>.</summary>

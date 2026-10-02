@@ -57,6 +57,12 @@ public partial class App : Application
 
         // Files from the command line or a file association, a jump-list "继续观看" entry.
         MainWindow.DispatcherQueue.TryEnqueue(ActivationRouter.OnLaunched);
+
+        // A build without keys (public release): ask for the TMDB key first, nothing works without it.
+        if (!Services.GetRequiredService<TmdbOptions>().IsConfigured)
+        {
+            MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.Navigate(typeof(Views.SettingsPage), "tmdb"));
+        }
         JumpListUpdater.Start();
     }
 
@@ -92,7 +98,8 @@ public partial class App : Application
             Timeout = TimeSpan.FromSeconds(20),
         };
 
-        var tmdbOptions = TmdbOptions.FromEnv(env);
+        var settings = new SettingsStore();
+        var tmdbOptions = TmdbOptions.FromEnv(env, settings.Current.Services.TmdbApiKey);
 
         // The danmu server fans out to several platforms per request and can take well over the default timeout.
         var danmakuHttp = new HttpClient(new SocketsHttpHandler
@@ -112,7 +119,7 @@ public partial class App : Application
             .AddSingleton(tmdbOptions)
             .AddSingleton(_ => new TmdbClient(http, tmdbOptions, new JsonDiskCache(AppPaths.ApiCache)))
             .AddSingleton(_ => new SourceSearchService(direct, SourceSearchService.LoadBundledSites()))
-            .AddSingleton<SettingsStore>()
+            .AddSingleton(settings)
             .AddSingleton<SourceMatchCache>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()

@@ -70,6 +70,14 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
+  <!-- WinAppSDK's machine-learning runtime (~38 MB) comes with the metapackage; MoonMovie never loads it. -->
+  <Target Name="DropUnusedMachineLearning" AfterTargets="ResolvePackageAssets" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Filename)' == 'onnxruntime' or '%(Filename)' == 'DirectML' or '%(Filename)' == 'onnxruntime_providers_shared'" />
+      <RuntimeCopyLocalItems Remove="@(RuntimeCopyLocalItems)" Condition="'%(Filename)' == 'onnxruntime' or '%(Filename)' == 'DirectML' or '%(Filename)' == 'onnxruntime_providers_shared'" />
+    </ItemGroup>
+  </Target>
+
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>

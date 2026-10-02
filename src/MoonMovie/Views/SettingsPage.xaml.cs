@@ -74,6 +74,13 @@ public sealed partial class SettingsPage : Page
             ServerBox.PlaceholderText = $"{envUrl}（来自 .env）";
         }
         TokenBox.Text = Danmaku.Token ?? string.Empty;
+        TmdbKeyBox.Password = _settings.Current.Services.TmdbApiKey ?? string.Empty;
+        if (!App.Services.GetRequiredService<Core.Tmdb.TmdbOptions>().IsConfigured)
+        {
+            TmdbKeyCaption.Text = "还没有 TMDB 密钥：MoonMovie 需要它来获取海报、简介和剧集。在 themoviedb.org 免费申请后填在右边，然后重启 MoonMovie";
+            TmdbKeyCaption.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF2, 0xC9, 0x4C));
+        }
+
         DataFolderText.Text = AppPaths.Root;
         VersionText.Text = $"MoonMovie {typeof(App).Assembly.GetName().Version?.ToString(3)}";
 
@@ -212,6 +219,27 @@ public sealed partial class SettingsPage : Page
         Danmaku.Token = token;
         Changed();
         SetServerStatus(null, "未检测");
+    }
+
+    /// <summary>Opened because the TMDB key is missing: go straight to that field.</summary>
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is not "tmdb") return;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            TmdbKeyBox.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = false });
+            TmdbKeyBox.Focus(FocusState.Programmatic);
+        });
+    }
+
+    private void OnTmdbKeyLostFocus(object sender, RoutedEventArgs e)
+    {
+        var key = string.IsNullOrWhiteSpace(TmdbKeyBox.Password) ? null : TmdbKeyBox.Password.Trim();
+        if (key == _settings.Current.Services.TmdbApiKey) return;
+        _settings.Current.Services.TmdbApiKey = key;
+        _settings.Save();
+        TmdbKeyCaption.Text = "已保存，重启 MoonMovie 后生效";
     }
 
     private async void OnTestServer(object sender, RoutedEventArgs e)

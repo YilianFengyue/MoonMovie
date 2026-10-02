@@ -14,3 +14,7 @@ BundleArtifacts/
 *.db-shm
 artifacts/
 lib/
+
+# Signing certificate (private key) and local release output
+build/cert/
+!.env.example

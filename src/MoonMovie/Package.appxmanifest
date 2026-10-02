@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -7,22 +7,23 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
 
+  <!-- Publisher must equal the signing certificate's subject (build/new-cert.ps1). The version is stamped by build/package.ps1. -->
   <Identity
-    Name="4e2346e3-072c-42b7-9491-442b383542a3"
-    Publisher="CN=yinbo"
+    Name="Ylfmoonn.MoonMovie"
+    Publisher="CN=Ylfmoonn"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="4e2346e3-072c-42b7-9491-442b383542a3" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>MoonMovie</DisplayName>
-    <PublisherDisplayName>yinbo</PublisherDisplayName>
+    <PublisherDisplayName>Ylfmoonn</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26226.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26226.0" />
   </Dependencies>
 
   <Resources>
@@ -35,13 +36,40 @@
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
         DisplayName="MoonMovie"
-        Description="MoonMovie"
+        Description="影视聚合与本地播放：TMDB 资料、资源站片源、弹幕、mpv 内核、Anime4K 超分、离线下载"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
+
+      <Extensions>
+        <!-- "打开方式 → MoonMovie" for videos; opening one while MoonMovie runs plays it in the open window. -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="moonmovie.video">
+            <uap:DisplayName>视频</uap:DisplayName>
+            <uap:Logo>Assets\StoreLogo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mkv</uap:FileType>
+              <uap:FileType>.mp4</uap:FileType>
+              <uap:FileType>.m4v</uap:FileType>
+              <uap:FileType>.avi</uap:FileType>
+              <uap:FileType>.ts</uap:FileType>
+              <uap:FileType>.m2ts</uap:FileType>
+              <uap:FileType>.mts</uap:FileType>
+              <uap:FileType>.flv</uap:FileType>
+              <uap:FileType>.webm</uap:FileType>
+              <uap:FileType>.rmvb</uap:FileType>
+              <uap:FileType>.rm</uap:FileType>
+              <uap:FileType>.mov</uap:FileType>
+              <uap:FileType>.wmv</uap:FileType>
+              <uap:FileType>.mpg</uap:FileType>
+              <uap:FileType>.mpeg</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
     </Application>
   </Applications>
 
@@ -49,5 +77,3 @@
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 </Package>
-
-

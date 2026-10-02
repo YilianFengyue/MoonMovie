@@ -146,6 +146,12 @@ public sealed class AudioSettings
     public string Languages { get; set; } = "chi,zho,zh,cmn,jpn,ja,eng,en";
 }
 
+public sealed class ServiceSettings
+{
+    /// <summary>Overrides TMDB_API_KEY from .env (builds shared without keys); applied on the next start.</summary>
+    public string? TmdbApiKey { get; set; }
+}
+
 public sealed class CacheSettings
 {
     /// <summary>Disk cache for streamed video segments (re-watching and seeking back start instantly).</summary>
@@ -169,6 +175,8 @@ public sealed class DownloadSettings
 
 public sealed class AppSettings
 {
+    public ServiceSettings Services { get; set; } = new();
+
     public CacheSettings Cache { get; set; } = new();
 
     public DownloadSettings Downloads { get; set; } = new();

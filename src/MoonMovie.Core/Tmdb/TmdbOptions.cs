@@ -24,14 +24,15 @@ public sealed partial class TmdbOptions
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey) || !string.IsNullOrWhiteSpace(ReadAccessToken);
 
-    public static TmdbOptions FromEnv(EnvFile env)
+    /// <param name="apiKey">A key entered in Settings; wins over .env.</param>
+    public static TmdbOptions FromEnv(EnvFile env, string? apiKey = null)
     {
         var apiBase = env.Get("TMDB_BASE_URL")?.TrimEnd('/');
         var imageBase = env.Get("TMDB_IMAGE_BASE");
 
         return new TmdbOptions
         {
-            ApiKey = env.Get("TMDB_API_KEY"),
+            ApiKey = string.IsNullOrWhiteSpace(apiKey) ? env.Get("TMDB_API_KEY") : apiKey.Trim(),
             ReadAccessToken = env.Get("TMDB_READ_ACCESS_TOKEN"),
             ApiBases = Distinct(apiBase, DirectApiBase, ProxyApiBase),
             ImageRoots = Distinct(imageBase is null ? null : NormalizeImageRoot(imageBase), DirectImageRoot, ProxyImageRoot),

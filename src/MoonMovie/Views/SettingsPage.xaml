@@ -255,6 +255,33 @@
                 </Border>
             </StackPanel>
 
+            <!-- ===== 影视资料 ===== -->
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionStyle}" Text="影视资料" />
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="360" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="TMDB 密钥" />
+                            <TextBlock
+                                x:Name="TmdbKeyCaption"
+                                Style="{StaticResource RowCaptionStyle}"
+                                Text="海报、简介、剧集都来自 TMDB。可在 themoviedb.org 免费申请（API Key 或 Read Access Token 均可），重启后生效"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <PasswordBox
+                            x:Name="TmdbKeyBox"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            LostFocus="OnTmdbKeyLostFocus"
+                            PlaceholderText="留空则使用 .env 中的配置" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+
             <!-- ===== 弹幕服务器 ===== -->
             <StackPanel>
                 <TextBlock Style="{StaticResource SectionStyle}" Text="弹幕服务器" />

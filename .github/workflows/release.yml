@@ -1,0 +1,77 @@
+# Builds the installer (signed MSIX + certificate + one-click script) and the portable zip, and attaches both to a
+# GitHub release when a tag like v1.2.0 is pushed. "Run workflow" builds without publishing.
+#
+# Repository secrets:
+#   SIGNING_PFX_BASE64, SIGNING_PFX_PASSWORD   required: the certificate from build/new-cert.ps1
+#   TMDB_API_KEY, LOGVAR_BASE_URL, LOGVAR_TOKEN optional: baked into the package (readable by anyone who has it);
+#                                               leave them out and users enter a TMDB key in Settings instead.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version (e.g. 1.0.0)
+        required: true
+        default: 0.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Optional built-in keys
+        shell: pwsh
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          LOGVAR_BASE_URL: ${{ secrets.LOGVAR_BASE_URL }}
+          LOGVAR_TOKEN: ${{ secrets.LOGVAR_TOKEN }}
+        run: |
+          $lines = foreach ($name in 'TMDB_API_KEY', 'LOGVAR_BASE_URL', 'LOGVAR_TOKEN') {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" }
+          }
+          if ($lines) { Set-Content .env $lines; "Keys baked in: $(($lines | ForEach-Object { $_.Split('=')[0] }) -join ', ')" }
+          else { 'No keys: users enter a TMDB key in Settings.' }
+
+      - name: Signing certificate
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+        run: |
+          if (-not $env:SIGNING_PFX_BASE64) { throw 'Add the SIGNING_PFX_BASE64 and SIGNING_PFX_PASSWORD secrets (build/new-cert.ps1).' }
+          New-Item -ItemType Directory -Force build/cert | Out-Null
+          [IO.File]::WriteAllBytes("$PWD/build/cert/MoonMovie.pfx", [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+          $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("$PWD/build/cert/MoonMovie.pfx", $env:SIGNING_PFX_PASSWORD)
+          [IO.File]::WriteAllBytes("$PWD/build/cert/MoonMovie.cer", $cert.Export('Cert'))
+
+      - name: Package
+        shell: pwsh
+        env:
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { '${{ github.event.inputs.version }}' }
+          ./build/package.ps1 -Version $version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoonMovie
+          path: artifacts/release/*.zip
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/release/*.zip
+          generate_release_notes: true

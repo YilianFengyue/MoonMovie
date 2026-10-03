@@ -16,6 +16,11 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
 {
     private const int MemoryCapacity = 360;
 
+    /// <summary>Posters and stills on disk; past this the ones unseen the longest go (to 80 %).</summary>
+    public const long DiskLimitBytes = 1L << 30;
+
+    private int _downloadsSinceTrim;
+
     private readonly SemaphoreSlim _downloadGate = new(8);
     private readonly SemaphoreSlim _priorityGate = new(4);
     private readonly ConcurrentDictionary<string, Task<string?>> _inflight = new();
@@ -96,6 +101,7 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
         var path = CachePath(url);
         if (File.Exists(path))
         {
+            Touch(path);
             return Task.FromResult<string?>(path);
         }
 
@@ -133,6 +139,7 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
                     }
 
                     File.Move(tmp, path, overwrite: true);
+                    if (Interlocked.Increment(ref _downloadsSinceTrim) % 300 == 0) _ = Task.Run(TrimDiskCache);
                     return path;
                 }
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
@@ -199,5 +206,44 @@ public sealed class ImageLoader(HttpClient http, IReadOnlyList<string> mirrorRoo
     private static void TryDelete(string path)
     {
         try { File.Delete(path); } catch (IOException) { }
+    }
+
+    /// <summary>An image read from disk is "recently seen": it outlives older ones when the cache is trimmed.</summary>
+    private static void Touch(string path)
+    {
+        try { File.SetLastWriteTimeUtc(path, DateTime.UtcNow); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Keeps the disk cache under <see cref="DiskLimitBytes"/>; runs off the UI thread.</summary>
+    public static void TrimDiskCache()
+    {
+        try
+        {
+            var files = new DirectoryInfo(AppPaths.ImageCache).EnumerateFiles()
+                // A .tmp is a download in progress, unless it was abandoned long ago.
+                .Where(f => !f.Name.EndsWith(".tmp", StringComparison.Ordinal) || f.LastWriteTimeUtc < DateTime.UtcNow.AddHours(-1))
+                .ToList();
+            var total = files.Sum(f => f.Length);
+            if (total <= DiskLimitBytes) return;
+
+            var target = DiskLimitBytes * 8 / 10;
+            foreach (var file in files.OrderBy(f => f.LastWriteTimeUtc))
+            {
+                if (total <= target) break;
+                var length = file.Length;
+                try
+                {
+                    file.Delete();
+                    total -= length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 }

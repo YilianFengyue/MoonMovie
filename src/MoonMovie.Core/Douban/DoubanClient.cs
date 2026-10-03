@@ -30,7 +30,7 @@ public sealed partial class DoubanClient
     private static readonly TimeSpan MissTtl = TimeSpan.FromDays(2);
 
     private readonly HttpClient _http;
-    private readonly string _path = Path.Combine(AppPaths.Root, "cache", "douban.json");
+    private readonly string _path = Path.Combine(AppPaths.Cache, "douban.json");
     private readonly object _gate = new();
     private readonly SemaphoreSlim _requestGate = new(1, 1);
     private Dictionary<string, DoubanCacheEntry>? _cache;

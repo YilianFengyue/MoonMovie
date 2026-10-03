@@ -576,7 +576,7 @@ public sealed partial class PlayerPage : Page
         }
 
         _thumbTaken = true;
-        var folder = Path.Combine(Core.Configuration.AppPaths.Root, "cache", "thumbs");
+        var folder = Path.Combine(Core.Configuration.AppPaths.Cache, "thumbs");
         Directory.CreateDirectory(folder);
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(_request.Item.MediaKey)));
         _thumbPath = Path.Combine(folder, hash[..16] + ".jpg");

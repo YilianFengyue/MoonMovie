@@ -18,7 +18,7 @@ public sealed class SourceMatchCache
 {
     public static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);
 
-    private readonly string _folder = Path.Combine(AppPaths.Root, "cache", "sources");
+    private readonly string _folder = Path.Combine(AppPaths.Cache, "sources");
 
     public SourceMatchCache()
     {

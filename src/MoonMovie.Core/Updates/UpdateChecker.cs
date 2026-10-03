@@ -12,7 +12,7 @@ public sealed record UpdateInfo(Version Version, string Tag, string? Notes, Date
 /// Asks GitHub for the latest MoonMovie release (tags like v1.2.0) and whether it is newer than this build.
 /// Unauthenticated: GitHub allows 60 requests an hour per address, plenty for a check every few hours.
 /// </summary>
-public sealed class UpdateChecker(HttpClient http)
+public sealed partial class UpdateChecker(HttpClient http)
 {
     public const string Repository = "YilianFengyue/MoonMovie";
 
@@ -55,11 +55,50 @@ public sealed class UpdateChecker(HttpClient http)
         return new UpdateInfo(version, tag, notes, published, msix, bytes, page);
     }
 
+    private static string DownloadFolder => Path.Combine(Path.GetTempPath(), "MoonMovie-update");
+
+    /// <summary>
+    /// Deletes packages that are installed by now (this version or older) and unfinished downloads: each one is
+    /// some 160 MB on the system drive. A newer one that was downloaded but not installed yet stays.
+    /// </summary>
+    public static void DeleteInstalledDownloads(Version current)
+    {
+        try
+        {
+            if (!Directory.Exists(DownloadFolder)) return;
+            foreach (var file in Directory.EnumerateFiles(DownloadFolder))
+            {
+                var name = Path.GetFileName(file);
+                var stale = name.EndsWith(".part", StringComparison.OrdinalIgnoreCase)
+                    || PackageVersion().Match(name) is not { Success: true } match
+                    || !TryParse(match.Groups[1].Value, out var version)
+                    || version <= Normalize(current);
+                if (!stale) continue;
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Still held by the installer: next time.
+                }
+            }
+
+            if (!Directory.EnumerateFileSystemEntries(DownloadFolder).Any()) Directory.Delete(DownloadFolder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^MoonMovie-(\d+\.\d+\.\d+)-x64\.msix$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex PackageVersion();
+
     /// <summary>Downloads the package to a temporary file, reporting 0–1; returns its path.</summary>
     public async Task<string> DownloadAsync(UpdateInfo update, IProgress<double>? progress, CancellationToken ct = default)
     {
         if (update.MsixUrl is not { } url) throw new InvalidOperationException("This release has no package.");
-        var folder = Path.Combine(Path.GetTempPath(), "MoonMovie-update");
+        var folder = DownloadFolder;
         Directory.CreateDirectory(folder);
         var path = Path.Combine(folder, $"MoonMovie-{update.Version.ToString(3)}-x64.msix");
         if (File.Exists(path) && update.MsixBytes > 0 && new FileInfo(path).Length == update.MsixBytes) return path;

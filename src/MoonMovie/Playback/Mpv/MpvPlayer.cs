@@ -44,7 +44,7 @@ public sealed unsafe class MpvPlayer : IDisposable
         Option("keep-open", "yes");
 
         // Compiled shaders (Anime4K especially) are cached so they only build once.
-        var shaderCache = Path.Combine(AppPaths.Root, "cache", "shaders");
+        var shaderCache = Path.Combine(AppPaths.Cache, "shaders");
         Directory.CreateDirectory(shaderCache);
         Option("gpu-shader-cache-dir", shaderCache);
 

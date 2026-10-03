@@ -286,6 +286,22 @@
                 </tk:SettingsCard.HeaderIcon>
                 <StackPanel x:Name="DownloadConcurrencyChips" Style="{StaticResource ChipRowStyle}" />
             </tk:SettingsCard>
+            <tk:SettingsCard Header="缓存位置">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xEDA2;" />
+                </tk:SettingsCard.HeaderIcon>
+                <tk:SettingsCard.Description>
+                    <TextBlock x:Name="CacheFolderText" IsTextSelectionEnabled="True" Style="{StaticResource CaptionStyle}" />
+                </tk:SettingsCard.Description>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="DefaultCacheButton" Click="OnDefaultCacheFolder" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock Text="恢复默认" />
+                    </Button>
+                    <Button Click="OnChangeCacheFolder" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock Text="更改" />
+                    </Button>
+                </StackPanel>
+            </tk:SettingsCard>
             <tk:SettingsCard Header="视频缓存">
                 <tk:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE81E;" />

@@ -39,7 +39,7 @@ public sealed class DanmakuClient
     private readonly HttpClient _http;
     private readonly EnvFile _env;
     private readonly SettingsStore _settings;
-    private readonly JsonDiskCache _cache = new(Directory.CreateDirectory(Path.Combine(AppPaths.Root, "cache", "danmaku")).FullName);
+    private readonly JsonDiskCache _cache = new(Directory.CreateDirectory(Path.Combine(AppPaths.Cache, "danmaku")).FullName);
 
     public DanmakuClient(HttpClient http, EnvFile env, SettingsStore settings)
     {

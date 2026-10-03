@@ -270,14 +270,15 @@ public sealed partial class SettingsPage : Page
 
     // ----- Storage ------------------------------------------------------------------------------------
 
-    private static string DanmakuCache => Path.Combine(AppPaths.Root, "cache", "danmaku");
+    private static string DanmakuCache => Path.Combine(AppPaths.Cache, "danmaku");
 
     private async Task UpdateCacheSizesAsync()
     {
         var (images, data) = await Task.Run(() => (
             Measure(AppPaths.ImageCache),
             Measure(AppPaths.ApiCache) + Measure(DanmakuCache)));
-        ImageCacheText.Text = $"海报与剧照 · {Format(images)}";
+        ImageCacheText.Text = $"海报与剧照 · {Format(images)} · 超过 {Format(Imaging.ImageLoader.DiskLimitBytes)} 自动清理最久没看的";
+        ShowCacheFolder();
         var segments = await Task.Run(() => App.Services.GetRequiredService<SegmentCache>().SizeBytes);
         SegmentCacheText.Text = $"看过的片段存在本地，回看和往回拖不用重新下载 · 已用 {Format(segments)}";
         DownloadFolderText.Text = App.Services.GetRequiredService<DownloadManager>().Folder;
@@ -312,6 +313,37 @@ public sealed partial class SettingsPage : Page
         _settings.Current.Downloads.Folder = folder;
         _settings.Save();
         DownloadFolderText.Text = folder;
+    }
+
+    private void ShowCacheFolder()
+    {
+        CacheFolderText.Text = AppPaths.CacheChangePending
+            ? $"重启 MoonMovie 后改用 {AppPaths.NextCache}，原来位置的缓存会被清理"
+            : $"视频、图片和数据缓存都放在这里，可以换到 C 盘以外 · {AppPaths.Cache}";
+        DefaultCacheButton.Visibility = AppPaths.CacheLocationSetting is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void OnChangeCacheFolder(object sender, RoutedEventArgs e)
+    {
+        if (await Services.LocalPlayback.PickFolderAsync() is not { } folder) return;
+        SetCacheLocation(folder);
+    }
+
+    private void OnDefaultCacheFolder(object sender, RoutedEventArgs e) => SetCacheLocation(null);
+
+    private void SetCacheLocation(string? folder)
+    {
+        try
+        {
+            AppPaths.SetCacheLocation(folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            CacheFolderText.Text = "无法保存缓存位置：" + ex.Message;
+            return;
+        }
+
+        ShowCacheFolder();
     }
 
     private void OnOpenDataFolder(object sender, RoutedEventArgs e) =>

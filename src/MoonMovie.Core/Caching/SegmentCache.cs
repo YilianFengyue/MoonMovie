@@ -18,7 +18,7 @@ public sealed class SegmentCache
     public SegmentCache(Func<long> limitBytes, string? folder = null)
     {
         _limitBytes = limitBytes;
-        Folder = folder ?? Path.Combine(AppPaths.Root, "cache", "segments");
+        Folder = folder ?? Path.Combine(AppPaths.Cache, "segments");
         Directory.CreateDirectory(Folder);
     }
 

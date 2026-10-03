@@ -54,6 +54,24 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// A build shared with its keys keeps a copy next to the data: an update to a build without them (the public
+    /// release, through 软件更新) replaces the program folder, and the keys carry on from the copy.
+    /// </summary>
+    private static void KeepBundledKeys(string bundled, string kept)
+    {
+        try
+        {
+            if (!File.Exists(bundled)) return;
+            var keys = File.ReadAllText(bundled);
+            if (File.Exists(kept) && File.ReadAllText(kept) == keys) return;
+            File.WriteAllText(kept, keys);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
     public static IServiceProvider Services { get; private set; } = null!;
 
     public static MainWindow MainWindow { get; private set; } = null!;
@@ -78,13 +96,21 @@ public partial class App : Application
         }
         JumpListUpdater.Start();
         Services.GetRequiredService<UpdateService>().Start();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30)); // housekeeping, after the start has settled
+            AppPaths.CleanUpPreviousCache();
+            ImageLoader.TrimDiskCache();
+            Core.Updates.UpdateChecker.DeleteInstalledDownloads(AppEnvironment.Version);
+        });
     }
 
     private static ServiceProvider ConfigureServices()
     {
-        var env = EnvFile.Load(
-            Path.Combine(AppContext.BaseDirectory, ".env"),
-            Path.Combine(AppPaths.Root, ".env"));
+        var bundledEnv = Path.Combine(AppContext.BaseDirectory, ".env");
+        var keptEnv = Path.Combine(AppPaths.Root, ".env");
+        KeepBundledKeys(bundledEnv, keptEnv);
+        var env = EnvFile.Load(bundledEnv, keptEnv);
 
         var http = new HttpClient(new SocketsHttpHandler
         {

@@ -366,8 +366,9 @@ public sealed partial class MainWindow : Window
         }
 
         var scale = AppTitleBar.XamlRoot.RasterizationScale;
-        LeftInsetColumn.Width = new GridLength(AppWindow.TitleBar.LeftInset / scale);
-        RightInsetColumn.Width = new GridLength(AppWindow.TitleBar.RightInset / scale);
+        if (!(scale > 0)) return; // mid-teardown or between monitors: nothing sensible to measure yet
+        LeftInsetColumn.Width = new GridLength(Math.Max(0, AppWindow.TitleBar.LeftInset / scale));
+        RightInsetColumn.Width = new GridLength(Math.Max(0, AppWindow.TitleBar.RightInset / scale));
 
         var rects = new List<RectInt32>();
         foreach (var element in new FrameworkElement[] { BackButton, Nav, SearchBox, Actions })

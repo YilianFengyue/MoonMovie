@@ -17,6 +17,7 @@ public static class Program
     private static int Main(string[] args)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
+        DropProxyVariables();
 
         var key = InstanceKey;
 #if DEBUG
@@ -79,6 +80,32 @@ public static class Program
 
         return true;
     }
+
+    /// <summary>
+    /// Proxy setups often leave HTTP_PROXY / HTTPS_PROXY pointing at the proxy (127.0.0.1:7890) for good, whether it
+    /// runs or not. The player (libcurl and FFmpeg inside libmpv) honours them, so with the proxy switched off every
+    /// stream failed with "Could not connect"; and video CDNs are in mainland China, reached best directly anyway.
+    /// They are dropped for this process only: the player goes direct, and the .NET clients follow the system proxy
+    /// setting instead, which the proxy app switches on and off with itself.
+    /// </summary>
+    private static void DropProxyVariables()
+    {
+        foreach (var name in new[] { "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY" })
+        {
+            if (Environment.GetEnvironmentVariable(name) is null) continue;
+            Environment.SetEnvironmentVariable(name, null); // the process environment (libcurl reads it)
+            try
+            {
+                _wputenv_s(name, string.Empty); // and the C runtime's own copy, taken at start (FFmpeg reads that)
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+            {
+            }
+        }
+    }
+
+    [DllImport("api-ms-win-crt-environment-l1-1-0.dll", CharSet = CharSet.Unicode)]
+    private static extern int _wputenv_s(string name, string value);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern nint CreateEventW(nint attributes, bool manualReset, bool initialState, string? name);

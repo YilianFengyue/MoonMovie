@@ -112,20 +112,22 @@ public partial class App : Application
         KeepBundledKeys(bundledEnv, keptEnv);
         var env = EnvFile.Load(bundledEnv, keptEnv);
 
-        var http = new HttpClient(new SocketsHttpHandler
+        // TMDB, images, danmaku and updates follow the system proxy while it answers, and go straight out when a
+        // proxy that was set (Clash) is not running any more.
+        var http = new HttpClient(new Core.Net.ProxyFallbackHandler(_ => new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             MaxConnectionsPerServer = 12,
             ConnectTimeout = TimeSpan.FromSeconds(6),
-        })
+        }))
         {
             Timeout = TimeSpan.FromSeconds(30),
         };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("MoonMovie/0.1 (Windows)");
 
         // Mainland resource sites and their CDNs reject overseas proxy exits, so they are always reached directly,
-        // while TMDB keeps using the system proxy.
+        // while TMDB follows the system proxy.
         var direct = new HttpClient(new SocketsHttpHandler
         {
             UseProxy = false,
@@ -157,12 +159,12 @@ public partial class App : Application
         var tmdbOptions = TmdbOptions.FromEnv(env, settings.Current.Services.TmdbApiKey);
 
         // The danmu server fans out to several platforms per request and can take well over the default timeout.
-        var danmakuHttp = new HttpClient(new SocketsHttpHandler
+        var danmakuHttp = new HttpClient(new Core.Net.ProxyFallbackHandler(_ => new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             ConnectTimeout = TimeSpan.FromSeconds(8),
-        })
+        }))
         {
             Timeout = TimeSpan.FromSeconds(75),
         };
@@ -184,7 +186,10 @@ public partial class App : Application
             .AddTransient<ProfileViewModel>()
             .AddSingleton<BiliHubViewModel>()
             // Releases come from GitHub through the system proxy; the package download is long, so no overall timeout.
-            .AddSingleton(_ => new Core.Updates.UpdateChecker(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }))
+            .AddSingleton(_ => new Core.Updates.UpdateChecker(new HttpClient(new Core.Net.ProxyFallbackHandler(_ => new SocketsHttpHandler()))
+            {
+                Timeout = Timeout.InfiniteTimeSpan,
+            }))
             .AddSingleton<UpdateService>()
             .AddSingleton(sp => new DanmakuClient(danmakuHttp, env, sp.GetRequiredService<SettingsStore>()))
             .AddSingleton<DanmakuLibrary>()

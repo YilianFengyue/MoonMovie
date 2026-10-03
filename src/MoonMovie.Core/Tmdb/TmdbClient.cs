@@ -26,7 +26,7 @@ public sealed class TmdbClient
     private readonly HttpClient _http;
     private readonly TmdbOptions _options;
     private readonly JsonDiskCache _cache;
-    private int _apiBaseIndex;
+    private int _apiBaseIndex = -1;
 
     public TmdbClient(HttpClient http, TmdbOptions options, JsonDiskCache cache)
     {
@@ -252,7 +252,7 @@ public sealed class TmdbClient
         }
     }
 
-    /// <summary>Tries the active API base first, then the others; remembers the one that worked.</summary>
+    /// <summary>The API base that answered last; until one has, every base is asked.</summary>
     private async Task<string> FetchAsync(string relative, CancellationToken ct)
     {
         if (!_options.IsConfigured)
@@ -260,29 +260,71 @@ public sealed class TmdbClient
             throw new HttpRequestException("TMDB API key is not configured.");
         }
 
-        var bases = _options.ApiBases;
-        Exception? last = null;
-        for (var attempt = 0; attempt < bases.Count; attempt++)
+        var known = Volatile.Read(ref _apiBaseIndex);
+        if (known >= 0)
         {
-            var index = (Volatile.Read(ref _apiBaseIndex) + attempt) % bases.Count;
             try
             {
-                using var request = BuildRequest(bases[index], relative);
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(TimeSpan.FromSeconds(8));
-                using var response = await _http.SendAsync(request, timeout.Token).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                var body = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
-                Volatile.Write(ref _apiBaseIndex, index);
-                return body;
+                return await FetchFromAsync(known, relative, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
             {
-                last = ex;
+                // The network changed (a system proxy was switched on or off): ask them all again.
+            }
+        }
+
+        return await RaceAsync(relative, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Asks every API base at once and keeps the first that answers: with a system proxy the official API tends to
+    /// win, without one the reverse proxies do, and nobody waits through the unreachable ones' timeouts.
+    /// </summary>
+    private async Task<string> RaceAsync(string relative, CancellationToken ct)
+    {
+        using var race = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var pending = Enumerable.Range(0, _options.ApiBases.Count)
+            .ToDictionary(i => FetchFromAsync(i, relative, race.Token), i => i);
+        Exception? last = null;
+        try
+        {
+            while (pending.Count > 0)
+            {
+                var done = await Task.WhenAny(pending.Keys).ConfigureAwait(false);
+                var index = pending[done];
+                pending.Remove(done);
+                try
+                {
+                    var body = await done.ConfigureAwait(false);
+                    Volatile.Write(ref _apiBaseIndex, index);
+                    return body;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+                {
+                    last = ex;
+                }
+            }
+        }
+        finally
+        {
+            race.Cancel();
+            foreach (var loser in pending.Keys)
+            {
+                _ = loser.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 
         throw last as HttpRequestException ?? new HttpRequestException("TMDB request failed.", last);
+    }
+
+    private async Task<string> FetchFromAsync(int index, string relative, CancellationToken ct)
+    {
+        using var request = BuildRequest(_options.ApiBases[index], relative);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(8));
+        using var response = await _http.SendAsync(request, timeout.Token).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
     }
 
     private HttpRequestMessage BuildRequest(string apiBase, string relative)

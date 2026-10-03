@@ -48,7 +48,7 @@ public sealed partial class MainWindow : Window
         ContentFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
 
         Taskbar = new Playback.TaskbarControls(WinRT.Interop.WindowNative.GetWindowHandle(this));
-        AppWindow.Closing += (_, _) => Lifecycle.Log("close requested");
+        AppWindow.Closing += OnAppWindowClosing;
         Closed += OnWindowClosed;
 
         var downloads = App.Services.GetRequiredService<Core.Downloads.DownloadManager>();
@@ -259,15 +259,67 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
+#if DEBUG
+        // Test hook: swallow the close the way the stall does, so the fallback below can be exercised.
+        if (Environment.GetEnvironmentVariable("MOONMOVIE_DEBUG_CLOSE_STALL") == "1")
+        {
+            args.Handled = true;
+            return;
+        }
+#endif
         Lifecycle.Log("window closed");
-        SafeDispatch.ShuttingDown = true; // queued UI work must not run against the torn-down window
+        TearDown();
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(5));
             Lifecycle.Log("still running 5 s after closing: forcing exit");
             Environment.Exit(0);
         });
+    }
 
+    private DispatcherQueueTimer? _closeStall;
+
+    /// <summary>
+    /// The close button reaches the app window, and WinUI follows at once with <see cref="Window.Closed"/>; now and
+    /// then it does not (the window stays open and keeps working, every click on 关闭 swallowed). If Closed has not
+    /// come shortly after, the app closes itself: what was on screen goes to lifecycle.log, the player saves its
+    /// place and the process ends.
+    /// </summary>
+    private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        Lifecycle.Log("close requested");
+        if (args.Cancel || _closeStall is not null) return;
+        _closeStall = DispatcherQueue.CreateTimer();
+        _closeStall.Interval = TimeSpan.FromMilliseconds(1200);
+        _closeStall.IsRepeating = false;
+        _closeStall.Tick += (_, _) =>
+        {
+            if (_tornDown) return;
+            Lifecycle.Log("Closed never came: " + DescribeCloseState());
+            try
+            {
+                AppWindow.Hide();
+            }
+            catch (Exception ex)
+            {
+                Lifecycle.Log("hide failed: " + ex.GetType().Name);
+            }
+
+            TearDown();
+            Lifecycle.Log("exit (closed by the fallback)");
+            _ = Task.Run(() => Environment.Exit(0));
+        };
+        _closeStall.Start();
+    }
+
+    private bool _tornDown;
+
+    /// <summary>The player saves its place and lets go of mpv; queued UI work stops.</summary>
+    private void TearDown()
+    {
+        if (_tornDown) return;
+        _tornDown = true;
+        SafeDispatch.ShuttingDown = true; // queued UI work must not run against the torn-down window
         try
         {
             if (ContentFrame.Content is PlayerPage player) player.Shutdown();
@@ -277,6 +329,32 @@ public sealed partial class MainWindow : Window
         {
             Lifecycle.Log("teardown failed: " + ex.GetType().Name);
         }
+    }
+
+    /// <summary>What might be holding the close: page, presenter, open popups and dialogs, focus.</summary>
+    private string DescribeCloseState()
+    {
+        var parts = new List<string>();
+        try
+        {
+            parts.Add("page=" + (ContentFrame.Content?.GetType().Name ?? "-"));
+            parts.Add("presenter=" + AppWindow.Presenter.Kind);
+            if (Content?.XamlRoot is { } root)
+            {
+                var popups = VisualTreeHelper.GetOpenPopupsForXamlRoot(root)
+                    .Select(p => p.Child?.GetType().Name ?? "Popup").ToArray();
+                parts.Add("popups=" + (popups.Length > 0 ? string.Join(",", popups) : "none"));
+                parts.Add("focus=" + (FocusManager.GetFocusedElement(root)?.GetType().Name ?? "-"));
+            }
+
+            parts.Add("visible=" + AppWindow.IsVisible);
+        }
+        catch (Exception ex)
+        {
+            parts.Add("describe failed: " + ex.GetType().Name);
+        }
+
+        return string.Join(" ", parts);
     }
 
     /// <summary>Interactive title bar elements must be carved out of the drag region.</summary>

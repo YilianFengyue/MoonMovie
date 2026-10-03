@@ -10,17 +10,24 @@ public sealed partial class TmdbOptions
     public const string ProxyApiBase = "https://tmdb-proxy.lapu2023.workers.dev/3";
     public const string ProxyImageRoot = "https://tmdb-proxy.lapu2023.workers.dev/image";
 
+    // MoonMovie's own reverse proxy (Vercel, China-friendly domain): reachable with or without a system proxy.
+    public const string OwnApiBase = "https://tmdb.ylfmoonn.top/3";
+    public const string OwnImageRoot = "https://tmdb.ylfmoonn.top/image";
+
     public string? ApiKey { get; init; }
 
     public string? ReadAccessToken { get; init; }
 
     public string Language { get; init; } = "zh-CN";
 
-    /// <summary>API bases tried in order; the first one that answers wins for the session.</summary>
-    public IReadOnlyList<string> ApiBases { get; init; } = [DirectApiBase, ProxyApiBase];
+    /// <summary>API bases, asked all at once; the first one that answers wins for the session.</summary>
+    public IReadOnlyList<string> ApiBases { get; init; } = [OwnApiBase, DirectApiBase, ProxyApiBase];
 
-    /// <summary>Image roots without a size segment, e.g. https://image.tmdb.org/t/p.</summary>
-    public IReadOnlyList<string> ImageRoots { get; init; } = [DirectImageRoot, ProxyImageRoot];
+    /// <summary>
+    /// Image roots without a size segment, e.g. https://image.tmdb.org/t/p. The own proxy comes first: image.tmdb.org
+    /// is reset without a system proxy, and every image would pay for that before falling back.
+    /// </summary>
+    public IReadOnlyList<string> ImageRoots { get; init; } = [OwnImageRoot, DirectImageRoot, ProxyImageRoot];
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey) || !string.IsNullOrWhiteSpace(ReadAccessToken);
 
@@ -28,14 +35,16 @@ public sealed partial class TmdbOptions
     public static TmdbOptions FromEnv(EnvFile env, string? apiKey = null)
     {
         var apiBase = env.Get("TMDB_BASE_URL")?.TrimEnd('/');
-        var imageBase = env.Get("TMDB_IMAGE_BASE");
+        var imageBase = env.Get("TMDB_IMAGE_BASE") is { } configured ? NormalizeImageRoot(configured) : null;
+        // A configured mirror leads; the official host does not (it is the one that needs a system proxy).
+        var imageFirst = imageBase is not null && !imageBase.Equals(DirectImageRoot, StringComparison.OrdinalIgnoreCase) ? imageBase : null;
 
         return new TmdbOptions
         {
             ApiKey = string.IsNullOrWhiteSpace(apiKey) ? env.Get("TMDB_API_KEY") : apiKey.Trim(),
             ReadAccessToken = env.Get("TMDB_READ_ACCESS_TOKEN"),
-            ApiBases = Distinct(apiBase, DirectApiBase, ProxyApiBase),
-            ImageRoots = Distinct(imageBase is null ? null : NormalizeImageRoot(imageBase), DirectImageRoot, ProxyImageRoot),
+            ApiBases = Distinct(apiBase, OwnApiBase, DirectApiBase, ProxyApiBase),
+            ImageRoots = Distinct(imageFirst, OwnImageRoot, DirectImageRoot, ProxyImageRoot),
         };
     }
 

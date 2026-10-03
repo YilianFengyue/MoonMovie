@@ -53,7 +53,7 @@
 
 ## 安装
 
-1. 在 [Releases](https://github.com/YilianFengyue/MoonMovie/releases/latest) 下载 `MoonMovie-x.y.z-x64-安装包.zip`，**先解压**。
+1. 在 [Releases](https://github.com/YilianFengyue/MoonMovie/releases/latest) 下载 `MoonMovie-x.y.z-x64-install-package.zip`（安装包），**先解压**。便携版是 `MoonMovie-x.y.z-x64-portable.zip`，解压后直接运行 `MoonMovie.exe`。
 2. 双击 **「安装 MoonMovie.cmd」**，同意一次管理员权限。脚本会信任随包附带的自签名证书，然后安装 MoonMovie。
 3. 以后有新版本时，MoonMovie 会在标题栏下方提示，点「立即更新」即可；也可以手动下载新的安装包，再双击一次。
 

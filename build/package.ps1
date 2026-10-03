@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   Output in artifacts\release:
-    MoonMovie-<version>-x64-安装包.zip   MSIX + certificate + 「安装 MoonMovie.cmd」
-    MoonMovie-<version>-x64-便携版.zip   unpackaged, unzip and run MoonMovie.exe
+    MoonMovie-<version>-x64-install-package.zip   MSIX + certificate + 「安装 MoonMovie.cmd」
+    MoonMovie-<version>-x64-portable.zip          unpackaged, unzip and run MoonMovie.exe
     MoonMovie-<version>-x64.msix         the signed package alone, for in-app updates
 
   Signing uses build\cert\MoonMovie.pfx (create it once with build\new-cert.ps1); the password comes from
@@ -78,7 +78,7 @@ Copy-Item $msix.FullName (Join-Path $kit "MoonMovie-$label-x64.msix")
 Copy-Item $msix.FullName (Join-Path $out "MoonMovie-$label-x64.msix")
 Copy-Item ([IO.Path]::ChangeExtension($Pfx, '.cer')) (Join-Path $kit 'MoonMovie.cer')
 Copy-Item (Join-Path $PSScriptRoot 'installer\*') $kit
-Compress-Archive -Path "$kit\*" -DestinationPath (Join-Path $out "MoonMovie-$label-x64-安装包.zip") -CompressionLevel Optimal
+Compress-Archive -Path "$kit\*" -DestinationPath (Join-Path $out "MoonMovie-$label-x64-install-package.zip") -CompressionLevel Optimal
 Remove-Item (Join-Path $out '_msix') -Recurse -Force
 
 # ----- Portable -----------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ if (-not $SkipPortable) {
     $portable = Join-Path $out '_portable'
     dotnet publish $project -c Release -r win-x64 -p:Platform=x64 -p:PublishTrimmed=false -p:Version=$label -o $portable -nologo -v q
     if ($LASTEXITCODE -ne 0) { throw 'Portable build failed.' }
-    Compress-Archive -Path "$portable\*" -DestinationPath (Join-Path $out "MoonMovie-$label-x64-便携版.zip") -CompressionLevel Optimal
+    Compress-Archive -Path "$portable\*" -DestinationPath (Join-Path $out "MoonMovie-$label-x64-portable.zip") -CompressionLevel Optimal
     Remove-Item $portable -Recurse -Force
 }
 
